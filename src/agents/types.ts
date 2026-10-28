@@ -93,7 +93,23 @@ export type AgentEvent =
   | { type: 'usage'; used: number; window: number }
   | { type: 'done'; status: TurnStatus; error?: string; detail?: string }
   /** The agent waits on `answer`; `signal` aborts when the request no longer stands, and a later answer is ignored. */
-  | { type: 'approval'; request: ToolApprovalRequest; signal: AbortSignal; answer(approved: boolean): void };
+  | { type: 'approval'; request: ToolApprovalRequest; signal: AbortSignal; answer(approved: boolean): void }
+  /** The agent waits on `answer`: one list of answers per question, or undefined when the student declines. */
+  | { type: 'question'; questions: readonly AgentQuestion[]; signal: AbortSignal; answer(answers: QuestionAnswers | undefined): void };
+
+/** One list per question, in the order asked. */
+export type QuestionAnswers = readonly (readonly string[])[];
+
+/** A question the agent asks the student mid-turn. An answer is a chosen option's label or the student's own text. */
+export interface AgentQuestion {
+  readonly header: string;
+  readonly question: string;
+  readonly options: readonly { readonly label: string; readonly description: string }[];
+  readonly multiSelect: boolean;
+  /** Whether the student may type an answer of their own; always true when there are no options. */
+  readonly other: boolean;
+  readonly secret: boolean;
+}
 
 /** Display data only; the native agent still owns permission policy and the scope of an answer. */
 export interface ToolApprovalRequest {

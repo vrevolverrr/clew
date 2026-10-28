@@ -13,6 +13,7 @@ function viewOf(approved = false): TurnView & { calls: string[]; sent: jest.Mock
     calls,
     sent: jest.fn(),
     approve: async (request) => { calls.push(`approve:${request.description}`); return approved; },
+    ask: async (questions) => { calls.push(`ask:${questions[0]!.question}`); return [['Yes']]; },
     appendText: (delta) => calls.push(`text:${delta}`),
     tool: (part) => calls.push(`tool:${part.id}`),
     thinking: () => calls.push('thinking'),
@@ -69,6 +70,22 @@ describe('runTurn', () => {
     expect(view.calls).toEqual(['approve:this command', 'text:Listed.', 'finish:completed']);
     expect(answer).toHaveBeenCalledWith(true);
     expect(turn.parts).toEqual([{ type: 'text', text: 'Listed.' }]);
+  });
+
+  it('asks the view the agent\'s questions and hands the agent the answers without recording them', async () => {
+    const view = viewOf();
+    const answer = jest.fn();
+    const questions = [{ header: '', question: 'Ready?', options: [], multiSelect: false, other: true, secret: false }];
+    const events: AgentEvent[] = [
+      { type: 'question', questions, signal: new AbortController().signal, answer },
+      { type: 'done', status: 'completed' },
+    ];
+
+    const { turn } = await runTurn(async () => sessionOf(events), request, view);
+
+    expect(view.calls).toEqual(['ask:Ready?', 'finish:completed']);
+    expect(answer).toHaveBeenCalledWith([['Yes']]);
+    expect(turn.parts).toEqual([]);
   });
 
   it('keeps the quote on the turn and tells the caller once the session has the turn', async () => {

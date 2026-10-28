@@ -222,7 +222,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
         const turn = await runTurn(
           async () => session,
           { context: { message: 'Why is the sky blue?', attachments: [] }, root: cwd, text: 'Why is the sky blue?', signal: new AbortController().signal, wantTitle: true },
-          { sent: () => undefined, appendText: () => undefined, tool: () => undefined, thinking: () => undefined, usage: () => undefined, approve: async () => false, act: () => undefined, finish: () => undefined },
+          { sent: () => undefined, appendText: () => undefined, tool: () => undefined, thinking: () => undefined, usage: () => undefined, approve: async () => false, ask: async () => undefined, act: () => undefined, finish: () => undefined },
         );
 
         assert.equal(turn.turn.status, 'completed');
@@ -246,7 +246,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
             text: buildTurn({ message: 'Why is the sky blue? Point at the sentence in my note that explains it.', skillSyntax: agent.skillSyntax, note: { path: 'optics.md' } }),
             signal: new AbortController().signal,
           },
-          { sent: () => undefined, appendText: () => undefined, tool: () => undefined, thinking: () => undefined, usage: () => undefined, approve: async () => false, act: (step) => marked.push(step.quote), finish: () => undefined },
+          { sent: () => undefined, appendText: () => undefined, tool: () => undefined, thinking: () => undefined, usage: () => undefined, approve: async () => false, ask: async () => undefined, act: (step) => marked.push(step.quote), finish: () => undefined },
         );
 
         assert.equal(turn.turn.status, 'completed');

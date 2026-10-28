@@ -111,6 +111,7 @@ export function recordEvent(turn: ChatTurn, event: AgentEvent): ChatTurn {
     case 'thinking':
     case 'usage':
     case 'approval':
+    case 'question':
       return turn;
   }
 }

@@ -15,7 +15,7 @@ const settle = async (): Promise<void> => { for (let i = 0; i < 50; i++) await P
 
 const view: TurnView = {
   sent: () => undefined, appendText: () => undefined, tool: () => undefined, thinking: () => undefined, usage: () => undefined,
-  approve: async () => false, act: () => undefined, finish: () => undefined,
+  approve: async () => false, ask: async () => undefined, act: () => undefined, finish: () => undefined,
 };
 
 function setup(record: Partial<ChatRecord> = {}, title?: string, claudeModels: Promise<ModelOption[]> = Promise.resolve([]), savedDefaults: unknown = {}) {

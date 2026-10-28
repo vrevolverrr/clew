@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import type { ToolApprovalRequest } from '@/agents/types';
+import type { AgentQuestion, ToolApprovalRequest } from '@/agents/types';
 import { ApprovalCard } from '@/chat/view/ApprovalCard';
 
 jest.mock('obsidian', () => ({ setIcon: jest.fn() }), { virtual: true });
@@ -126,4 +126,79 @@ it('drops a request when its signal aborts', async () => {
   expect(card.size).toBe(0);
   expect(changed).toHaveBeenCalledTimes(2);
   expect(await card.ask(request(), AbortSignal.abort())).toBe(false);
+});
+
+describe('questions', () => {
+  const question = (overrides: Partial<AgentQuestion> = {}): AgentQuestion => ({
+    header: 'Proof', question: 'Which <b>proof</b>?', multiSelect: false, other: true, secret: false,
+    options: [{ label: 'Induction', description: 'On n' }, { label: 'Contradiction', description: '' }], ...overrides,
+  });
+  const card = (questions: AgentQuestion[], signal = new AbortController().signal) => {
+    const host = document.body.createDiv();
+    const answer = new ApprovalCard(host, () => undefined).askQuestions(questions, signal);
+    const submit = host.querySelector<HTMLButtonElement>('button[type=submit]')!;
+    const type = (input: HTMLInputElement, value: string): void => {
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const pick = (input: HTMLInputElement): void => {
+      input.checked = true;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    return { host, answer, submit, type, pick };
+  };
+
+  it('shows one question at a time and submits every answer from the last, drawing text as plain text', async () => {
+    const { host, answer, submit, pick } = card([question(), question({ header: '', question: 'Which topics?', multiSelect: true })]);
+    const visible = () => [...host.querySelectorAll<HTMLElement>('.clew-question')].filter((pane) => !pane.hidden);
+    expect(host.querySelector('b')).toBeNull();
+    expect(visible().map((pane) => pane.querySelector('.clew-approval-title')?.textContent)).toEqual(['Which <b>proof</b>?']);
+    expect(visible()[0]!.querySelector('.clew-approval-label')?.textContent).toBe('Proof · 1 of 2');
+    expect([submit.textContent, submit.disabled]).toEqual(['Next', true]);
+    pick(visible()[0]!.querySelector('input')!);
+    expect(submit.disabled).toBe(false);
+    submit.click();
+    expect(visible().map((pane) => pane.querySelector('.clew-approval-label')?.textContent)).toEqual(['2 of 2']);
+    expect([submit.textContent, submit.disabled]).toEqual(['Submit', true]);
+    for (const box of visible()[0]!.querySelectorAll<HTMLInputElement>('input[type=checkbox]')) pick(box);
+    submit.click();
+    expect(await answer).toEqual([['Induction'], ['Induction', 'Contradiction']]);
+    expect(host.querySelector<HTMLElement>('.clew-approval-card')!.hidden).toBe(true);
+  });
+
+  it('lets typed text replace a single choice and hides a secret', async () => {
+    const { host, answer, submit, type, pick } = card([question({ secret: true })]);
+    const radio = host.querySelector<HTMLInputElement>('input[type=radio]')!;
+    const other = host.querySelector<HTMLInputElement>('.clew-question-other')!;
+    expect(other.type).toBe('password');
+    pick(radio);
+    type(other, '  Direct  ');
+    expect(radio.checked).toBe(false);
+    submit.click();
+    expect(await answer).toEqual([['Direct']]);
+  });
+
+  it('resolves undefined on Skip and on abort', async () => {
+    const skipped = card([question()]);
+    skipped.host.querySelector<HTMLButtonElement>('.clew-approval-deny')!.click();
+    expect(await skipped.answer).toBeUndefined();
+    const controller = new AbortController();
+    const aborted = card([question()], controller.signal);
+    controller.abort();
+    expect(await aborted.answer).toBeUndefined();
+  });
+
+  it('waits behind an earlier approval in the same queue', async () => {
+    const host = document.createElement('div');
+    const approvals = new ApprovalCard(host, () => undefined);
+    const approved = approvals.ask(request(), new AbortController().signal);
+    const answered = approvals.askQuestions([question()], new AbortController().signal);
+    expect(approvals.size).toBe(2);
+    expect(host.querySelector('form')).toBeNull();
+    host.querySelector<HTMLButtonElement>('.clew-approval-allow')!.click();
+    expect(await approved).toBe(true);
+    expect(host.querySelector('form')).not.toBeNull();
+    host.querySelector<HTMLButtonElement>('.clew-approval-deny')!.click();
+    expect(await answered).toBeUndefined();
+  });
 });

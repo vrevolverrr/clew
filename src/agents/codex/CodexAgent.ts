@@ -7,6 +7,7 @@ import { resolveCLI } from '@/agents/process/cliBinaryLocator';
 import { cliEnv, getEnhancedPath } from '@/agents/process/env';
 import { runProcessProbe } from '@/agents/process/processProbe';
 import { type AgentAdapter, type AgentEvent, type AgentSession, type AgentSessionOptions, type AuthState, ConversationNotFoundError, type Effort, type ModelOption, type SkillOption, type TurnImage } from '@/agents/types';
+import type { AgentApprovalContext } from '@/agents/adapters';
 
 import { findCodexBinaryPath } from './CodexBinaryLocator';
 import { CodexModelAdapter } from './CodexModelAdapter';
@@ -24,7 +25,7 @@ import type {
   TurnScopedParams,
   TurnStartResult,
 } from './codexProtocol';
-import { CODEX_APPROVAL_METHODS, CodexPermissionAdapter, type CodexApprovalRequest, type CodexPermissionSetup } from './CodexPermissionAdapter';
+import { CODEX_APPROVAL_METHODS, CODEX_QUESTION_METHOD, CodexPermissionAdapter, type CodexApprovalRequest, type CodexPermissionSetup, type CodexQuestionRequest } from './CodexPermissionAdapter';
 
 const APP_SERVER_ARGS = ['app-server', '--listen', 'stdio://'];
 const CLIENT_INFO = { name: 'clew', version: '0.0.1' };
@@ -177,11 +178,13 @@ class CodexSession implements AgentSession {
       transport.onRequest(method, (params, { requestId }) => {
         const id = requestId!;
         const request = params as CodexApprovalRequest;
-        const turn = typeof request.threadId === 'string' && typeof request.turnId === 'string' ? this.turnFor(request) : undefined;
-        const context = turn && !turn.finished ? { signal: turn.cancellation.signal, push: (event: AgentEvent) => turn.events.push(event) } : undefined;
-        return this.permissions.reply(id, method, request, context);
+        return this.permissions.reply(id, method, request, this.approvalContext(request));
       });
     }
+    transport.onRequest(CODEX_QUESTION_METHOD, (params, { requestId }) => {
+      const request = params as CodexQuestionRequest;
+      return this.permissions.answer(requestId!, request, this.approvalContext(request));
+    });
     transport.onNotification('serverRequest/resolved', (params) => {
       const { threadId, requestId } = params as { threadId: string; requestId: string | number };
       this.permissions.resolved(threadId, requestId);
@@ -274,6 +277,12 @@ class CodexSession implements AgentSession {
     turn.cancellation.abort();
     if (!turn.id || turn.finished) return;
     this.transport.request('turn/interrupt', { threadId: this.id, turnId: turn.id }).catch(() => undefined);
+  }
+
+  /** The running turn that owns a server request, or undefined so the request is declined. */
+  private approvalContext(request: TurnScopedParams): AgentApprovalContext | undefined {
+    const turn = typeof request.threadId === 'string' && typeof request.turnId === 'string' ? this.turnFor(request) : undefined;
+    return turn && !turn.finished ? { signal: turn.cancellation.signal, push: (event: AgentEvent) => turn.events.push(event) } : undefined;
   }
 
   private turnFor(params: TurnScopedParams): ActiveTurn | null {

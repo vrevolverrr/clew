@@ -234,6 +234,7 @@ export class ChatPane extends Component {
       thinking: () => reply.thinking(),
       usage: (used, window) => this.composer.meter.set(used, window),
       approve: (request, signal) => this.approvals.ask(request, signal),
+      ask: (questions, signal) => this.approvals.askQuestions(questions, signal),
       act: (step) => {
         reply.highlight(step);
         if (this.host.active()) this.host.tour.add(step);

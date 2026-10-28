@@ -124,7 +124,7 @@ describe('permission relay', () => {
   const ask = (session: { events: AsyncQueue<AgentEvent>; signal?: AbortSignal }): Promise<boolean> =>
     new Promise((answer) => session.events.push({ type: 'approval', request, signal: session.signal!, answer }));
 
-  it('plays three sample cards through the real chat and records choices without sending to an agent', async () => {
+  it('plays the sample cards through the real chat and records choices without sending to an agent', async () => {
     const { view, start, panel, sessions, store } = setup();
     const frame = async (): Promise<void> => {
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
@@ -142,8 +142,11 @@ describe('permission relay', () => {
     panel().querySelectorAll<HTMLButtonElement>('.clew-approval-card button')[1]!.click(); await settle(); await frame();
     expect(panel().textContent).toContain('Allowed once (demo only).');
     expect(panel().querySelector('.clew-approval-value')?.textContent).toContain('network');
-    panel().querySelectorAll<HTMLButtonElement>('.clew-approval-card button')[0]!.click();
+    panel().querySelectorAll<HTMLButtonElement>('.clew-approval-card button')[0]!.click(); await settle(); await frame();
+    expect(panel().querySelector('.clew-question .clew-approval-title')?.textContent).toContain('irrationality of √2');
+    panel().querySelector<HTMLButtonElement>('.clew-approval-card .clew-approval-deny')!.click();
     await running;
+    expect(panel().textContent).toContain('Skipped (demo only).');
     expect(panel().querySelector<HTMLElement>('.clew-approval-card')!.hidden).toBe(true);
     expect(panel().textContent).toContain('Demo complete.');
     expect(sessions.every((session) => session.input.length === 0)).toBe(true);

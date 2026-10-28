@@ -2438,6 +2438,28 @@
 .clew-approval-chevron:dir(rtl) .svg-icon { transform: rotate(180deg); }
 .clew-approval-disclosure[open] .clew-approval-chevron .svg-icon { transform: rotate(90deg); }
 .clew-approval-disclosure[open] > pre { animation: clew-approval-reveal 180ms ease-out; }
+.clew-question-form { display: contents; }
+.clew-question[hidden] { display: none; }
+.clew-question .clew-approval-header { align-items: flex-start; padding-bottom: 12px; }
+.clew-question-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 3px; }
+.clew-question-options { display: flex; flex-direction: column; gap: 6px; padding: 0 14px 14px; }
+.clew-question-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.clew-question-option:hover { background: var(--background-modifier-hover); }
+.clew-question-option:has(input:checked) { border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); }
+.clew-question-option input { flex: none; margin: 3px 0 0; }
+.clew-question-option-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.clew-question-options .clew-question-other { width: 100%; height: auto; margin-top: 6px; padding: 11px 14px; border-radius: 10px; }
+.clew-approval-actions button:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
 .clew-approval-actions {
   display: grid;
   grid-template-columns: 1fr 1.3fr;

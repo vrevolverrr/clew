@@ -1,6 +1,6 @@
 import * as path from 'path';
 
-import type { AgentEvent, AgentTool, Effort, ModelOption, ToolApprovalRequest } from '@/agents/types';
+import type { AgentEvent, AgentQuestion, AgentTool, Effort, ModelOption, QuestionAnswers, ToolApprovalRequest } from '@/agents/types';
 
 // What each provider implements for models, tools and permissions, and the helpers they share to build it.
 
@@ -101,14 +101,23 @@ export interface AgentPermissionAdapter<NativeRequest> {
 }
 
 export function askApproval(push: (event: AgentEvent) => void, request: ToolApprovalRequest, signal: AbortSignal): Promise<boolean> {
-  if (signal.aborted) return Promise.resolve(false);
+  return ask(signal, false, (answer) => push({ type: 'approval', request, signal, answer }));
+}
+
+/** Resolves with one answer list per question, or undefined when the student declines or `signal` ends the request. */
+export function askQuestions(push: (event: AgentEvent) => void, questions: readonly AgentQuestion[], signal: AbortSignal): Promise<QuestionAnswers | undefined> {
+  return ask<QuestionAnswers | undefined>(signal, undefined, (answer) => push({ type: 'question', questions, signal, answer }));
+}
+
+function ask<T>(signal: AbortSignal, cancelled: T, emit: (answer: (value: T) => void) => void): Promise<T> {
+  if (signal.aborted) return Promise.resolve(cancelled);
   return new Promise((resolve) => {
-    const settle = (approved: boolean): void => {
+    const settle = (value: T): void => {
       signal.removeEventListener('abort', cancel);
-      resolve(approved && !signal.aborted);
+      resolve(signal.aborted ? cancelled : value);
     };
-    const cancel = (): void => settle(false);
+    const cancel = (): void => settle(cancelled);
     signal.addEventListener('abort', cancel, { once: true });
-    push({ type: 'approval', request, signal, answer: settle });
+    emit(settle);
   });
 }

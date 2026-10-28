@@ -1,4 +1,4 @@
-import type { AgentSession, ToolApprovalRequest } from '@/agents/types';
+import type { AgentQuestion, AgentSession, QuestionAnswers, ToolApprovalRequest } from '@/agents/types';
 import type { ChatContext } from '@/context/ChatContext';
 import type { ChatTurn, ToolPart, TourStep } from '@/chat/ChatRecord';
 import { quoteOf } from '@/context/NoteContext';
@@ -20,6 +20,8 @@ export interface TurnView {
   usage(used: number, window: number): void;
   /** Asks the student; drops the question once `signal` aborts. The turn keeps streaming meanwhile. */
   approve(request: ToolApprovalRequest, signal: AbortSignal): Promise<boolean>;
+  /** Like `approve`, for the agent's questions; undefined when the student declines. */
+  ask(questions: readonly AgentQuestion[], signal: AbortSignal): Promise<QuestionAnswers | undefined>;
   /** The agent pointed at text in a note; its line has just ended, and the step is already in the record. */
   act(step: TourStep): void;
   /** The turn ended, recorded with the status and error it ended with. */
@@ -85,6 +87,10 @@ export async function runTurn(
       }
       if (event.type === 'approval') {
         void view.approve(event.request, event.signal).then(event.answer, () => event.answer(false));
+        continue;
+      }
+      if (event.type === 'question') {
+        void view.ask(event.questions, event.signal).then(event.answer, () => event.answer(undefined));
         continue;
       }
       if (event.type === 'done') show(filter.flush());

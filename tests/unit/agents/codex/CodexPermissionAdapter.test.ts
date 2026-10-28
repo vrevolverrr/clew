@@ -143,3 +143,37 @@ it('withdraws only the request with the matching thread and typed native id', as
   events[0]!.answer(true);
   expect(await result).toEqual({ decision: 'decline' });
 });
+
+describe('requestUserInput', () => {
+  type Question = Extract<AgentEvent, { type: 'question' }>;
+  const params = { threadId: 'thread', turnId: 'turn', questions: [
+    { id: 'q1', header: 'Mode', question: 'Which mode?', isOther: false, isSecret: false, options: [{ label: 'Fast', description: '' }] },
+    { id: 'q2', header: 'Key', question: 'Your token?', isOther: false, isSecret: true, options: null },
+  ] };
+
+  it('asks the student and answers by question id', async () => {
+    const events: Question[] = [];
+    const adapter = new CodexPermissionAdapter({ thread: {} }, () => undefined);
+    const pending = adapter.answer(7, params, { signal: new AbortController().signal, push: (event) => events.push(event as Question) });
+    expect(events[0]!.questions).toEqual([
+      { header: 'Mode', question: 'Which mode?', options: [{ label: 'Fast', description: '' }], multiSelect: false, other: false, secret: false },
+      { header: 'Key', question: 'Your token?', options: [], multiSelect: false, other: true, secret: true },
+    ]);
+    events[0]!.answer([['Fast'], ['abc']]);
+    expect(await pending).toEqual({ answers: { q1: { answers: ['Fast'] }, q2: { answers: ['abc'] } } });
+  });
+
+  it('answers nothing when skipped, withdrawn, or owned by no turn', async () => {
+    const adapter = new CodexPermissionAdapter({ thread: {} }, () => undefined);
+    expect(await adapter.answer(1, params, undefined)).toEqual({ answers: {} });
+    const events: Question[] = [];
+    const turn = { signal: new AbortController().signal, push: (event: AgentEvent) => events.push(event as Question) };
+    const skipped = adapter.answer(2, params, turn);
+    events[0]!.answer(undefined);
+    expect(await skipped).toEqual({ answers: {} });
+    const withdrawn = adapter.answer(3, params, turn);
+    adapter.resolved('thread', 3);
+    events[1]!.answer([['Fast'], ['late']]);
+    expect(await withdrawn).toEqual({ answers: {} });
+  });
+});
