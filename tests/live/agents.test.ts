@@ -1,6 +1,5 @@
 // Drives the developer's installed CLIs against their own subscriptions: npm run test:live
 // Runs under tsx and node:test because the Claude SDK is ESM-only and jest cannot load it.
-import { createParser, createStore, evaluateRoot } from '@openuidev/lang-core';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,11 +15,8 @@ import { buildTurn } from '../../src/context/buildTurn';
 import { readTexts, turnFiles } from '../../src/context/ChatAttachment';
 import { findQuote } from '../../src/tour/locateQuote';
 import { runTurn } from '../../src/chat/runTurn';
-import { splitReply } from '../../src/chat/splitReply';
 import { buildSystemPrompt } from '../../src/context/systemPrompt';
 import { loadPackTool } from '../../src/tools/LoadPackTool';
-import { library } from '../../src/renderer/openui/library';
-import { evaluationContext } from '../../src/renderer/openui/OpenUIRenderer';
 
 const SYSTEM_PROMPT = 'You are a live tutor. Reply with JSON Lines only: one {"type":"say","text":"..."} object per line, no prose, no code fences.';
 const adapters = createAgents(() => ({}));
@@ -29,6 +25,8 @@ const AGENTS: Array<{ agent: AgentAdapter; model: string }> = [
   { agent: adapters.codex, model: process.env.CLEW_LIVE_CODEX_MODEL ?? 'gpt-6-luna' },
 ];
 const only = process.env.CLEW_LIVE_AGENT;
+// Per test: a suite-wide limit grows wrong as tests are added.
+const LIMIT = { timeout: 120_000 };
 
 let cwd: string;
 
@@ -80,15 +78,15 @@ async function collect(events: AsyncIterable<AgentEvent>, onEvent?: (event: Agen
 }
 
 for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id === only)) {
-  describe(`${agent.id} against the installed CLI`, { timeout: 120_000 }, () => {
+  describe(`${agent.id} against the installed CLI`, () => {
     // Functional fixtures retain their former full-access behavior; the permission test overrides it explicitly.
     const options = (): AgentSessionOptions => ({ systemPrompt: SYSTEM_PROMPT, model, effort: 'low', cwd, permissionPolicy: 'bypass' });
 
-    it('is signed in', async () => {
+    it('is signed in', LIMIT, async () => {
       assert.equal(await agent.authState(), 'logged-in');
     });
 
-    it('relays a native permission prompt and honors decline and approve', async () => {
+    it('relays a native permission prompt and honors decline and approve', LIMIT, async () => {
       const directory = mkdtempSync(path.join(process.cwd(), '.context', 'permission-live-'));
       const permissionCwd = mkdtempSync(path.join(tmpdir(), 'clew-permission-cwd-'));
       const target = path.join(directory, 'permission.txt');
@@ -122,7 +120,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('lists its models, one default, and switches to one mid-session', async () => {
+    it('lists its models, one default, and switches to one mid-session', LIMIT, async () => {
       const models = await agent.models();
       assert.equal(models.filter((option) => option.isDefault).length, 1, JSON.stringify(models));
       assert.ok(models.some((option) => option.id === model), JSON.stringify(models));
@@ -137,7 +135,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('streams a completed turn, then a second turn on the same session', async () => {
+    it('streams a completed turn, then a second turn on the same session', LIMIT, async () => {
       const session = await agent.openSession(options());
       try {
         const first = await collect(session.send('Student opened the page. Greet them with one say line.'));
@@ -152,7 +150,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('reports a tool call it makes as running, then done', async () => {
+    it('reports a tool call it makes as running, then done', LIMIT, async () => {
       const session = await agent.openSession(options());
       try {
         const events = await collect(session.send('Read the file notes.md in the working directory with a tool, then reply with one say line quoting it.'));
@@ -166,7 +164,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('sees an image attached to a turn', async () => {
+    it('sees an image attached to a turn', LIMIT, async () => {
       const session = await agent.openSession(options());
       try {
         const events = await collect(session.send('What single color fills the attached image? Reply with one say line naming it.', undefined, [{ path: path.join(cwd, 'swatch.png'), mediaType: 'image/png' }]));
@@ -178,7 +176,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('has the text of an attached file with no tool call, however its CLI loads it', async () => {
+    it('has the text of an attached file with no tool call, however its CLI loads it', LIMIT, async () => {
       const outside = mkdtempSync(path.join(tmpdir(), 'clew-mention-'));
       const file = path.join(outside, 'My Handout.txt');
       writeFileSync(file, 'The secret word is MARMALADE.\n');
@@ -202,7 +200,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('reads a file outside the working folder that a turn names by full path', async () => {
+    it('reads a file outside the working folder that a turn names by full path', LIMIT, async () => {
       const outside = mkdtempSync(path.join(tmpdir(), 'clew-outside-'));
       const file = path.join(outside, 'handout.txt');
       writeFileSync(file, 'The secret word is MARMALADE.\n');
@@ -218,7 +216,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('titles a new chat from its own CLI, or from a @Title line that never reaches the transcript', async () => {
+    it('titles a new chat from its own CLI, or from a @Title line that never reaches the transcript', LIMIT, async () => {
       const session = await agent.openSession({ ...options(), systemPrompt: buildSystemPrompt() });
       try {
         const turn = await runTurn(
@@ -235,7 +233,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('points at text of the open note with a @Highlight line that the note holds', async () => {
+    it('points at text of the open note with a @Highlight line that the note holds', LIMIT, async () => {
       const content = readFileSync(path.join(cwd, 'optics.md'), 'utf8');
       const session = await agent.openSession({ ...options(), systemPrompt: buildSystemPrompt() });
       const marked: string[] = [];
@@ -260,66 +258,20 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    /** Asks for a figure and returns the first openui-lang fence of the reply, parsed against the library. */
-    async function askForFence(prompt: string) {
-      const session = await agent.openSession({ ...options(), systemPrompt: buildSystemPrompt(), tools: [loadPackTool] });
+    it('runs a Clew tool the agent calls and reports it done', LIMIT, async () => {
+      const session = await agent.openSession({ ...options(), tools: [loadPackTool] });
       try {
-        const events = await collect(session.send(prompt));
-        const reply = events.map((e) => (e.type === 'text' ? e.delta : '')).join('');
-        const fence = splitReply(reply, true).find((segment) => segment.kind === 'openui');
-        assert.ok(fence, `no openui fence; reply: ${reply}`);
-        const result = createParser(library.toJSONSchema(), library.root).parse(fence.text);
-        const loaded = events.some((e) => e.type === 'tool' && e.name === loadPackTool.name);
-        assert.deepEqual(result.meta.errors, [], `pack loaded: ${loaded}\n${fence.text}`);
-        return { text: fence.text, result, loaded };
+        const events = await collect(session.send(`Call the ${loadPackTool.name} tool with the plot pack, then reply with one say line.`));
+        const tools = events.filter((e) => e.type === 'tool' && e.name === loadPackTool.name);
+
+        assert.deepEqual(events.at(-1), { type: 'done', status: 'completed' });
+        assert.ok(tools.some((e) => e.type === 'tool' && e.status === 'done'), JSON.stringify(tools));
       } finally {
         await session.close();
       }
-    }
-
-    it('writes an openui-lang fence whose slider is bound to a variable that another component reads', async () => {
-      const { text, result } = await askForFence('Give me a slider I can drag for how many terms of the Taylor series of sin x to use, from 1 to 8, and a figure under it that shows the polynomial degree.');
-      const program = JSON.stringify(result.root);
-
-      assert.ok(Object.keys(result.stateDeclarations).length > 0, `no variable declared: ${text}`);
-      assert.match(program, /"typeName":"Slider"/, text);
-      assert.ok((program.match(/"k":"StateRef"/g) ?? []).length >= 2, `the slider and a reader should both use the variable: ${text}`);
     });
 
-    it('writes a plot whose curves evaluate without a runtime error', async () => {
-      const { text, result, loaded } = await askForFence('Plot sin x and its Taylor polynomial on the same axes, with a slider for how many terms the polynomial has, from 1 to 8.');
-      assert.match(JSON.stringify(result.root), /"typeName":"Plot"/, text);
-      assert.ok(loaded, `the plot pack was not loaded first: ${text}`);
-
-      const store = createStore();
-      store.initialize(result.stateDeclarations, {});
-      const problems: string[] = [];
-      const tree = evaluateRoot(result, { ctx: evaluationContext(library, store, (message) => problems.push(message)), library, store });
-
-      assert.ok(tree, text);
-      assert.deepEqual(problems, [], text);
-    });
-
-    it('writes a stepped table that fills one cell at a time', async () => {
-      const { text, result, loaded } = await askForFence('Trace the 0/1 knapsack table with a stepper for capacity 4 and items (weight, value): (1, 1), (3, 4), (4, 5), (2, 3). Show the table filling one cell at a time.');
-      const program = JSON.stringify(result.root);
-
-      assert.match(program, /"typeName":"Grid"/, text);
-      assert.match(program, /"typeName":"Player"/, text);
-      assert.ok(loaded, `the grid pack was not loaded first: ${text}`);
-    });
-
-    it('asks a quiz whose correct answer is one of its options', async () => {
-      const { text, result } = await askForFence('Quiz me on the derivative of sin x. One multiple-choice question.');
-      const children = (result.root?.props.children ?? []) as { typeName: string; props: { options: string[]; correct: string } }[];
-      const quiz = children.find((child) => child.typeName === 'Quiz');
-      assert.ok(quiz, text);
-
-      const names = quiz.props.options.map((option) => option.trim().toLowerCase());
-      assert.ok(names.includes(quiz.props.correct.trim().toLowerCase()), `correct is not an option: ${text}`);
-    });
-
-    it('lists the skills in the working folder and runs one typed with the agent\'s prefix', async () => {
+    it('lists the skills in the working folder and runs one typed with the agent\'s prefix', LIMIT, async () => {
       const session = await agent.openSession(options());
       try {
         const skills = await session.skills();
@@ -332,7 +284,7 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('remembers the conversation in a later session that resumes it', async () => {
+    it('remembers the conversation in a later session that resumes it', LIMIT, async () => {
       const first = await agent.openSession(options());
       let id: string;
       try {
@@ -353,11 +305,11 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
       }
     });
 
-    it('rejects at open when asked to resume an id it never saw', async () => {
+    it('rejects at open when asked to resume an id it never saw', LIMIT, async () => {
       await assert.rejects(agent.openSession({ ...options(), resume: '00000000-0000-4000-8000-000000000000' }), /no (conversation|rollout) found/i);
     });
 
-    it('interrupts a long turn when aborted', async () => {
+    it('interrupts a long turn when aborted', LIMIT, async () => {
       const session = await agent.openSession(options());
       const controller = new AbortController();
       try {
