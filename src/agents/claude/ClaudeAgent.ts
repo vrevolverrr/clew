@@ -131,7 +131,9 @@ class ClaudeSession implements AgentSession {
     const spawnClaudeCodeProcess = (spawn: SpawnOptions): SpawnedProcess => spawnClaudeCode(spawn, (text) => {
       this.stderr = (this.stderr + text).slice(-STDERR_LIMIT);
     });
-    this.query = createQuery({ prompt: this.prompts, options: { ...options, canUseTool, spawnClaudeCodeProcess } });
+    // Bypass never asks, and the SDK warns when it is given a callback it will not call.
+    const approvals = options.permissionMode === 'bypassPermissions' ? {} : { canUseTool };
+    this.query = createQuery({ prompt: this.prompts, options: { ...options, ...approvals, spawnClaudeCodeProcess } });
     this.messages = this.query[Symbol.asyncIterator]();
     this.modelAdapter = new ClaudeModelAdapter(this.query);
   }

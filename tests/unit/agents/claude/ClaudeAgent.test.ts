@@ -356,6 +356,7 @@ describe('ClaudeAgent session', () => {
     await new ClaudeAgent(cli.query).openSession({ ...SESSION, permissionPolicy: 'bypass' });
     expect(cli.options!.permissionMode).toBe('bypassPermissions');
     expect(cli.options!.allowDangerouslySkipPermissions).toBe(true);
+    expect(cli.options!.canUseTool).toBeUndefined();
   });
 
   it('cancels a pending permission request when its turn is stopped', async () => {
