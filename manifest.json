@@ -1,0 +1,9 @@
+{
+  "id": "clew",
+  "name": "Clew",
+  "version": "0.0.1",
+  "minAppVersion": "1.13.0",
+  "description": "Chat with Claude Code or Codex beside your notes. Highlight and scroll to parts of the note, quote text into the chat, and get native visuals, using your own subscription.",
+  "author": "Bryan Soong",
+  "isDesktopOnly": true
+}

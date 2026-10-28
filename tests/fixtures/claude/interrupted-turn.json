@@ -1,0 +1,432 @@
+[
+ {
+  "type": "command_lifecycle",
+  "command_uuid": "2abab4e7-b523-4943-83a7-10618d57fd09",
+  "state": "queued",
+  "uuid": "1501d936-341f-4d82-9a15-0461db40635d",
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34"
+ },
+ {
+  "type": "command_lifecycle",
+  "command_uuid": "2abab4e7-b523-4943-83a7-10618d57fd09",
+  "state": "started",
+  "uuid": "580edcb2-1645-49bb-80d2-05518ca8548c",
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34"
+ },
+ {
+  "type": "system",
+  "subtype": "init",
+  "cwd": "/tmp/clew-capture",
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "tools": [],
+  "mcp_servers": [],
+  "model": "claude-haiku-5-5",
+  "permissionMode": "bypassPermissions",
+  "slash_commands": [
+   "deep-research",
+   "design",
+   "design-sync",
+   "dataviz",
+   "update-config",
+   "verify",
+   "debug",
+   "code-review",
+   "simplify",
+   "batch",
+   "fewer-permission-prompts",
+   "doctor",
+   "loop",
+   "schedule",
+   "claude-api",
+   "workflow-authoring",
+   "run",
+   "run-skill-generator",
+   "plugin-authoring",
+   "advisor",
+   "agents",
+   "auto-mode-setup",
+   "autocompact",
+   "clear",
+   "color",
+   "compact",
+   "config",
+   "output-style",
+   "context",
+   "effort",
+   "fast",
+   "focus",
+   "heapdump",
+   "init",
+   "mcp",
+   "import",
+   "model",
+   "__remote-workflow",
+   "workflow-launch-exec",
+   "reload-plugins",
+   "reload-skills",
+   "rename",
+   "ultrareview",
+   "security-review",
+   "usage-credits",
+   "extra-usage",
+   "usage",
+   "insights",
+   "recap",
+   "skill-doctor",
+   "goal",
+   "design-consent",
+   "design-revoke",
+   "list-agents",
+   "team-onboarding"
+  ],
+  "terminal_slash_commands": [
+   "doctor",
+   "color",
+   "focus",
+   "reload-plugins"
+  ],
+  "apiKeySource": "none",
+  "claude_code_version": "2.1.302",
+  "output_style": "default",
+  "agents": [
+   "claude",
+   "Explore",
+   "general-purpose",
+   "Plan"
+  ],
+  "skills": [
+   "deep-research",
+   "design",
+   "design-sync",
+   "dataviz",
+   "update-config",
+   "verify",
+   "debug",
+   "code-review",
+   "simplify",
+   "batch",
+   "fewer-permission-prompts",
+   "doctor",
+   "loop",
+   "schedule",
+   "claude-api",
+   "workflow-authoring",
+   "run",
+   "run-skill-generator",
+   "plugin-authoring"
+  ],
+  "plugins": [
+   {
+    "name": "cc-plugin-agents-md",
+    "path": "builtin",
+    "source": "cc-plugin-agents-md@builtin"
+   },
+   {
+    "name": "cc-plugin-telemetry",
+    "path": "builtin",
+    "source": "cc-plugin-telemetry@builtin"
+   },
+   {
+    "name": "cc-plugin-plugin-authoring",
+    "path": "builtin",
+    "source": "cc-plugin-plugin-authoring@builtin"
+   }
+  ],
+  "capabilities": [
+   "interrupt_receipt_v1",
+   "interrupt_cancel_queued_v1",
+   "interrupt_send_now_v1",
+   "msg_lifecycle_v1",
+   "request_marker_lists_v1",
+   "sdk_mcp_tools_list_changed",
+   "sdk_mcp_manifests",
+   "mcp_read_resource_v1",
+   "mcp_tool_ui_meta_v1",
+   "ui_surface_v1",
+   "mcp_call_result_not_for_model_v1"
+  ],
+  "analytics_disabled": false,
+  "product_feedback_disabled": false,
+  "uuid": "60086850-7cfb-4a3e-b9a8-ad1cf2bb26ae",
+  "original_cwd": "/tmp/clew-capture",
+  "additional_directories": [],
+  "messaging_socket_path": "/tmp/cc-socks/35126.sock",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "per_turn_effort_active": true,
+  "view_mode": "default",
+  "user_message_uuids": [
+   "2abab4e7-b523-4943-83a7-10618d57fd09"
+  ]
+ },
+ {
+  "type": "system",
+  "subtype": "status",
+  "status": "requesting",
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "uuid": "e19c6fd4-77cc-4e7c-8f01-045896ac3fff",
+  "user_message_uuids": [
+   "2abab4e7-b523-4943-83a7-10618d57fd09"
+  ]
+ },
+ {
+  "type": "stream_event",
+  "event": {
+   "type": "message_start",
+   "message": {
+    "model": "claude-haiku-5-5",
+    "id": "msg_011Cg7xbpUjmvuzzDgFJiwpi",
+    "type": "message",
+    "role": "assistant",
+    "content": [],
+    "container": null,
+    "stop_reason": null,
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+     "input_tokens": 2,
+     "cache_creation_input_tokens": 621,
+     "cache_read_input_tokens": 0,
+     "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 621
+     },
+     "output_tokens": 8,
+     "service_tier": "standard",
+     "inference_geo": "global",
+     "speed": "standard"
+    },
+    "input_transformations": [],
+    "diagnostics": null,
+    "context_management": null
+   }
+  },
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "parent_tool_use_id": null,
+  "uuid": "5ff4b4f3-d447-4fb2-b450-249deeb6d20b",
+  "ttft_ms": 851,
+  "thinking_display": "updates",
+  "api_message_id": "msg_011Cg7xbpUjmvuzzDgFJiwpi",
+  "user_message_uuid": "2abab4e7-b523-4943-83a7-10618d57fd09",
+  "user_message_uuids": [
+   "2abab4e7-b523-4943-83a7-10618d57fd09"
+  ]
+ },
+ {
+  "type": "stream_event",
+  "event": {
+   "type": "content_block_start",
+   "index": 0,
+   "content_block": {
+    "type": "text",
+    "text": ""
+   }
+  },
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "parent_tool_use_id": null,
+  "uuid": "24e0f84f-0792-4102-a4dd-59f7746dee7c",
+  "api_message_id": "msg_011Cg7xbpUjmvuzzDgFJiwpi"
+ },
+ {
+  "type": "stream_event",
+  "event": {
+   "type": "content_block_delta",
+   "index": 0,
+   "delta": {
+    "type": "text_delta",
+    "text": "{\"type\":\"say\",\"text"
+   }
+  },
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "parent_tool_use_id": null,
+  "uuid": "524969b9-26bc-46bc-aa42-0eb8e574a8fd",
+  "api_message_id": "msg_011Cg7xbpUjmvuzzDgFJiwpi"
+ },
+ {
+  "type": "assistant",
+  "message": {
+   "model": "claude-haiku-5-5",
+   "id": "msg_011Cg7xbpUjmvuzzDgFJiwpi",
+   "type": "message",
+   "role": "assistant",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"type\":\"say\",\"text"
+    }
+   ],
+   "container": null,
+   "stop_reason": null,
+   "stop_sequence": null,
+   "stop_details": null,
+   "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 621,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 621
+    },
+    "output_tokens": 8,
+    "service_tier": "standard",
+    "inference_geo": "global",
+    "speed": "standard"
+   },
+   "input_transformations": [],
+   "diagnostics": null,
+   "context_management": null
+  },
+  "parent_tool_use_id": null,
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "uuid": "6f42ae4d-dc95-4d1d-97d2-f837890359ec",
+  "timestamp": "2026-10-17T14:22:34.985Z",
+  "request_id": "req_011Cg7xbpFM2tJo7vRb9gM5F",
+  "aborted": true,
+  "user_message_uuid": "2abab4e7-b523-4943-83a7-10618d57fd09",
+  "user_message_uuids": [
+   "2abab4e7-b523-4943-83a7-10618d57fd09"
+  ]
+ },
+ {
+  "type": "user",
+  "message": {
+   "role": "user",
+   "content": [
+    {
+     "type": "text",
+     "text": "[Request interrupted by user]"
+    }
+   ]
+  },
+  "parent_tool_use_id": null,
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "uuid": "7eb9c9bc-edc0-41ff-8d55-4bdeb501186b",
+  "timestamp": "2026-10-17T14:22:34.988Z"
+ },
+ {
+  "type": "stream_event",
+  "event": {
+   "type": "content_block_stop",
+   "index": 0
+  },
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "parent_tool_use_id": null,
+  "uuid": "56c0b766-0574-4cd7-a19f-0cd342c2e2c1",
+  "api_message_id": "msg_011Cg7xbpUjmvuzzDgFJiwpi"
+ },
+ {
+  "type": "stream_event",
+  "event": {
+   "type": "message_delta",
+   "context_management": null,
+   "delta": {
+    "container": null,
+    "stop_details": null,
+    "stop_reason": null,
+    "stop_sequence": null
+   },
+   "usage": {
+    "output_tokens_details": {
+     "thinking_tokens": 0
+    },
+    "cache_creation_input_tokens": 621,
+    "cache_read_input_tokens": 0,
+    "input_tokens": 2,
+    "iterations": [],
+    "output_tokens": 8,
+    "server_tool_use": {
+     "web_search_requests": 0,
+     "web_fetch_requests": 0
+    },
+    "fallback_credit": null
+   }
+  },
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "parent_tool_use_id": null,
+  "uuid": "3331a6d1-5b5c-4833-9796-25aeff6a0e84",
+  "api_message_id": "msg_011Cg7xbpUjmvuzzDgFJiwpi"
+ },
+ {
+  "type": "stream_event",
+  "event": {
+   "type": "message_stop"
+  },
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "parent_tool_use_id": null,
+  "uuid": "90a1d0ff-b627-469a-8454-b55248f528b7",
+  "api_message_id": "msg_011Cg7xbpUjmvuzzDgFJiwpi"
+ },
+ {
+  "duration_api_ms": 0,
+  "stop_reason": null,
+  "session_id": "40ad57af-43a1-4f84-a44a-f1b49da8cd34",
+  "total_cost_usd": 0,
+  "usage": {
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "input_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "output_tokens": 0,
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "",
+   "iterations": [],
+   "speed": "standard",
+   "fallback_credit": null
+  },
+  "modelUsage": {},
+  "permission_denials": [],
+  "terminal_reason": "aborted_streaming",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+   "spawned": 0,
+   "requested": {
+    "background": 0,
+    "foreground": 0,
+    "unset": 0
+   },
+   "started_in_background": 0,
+   "max_depth": 0,
+   "spawned_by_subagents": 0,
+   "completed": 0,
+   "failed": 0,
+   "killed": {
+    "parent": 0,
+    "user": 0,
+    "system": 0
+   },
+   "refused": {
+    "depth_limit": 0,
+    "concurrency_limit": 0,
+    "budget": 0
+   },
+   "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": true,
+  "num_turns": 2,
+  "subtype": "error_during_execution",
+  "errors": [
+   "[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=null"
+  ],
+  "user_message_uuid": "2abab4e7-b523-4943-83a7-10618d57fd09",
+  "type": "result",
+  "duration_ms": 884,
+  "uuid": "643a33ae-0cdc-444e-8b33-74e14f6f868a",
+  "user_message_uuids": [
+   "2abab4e7-b523-4943-83a7-10618d57fd09"
+  ],
+  "queued_turn_count": 0,
+  "result_index": 0
+ }
+]

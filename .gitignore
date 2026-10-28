@@ -1,0 +1,25 @@
+# Build output
+/main.js
+*.js.map
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+
+# Obsidian plugin data
+/data.json
+
+# Tooling caches and reports
+coverage/
+
+# Scratch notes, traces, and the upstream reference clone
+.context/
+.DS_Store
+
+# Private: benchmark, eval and working docs
+/docs/
+/bench/

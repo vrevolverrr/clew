@@ -1,0 +1,3124 @@
+.workspace-leaf-content .clew-chat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-inline: var(--size-4-3);
+}
+
+.clew-messages {
+  --clew-message-fade: 64px;
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-6);
+  padding-block: var(--size-4-12) calc(var(--clew-message-fade) + var(--size-4-2));
+  padding-inline: var(--size-2-1) var(--size-4-3);
+  user-select: text;
+  container-type: size;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg) transparent;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--clew-message-fade)), transparent);
+}
+
+.clew-turn {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+/* The newest turn fills the view, so a sent message can scroll to the top with room below for the reply. */
+.clew-turn:last-child {
+  min-height: 100cqh;
+}
+
+.clew-user-message {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 6px 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--text-normal) 5%, transparent);
+  font-size: var(--font-ui-medium);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+}
+
+.clew-user-quote {
+  align-self: flex-end;
+  max-width: 85%;
+  margin-bottom: 4px;
+  padding-left: 10px;
+  border-left: 2px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.clew-user-quote:hover {
+  color: var(--text-normal);
+}
+
+.clew-reply {
+  --clew-reply-line-height: 1.75;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding-inline: var(--size-4-2);
+  font-size: var(--font-ui-medium);
+  line-height: var(--clew-reply-line-height);
+}
+
+.clew-reply pre {
+  line-height: var(--line-height-normal);
+}
+
+.clew-reply.markdown-rendered ul > li {
+  margin-inline-start: 2ch;
+}
+
+.clew-reply.markdown-rendered ol > li {
+  margin-inline-start: 2.5ch;
+}
+
+/* Tall inline math (fractions, subscripts) would otherwise push its line away from its neighbours. */
+.clew-reply mjx-container:not([display='true']) {
+  display: inline-block;
+  margin-block: -0.5em;
+  line-height: 0;
+}
+
+.clew-reply-error {
+  color: var(--text-error);
+}
+
+.clew-reply-status {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.clew-notice {
+  margin: var(--size-4-3) 0;
+}
+
+.clew-composer {
+  --clew-ink: var(--text-normal);
+  --clew-ring-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--clew-ink) 16%, transparent),
+    0 1px 0 0 color-mix(in srgb, var(--clew-ink) 6%, transparent),
+    0 1px 1px 0 color-mix(in srgb, var(--clew-ink) 1%, transparent),
+    0 0 2px 0 color-mix(in srgb, var(--clew-ink) 11%, transparent),
+    0 2px 7px -2px color-mix(in srgb, var(--clew-ink) 13%, transparent);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-2-1);
+  padding: 12px 8px 8px 12px;
+  border-radius: 20px;
+  background: var(--background-primary);
+  margin-bottom: var(--size-4-2);
+}
+
+.theme-dark .clew-composer {
+  --clew-shade: color-mix(in srgb, var(--background-primary) 20%, black);
+  --clew-ring-shadow:
+    inset 0 0.5px 0 0 color-mix(in srgb, var(--clew-ink) 7%, transparent),
+    inset 0 0 0 0.5px color-mix(in srgb, var(--clew-ink) 10%, transparent),
+    0 1px 2px 0 color-mix(in srgb, var(--clew-shade) 24%, transparent),
+    0 0 2px 0 color-mix(in srgb, var(--clew-shade) 19%, transparent),
+    0 1px 6px -1px color-mix(in srgb, var(--clew-shade) 14%, transparent);
+}
+
+.clew-composer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: var(--clew-ring-shadow);
+}
+
+.clew-context-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-2-2);
+  margin: 0 4px;
+}
+
+.clew-context-tray:empty {
+  display: none;
+}
+
+.clew-context-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px var(--size-4-2) 3px var(--size-4-2);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.clew-context-chip:hover {
+  background: color-mix(in srgb, var(--text-normal) 12%, var(--background-modifier-hover));
+  color: var(--text-normal);
+}
+
+.clew-context-chip:active:not(:has(.clew-context-remove:active)) {
+  transform: scale(0.97);
+}
+
+.clew-context-chip:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus);
+  outline-offset: 1px;
+}
+
+.clew-context-chip.is-leaving {
+  pointer-events: none;
+}
+
+.clew-context-chip .clew-context-icon,
+.clew-context-chip .svg-icon {
+  display: inline-flex;
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  flex: none;
+}
+
+.clew-context-chip .clew-context-label {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-context-label::after {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.clew-context-chip.is-excluded {
+  opacity: 0.6;
+}
+
+.clew-context-chip.is-excluded .clew-context-label::after {
+  transform: scaleX(1);
+}
+
+.clew-context-chip .clew-context-remove {
+  width: auto;
+  height: auto;
+  padding: 0;
+  box-shadow: none;
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  transition: color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.clew-context-chip .clew-context-remove:hover {
+  background: none;
+  color: var(--text-error);
+  opacity: 1;
+}
+
+.clew-context-chip .clew-context-remove:active {
+  transform: scale(0.85);
+}
+
+.clew-attachment-chip {
+  order: 1;
+}
+
+.clew-image-chip {
+  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+
+.clew-image-chip .clew-context-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.clew-image-chip .clew-context-icon img {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.clew-composer.is-dragging::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px dashed var(--interactive-accent);
+  pointer-events: none;
+}
+
+.clew-user-attachments {
+  align-self: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--size-2-2);
+  max-width: 85%;
+}
+
+.clew-user-attachments img {
+  max-width: 160px;
+  max-height: 120px;
+  border-radius: var(--radius-s);
+  object-fit: cover;
+}
+
+.clew-input-wrap {
+  position: relative;
+  margin: 8px 4px 0;
+}
+
+.clew-input,
+.clew-input-mirror {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 1.5em;
+  max-height: 192px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-medium);
+  line-height: var(--line-height-normal);
+  letter-spacing: normal;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.clew-input {
+  position: relative;
+  display: block;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-normal);
+  resize: none;
+}
+
+.clew-input::placeholder {
+  color: var(--text-faint);
+}
+
+.clew-input-mirror {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  color: var(--text-normal);
+  pointer-events: none;
+}
+
+/* Obsidian fills a hovered or pressed textarea, which would hide the mirror behind this one. */
+.clew-input-wrap .clew-input {
+  background: transparent;
+  box-shadow: none;
+}
+
+.clew-input:focus,
+.clew-input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.clew-composer-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  margin-top: 6px;
+  gap: 2px;
+}
+
+.clew-composer-spacer {
+  flex: 1;
+}
+
+.clew-composer .clew-composer-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 6px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.clew-composer .clew-composer-bar button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.clew-composer .clew-composer-bar button:active {
+  transform: scale(0.96);
+}
+
+.clew-composer-bar .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.clew-picker-chevron {
+  display: inline-flex;
+  flex: none;
+  opacity: 0.5;
+}
+
+.clew-composer .clew-composer-bar .clew-picker {
+  min-width: 0;
+}
+
+.clew-picker-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.clew-picker-label > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-agent-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--clew-agent-color, var(--text-normal));
+}
+
+.clew-picker-chevron .svg-icon {
+  transition: transform 160ms ease;
+}
+
+.clew-picker[aria-expanded='true'] .clew-picker-chevron .svg-icon {
+  transform: rotate(180deg);
+}
+
+.clew-picker-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.clew-composer-bar .clew-picker-icon .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.clew-picker-menu,
+.clew-skill-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  max-height: min(280px, 50vh);
+}
+
+.clew-picker-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  max-width: min(210px, 100%);
+  transform-origin: bottom left;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg) transparent;
+}
+
+.clew-picker-menu,
+.clew-history-menu {
+  animation: clew-pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.clew-picker-menu.is-closing,
+.clew-history-menu.is-closing {
+  pointer-events: none;
+  animation: clew-pop-out 120ms ease-in forwards;
+}
+
+.clew-picker-section + .clew-picker-section {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.clew-picker-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+}
+
+.clew-picker-loading {
+  padding: 5px 8px;
+  color: var(--text-faint);
+}
+
+/* The row buttons of the floating lists, which reset Obsidian's button look alike. */
+:is(.clew-picker-menu .clew-picker-option, .clew-history-menu :is(.clew-history-row, .clew-history-all), .clew-chat-modal .clew-chat-open) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: auto;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: inherit;
+  text-align: start;
+}
+
+:is(.clew-picker-menu .clew-picker-option, .clew-history-menu :is(.clew-history-row, .clew-history-all)) {
+  width: 100%;
+  border-radius: 8px;
+  corner-shape: round;
+}
+
+:is(.clew-picker-menu .clew-picker-option, .clew-history-menu :is(.clew-history-row, .clew-history-all)):is(:hover, :focus-visible) {
+  background: var(--background-modifier-hover);
+}
+
+:is(.clew-picker-menu .clew-picker-option, .clew-history-menu :is(.clew-history-row, .clew-history-all)):focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.clew-picker-menu .clew-picker-option {
+  gap: 6px;
+  padding: 5px 8px;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.clew-picker-menu .clew-picker-option:active {
+  transform: scale(0.98);
+}
+
+.clew-picker-option-label {
+  display: inline-block;
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.clew-picker-option:is(:hover, :focus-visible) .clew-picker-option-label {
+  transform: translateX(2px);
+}
+
+.clew-picker-option-detail {
+  color: var(--text-faint);
+}
+
+.clew-picker-check {
+  display: inline-flex;
+  margin-left: auto;
+  padding-left: 12px;
+  animation: clew-check-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.clew-picker-check .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes clew-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+
+@keyframes clew-pop-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+@keyframes clew-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-diagram-rings {
+    display: none;
+  }
+
+  .clew-tools.is-running .clew-tools-orb::before,
+  .clew-diagram-card .clew-tools-orb::before {
+    animation: none;
+  }
+
+  .clew-picker-menu,
+  .clew-picker-menu.is-closing,
+  .clew-history-menu,
+  .clew-history-menu.is-closing,
+  .clew-picker-check {
+    animation-duration: 1ms;
+  }
+
+  .clew-composer .clew-composer-bar button,
+  .clew-context-chip,
+  .clew-context-label::after,
+  .clew-context-chip .clew-context-remove,
+  .clew-picker-menu .clew-picker-option,
+  .clew-picker-option-label,
+  .clew-picker-chevron .svg-icon {
+    transition: none;
+  }
+}
+
+.clew-composer .clew-composer-bar .clew-send {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--text-normal);
+  color: var(--background-primary);
+}
+
+.clew-composer .clew-composer-bar .clew-send .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.clew-composer .clew-composer-bar .clew-send:hover {
+  background: var(--text-normal);
+  color: var(--background-primary);
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.clew-composer .clew-composer-bar .clew-send:active {
+  transform: scale(0.94);
+}
+
+.clew-composer .clew-composer-bar .clew-send:disabled {
+  opacity: 0.3;
+  transform: none;
+  cursor: default;
+}
+
+.clew-reply-openui {
+  position: relative;
+  margin: var(--size-4-2) 0;
+  line-height: var(--line-height-normal);
+}
+
+/* A visual has no card of its own; figures that read better framed carry one. */
+.clew-reply-openui .clew-plot,
+.clew-reply-openui .clew-step-figure,
+.clew-reply-openui .clew-diagram-card {
+  box-sizing: border-box;
+  padding: var(--size-4-4);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: var(--background-primary);
+}
+
+.clew-mermaid {
+  --pele-bg: var(--background-primary);
+  --pele-fg: var(--text-normal);
+  --pele-muted: var(--text-muted);
+  --pele-line: var(--text-normal);
+  --pele-surface: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+  --pele-surface-alt: color-mix(in srgb, var(--interactive-accent) 22%, var(--background-primary));
+  --pele-border: color-mix(in srgb, var(--interactive-accent) 60%, var(--background-primary));
+  --pele-accent: var(--interactive-accent);
+  --pele-critical: var(--text-error);
+  --pele-error: var(--text-error);
+  --pele-font: var(--font-interface);
+  --pele-font-mono: var(--font-monospace);
+  --pele-radius: var(--radius-s);
+}
+
+.clew-reply-mermaid,
+.clew-reply-openui .clew-diagram-card,
+.clew-network .clew-step-scroll,
+.modal.clew-diagram-modal {
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--background-modifier-border) 55%, transparent) 0.9px, transparent 1.4px) 0 0 / 16px 16px,
+    var(--background-primary);
+}
+
+.clew-reply-mermaid {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: var(--size-4-4);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  animation: clew-pop-in 240ms ease-out;
+}
+
+.clew-reply-mermaid.is-drawing,
+.clew-reply-openui.is-drawing {
+  min-height: 160px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.clew-reply-mermaid pre {
+  margin: 0;
+}
+
+.clew-diagram-card {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--size-2-3);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  isolation: isolate;
+}
+
+.clew-diagram-card > span {
+  position: relative;
+  z-index: 1;
+}
+
+/*
+ * Two staggered rings ripple out from the label and light the grid's dots: each is a soft ring that scales up
+ * under a stencil cut out at the dots, so only transform and opacity animate and the lit dots stay on the grid.
+ */
+.clew-diagram-rings,
+.clew-diagram-stencil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.clew-diagram-rings::before,
+.clew-diagram-rings::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 900px;
+  height: 900px;
+  margin: -450px 0 0 -450px;
+  background: radial-gradient(circle closest-side, transparent 58%, var(--interactive-accent) 68%, transparent 78%);
+  animation: clew-ripple 2.8s cubic-bezier(0.25, 0.6, 0.35, 1) infinite;
+}
+
+.clew-diagram-rings::after {
+  animation-delay: 1.4s;
+}
+
+.clew-diagram-stencil {
+  background: var(--background-primary);
+  mask: radial-gradient(circle, transparent 1.6px, #000 2.4px) 0 0 / 16px 16px;
+}
+
+@keyframes clew-ripple {
+  from {
+    transform: scale(0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.clew-mermaid > svg {
+  display: block;
+  margin-inline: auto;
+}
+
+.clew-mermaid-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  margin: calc(-1 * var(--size-2-3)) calc(-1 * var(--size-2-3)) var(--size-4-2) 0;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  line-height: var(--line-height-tight);
+}
+
+.clew-mermaid-title {
+  flex: 1;
+}
+
+.clew-icon-action.clickable-icon {
+  color: var(--text-faint);
+  cursor: var(--cursor-link);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.clew-icon-action.clickable-icon:hover {
+  color: var(--text-normal);
+}
+
+.clew-icon-action.is-copied .svg-icon {
+  color: var(--color-green);
+  animation: clew-check-in 200ms ease-out;
+}
+
+.clew-icon-action.clickable-icon.clew-reply-rate {
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    transform 100ms ease;
+}
+
+.clew-reply-rate.is-up {
+  --clew-rating-color: var(--color-green);
+}
+
+.clew-reply-rate.is-down {
+  --clew-rating-color: var(--color-red);
+}
+
+.clew-icon-action.clickable-icon.clew-reply-rate:active {
+  transform: scale(0.88);
+}
+
+.clew-icon-action.clickable-icon.clew-reply-rate.is-active {
+  color: var(--clew-rating-color);
+  background-color: color-mix(in srgb, var(--clew-rating-color) 14%, transparent);
+}
+
+.clew-reply-rate.is-active .svg-icon {
+  fill: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-icon-action.clickable-icon.clew-reply-rate {
+    transition: none;
+  }
+
+  .clew-icon-action.clickable-icon.clew-reply-rate:active {
+    transform: none;
+  }
+}
+
+.modal.clew-diagram-modal {
+  width: 90vw;
+  height: 85vh;
+  max-width: none;
+}
+
+.clew-diagram-modal .modal-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+}
+
+.clew-diagram-modal .clew-mermaid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  /* Pele fits by width only, so a tall diagram overflows and its top is clipped. Padding narrows the box until the width fit is also the height fit. */
+  padding-inline: max(0px, calc((100cqw - 100cqh * var(--clew-diagram-ratio, 1)) / 2));
+  --pele-zoom-top: auto;
+  --pele-zoom-bottom: var(--size-4-2);
+  --pele-zoom-right: var(--size-4-2);
+}
+
+/* The figure lays out at full width under the card, and shows once the card fades. */
+.clew-reply-mermaid.is-drawing .clew-diagram,
+.clew-reply-openui.is-drawing .clew-openui-body {
+  position: absolute;
+  inset-inline: var(--size-4-4);
+  visibility: hidden;
+}
+
+.clew-reply-openui.is-drawing .clew-openui-body {
+  inset-inline: 0;
+}
+
+.clew-reply-mermaid:not(.is-drawing) .clew-diagram,
+.clew-reply-openui:not(.is-drawing) .clew-openui-body {
+  animation: clew-fade-in 320ms ease 80ms both;
+}
+
+@keyframes clew-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.clew-reply-footer {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--size-2-2);
+  animation: clew-pop-in 200ms ease-out;
+}
+
+.clew-reply-time {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+.clew-stack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-1) var(--size-4-2);
+}
+
+/* Every block takes a full row, except Stats: consecutive Stats share a row and wrap. */
+.clew-stack > * {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.clew-stack > .clew-stat {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+/* A slider shares its row with the Stats written right after it, which are usually what it drives. */
+.clew-stack > .clew-slider {
+  flex: 2 1 280px;
+}
+
+.clew-reply.markdown-rendered ol.clew-sequence {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: clew-sequence;
+}
+
+.clew-reply.markdown-rendered ol.clew-sequence > li {
+  position: relative;
+  min-inline-size: 0;
+  min-block-size: 1.75em;
+  margin: 0;
+  padding-inline-start: calc(1.75em + var(--size-4-3));
+  counter-increment: clew-sequence;
+}
+
+.clew-reply.markdown-rendered ol.clew-sequence > li:not(:last-child) {
+  padding-block-end: var(--size-4-5);
+}
+
+.clew-sequence > li::before {
+  content: counter(clew-sequence);
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: 1.75em;
+  block-size: 1.75em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 50%;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.clew-sequence > li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0.875em;
+  inset-block-start: calc(1.75em + var(--size-4-1));
+  inset-block-end: var(--size-4-1);
+  border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+/* Controls and figures in a reply visual. They use Obsidian's own tokens, so they follow the vault's theme and accent. */
+.clew-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-3);
+  box-sizing: border-box;
+  padding: var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: var(--background-primary);
+  line-height: var(--line-height-tight);
+}
+
+.clew-control-row {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.clew-stat-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.clew-stat-value {
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  text-align: right;
+}
+
+.clew-stat.is-text .clew-stat-value {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-normal);
+}
+
+.clew-stat-mark {
+  margin-right: var(--size-2-2);
+}
+
+.clew-stat-mark:empty {
+  display: none;
+}
+
+.clew-reply-openui .clew-stack {
+  gap: var(--size-4-2) var(--size-4-4);
+}
+
+.clew-callout > .callout {
+  margin: 0;
+}
+
+/* Inline math overhangs its line box; Obsidian's scrolling callout content turns that into a scroll offset that clips the text. */
+.clew-callout .callout-content {
+  overflow: visible;
+}
+
+.clew-reply-openui .clew-text :is(h1, h2, h3, h4, h5, h6) {
+  margin-block: 0 var(--size-4-1);
+}
+
+.clew-reply-openui .clew-text :is(h1, h2, h3, h4, h5, h6) + * {
+  margin-block-start: 0;
+}
+
+/* The stack's gap alone spaces the blocks, so the paragraph margins at a text block's edges would double it. */
+.clew-text > :first-child,
+.clew-text > :first-child > :first-child,
+.clew-quiz-question > :first-child,
+.clew-quiz-question > :first-child > :first-child,
+.clew-quiz-feedback > :first-child,
+.clew-quiz-feedback > :first-child > :first-child {
+  margin-top: 0;
+}
+
+.clew-text > :last-child,
+.clew-text > :last-child > :last-child,
+.clew-quiz-question > :last-child,
+.clew-quiz-question > :last-child > :last-child,
+.clew-quiz-feedback > :last-child,
+.clew-quiz-feedback > :last-child > :last-child {
+  margin-bottom: 0;
+}
+
+.clew-stat-mark.is-good {
+  color: var(--text-success);
+}
+
+.clew-stat-mark.is-bad {
+  color: var(--text-error);
+}
+
+.clew-slider,
+.clew-text-input,
+.clew-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-2-3);
+}
+
+.clew-slider .clew-control-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+}
+
+.clew-slider output {
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Obsidian draws the track on the input itself and lifts the thumb by --slider-thumb-y, so the slider sets those variables. */
+.clew-slider input[type='range'] {
+  --slider-thumb-width: 12px;
+  --slider-thumb-height: 12px;
+  --slider-thumb-width-active: 12px;
+  --slider-thumb-height-active: 12px;
+  --slider-thumb-radius: 50%;
+  --slider-thumb-y: -4px;
+  --slider-thumb-y-active: -4px;
+  --slider-thumb-background: var(--interactive-accent);
+  --slider-thumb-background-hover: var(--interactive-accent);
+  --slider-thumb-border-width: 0px;
+  --slider-thumb-shadow: 0 0 0 3px var(--background-primary);
+  --slider-thumb-shadow-hover: 0 0 0 3px var(--background-primary);
+  --slider-thumb-shadow-active: 0 0 0 3px var(--background-primary);
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: linear-gradient(to right, var(--interactive-accent) var(--clew-progress, 0%), var(--background-modifier-border) var(--clew-progress, 0%)) center / 100% 4px no-repeat;
+  border-radius: 2px;
+}
+
+.clew-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  background: none;
+}
+
+.clew-text-input input[type='text'] {
+  width: 100%;
+  height: auto;
+  padding: var(--size-4-2) var(--size-4-3);
+  font-size: var(--font-ui-medium);
+}
+
+.clew-choice-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: flex-start;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+
+/* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
+.clew-choice .clew-choice-option {
+  height: auto;
+  padding: var(--size-4-2) var(--size-4-4);
+  border: 0;
+  border-radius: 0;
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-medium);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.clew-choice .clew-choice-option + .clew-choice-option {
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+.clew-choice .clew-choice-option:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.clew-choice .clew-choice-option:active {
+  background: var(--background-modifier-active-hover);
+}
+
+/* The weight stays the same when picked, so the segments do not change width and shift their neighbours. */
+.clew-choice .clew-choice-option[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary));
+  color: var(--text-accent);
+}
+
+.clew-choice .clew-choice-option:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.clew-player {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  padding-top: var(--size-4-4);
+  border-top: 1px solid var(--background-modifier-border);
+  order: 1;
+}
+
+/* Inside a figure's card the player is divided off by a rule; on its own in a Stack it is a card like a Stat. */
+.clew-stack > .clew-player {
+  box-sizing: border-box;
+  margin-top: var(--size-4-1);
+  padding: var(--size-4-2) var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: var(--background-primary);
+}
+
+/* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
+.clew-player .clew-player-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.clew-player .clew-player-button:active {
+  transform: scale(0.92);
+}
+
+.clew-player .clew-player-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.clew-player .clew-player-button:focus-visible,
+.clew-player input[type='range']:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.clew-player .clew-player-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.clew-player .clew-player-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Obsidian draws the track on the input itself and lifts the thumb by --slider-thumb-y, so the bar changes those variables. */
+.clew-player input[type='range'] {
+  --slider-thumb-width: 12px;
+  --slider-thumb-height: 12px;
+  --slider-thumb-width-active: 12px;
+  --slider-thumb-height-active: 12px;
+  --slider-thumb-y: 1px;
+  --slider-thumb-y-active: 1px;
+  --slider-thumb-background: var(--interactive-accent);
+  --slider-thumb-background-hover: var(--interactive-accent);
+  --slider-thumb-border-width: 0px;
+  --slider-thumb-shadow: none;
+  --slider-thumb-shadow-hover: none;
+  --slider-thumb-shadow-active: none;
+  flex: 1;
+  min-width: 80px;
+  height: 14px;
+  margin: 0 var(--size-2-3);
+  background: linear-gradient(to right, var(--interactive-accent) var(--clew-progress, 0%), var(--background-modifier-border-hover) var(--clew-progress, 0%)) center / 100% 2px no-repeat;
+  border-radius: 0;
+}
+
+.clew-player input[type='range']::-webkit-slider-runnable-track {
+  height: 14px;
+}
+
+.clew-player-count {
+  text-align: right;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.clew-step-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.clew-step-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.clew-step-surface {
+  position: relative;
+  flex: none;
+  isolation: isolate;
+  font-family: var(--font-monospace);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.clew-board-region,
+.clew-board-slot,
+.clew-board-block,
+.clew-network-node,
+.clew-network-edge-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border-radius: var(--radius-s);
+}
+
+.clew-board-region {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.clew-board-region-label {
+  box-sizing: border-box;
+  padding: 8px 12px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.clew-board-slot {
+  border: 1px dashed var(--background-modifier-border);
+}
+
+.clew-board-block,
+.clew-network-node,
+.clew-network-edge-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: center;
+  color: var(--text-normal);
+  background: var(--background-primary);
+}
+
+.clew-board-block,
+.clew-network-node {
+  border: 1px solid var(--text-muted);
+  z-index: 2;
+}
+
+.clew-network-edge-label {
+  z-index: 1;
+  padding: 0;
+  background: none;
+}
+
+.clew-network-edge-label > span {
+  padding: 0 4px;
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+}
+
+.clew-network .clew-step-scroll {
+  border-radius: var(--radius-m);
+}
+
+.clew-network .clew-step-surface {
+  margin-inline: auto;
+}
+
+.clew-network-edges {
+  position: absolute;
+  inset: 0;
+}
+
+.clew-network-edge {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+}
+
+.clew-step-surface [data-tag='active'] {
+  color: var(--interactive-accent);
+  font-weight: var(--font-semibold);
+}
+
+.clew-board-block[data-tag='active'],
+.clew-network-node[data-tag='active'] {
+  border: 2px solid var(--interactive-accent);
+}
+
+.clew-network-edge[data-tag='active'] {
+  stroke: var(--interactive-accent);
+  stroke-width: 4;
+}
+
+.clew-network-edge[data-tag='done'] {
+  stroke-dasharray: 7 4;
+}
+
+.clew-step-surface [data-tag='dim'] {
+  opacity: 0.45;
+}
+
+/* Fade only the text, so the label still covers the dot grid. */
+.clew-network-edge-label[data-tag='dim'] {
+  opacity: 1;
+  color: var(--text-faint);
+}
+
+.clew-step-figure .clew-caption {
+  overflow-wrap: anywhere;
+  color: var(--text-normal);
+}
+
+.clew-visual-error {
+  color: var(--text-error);
+  overflow-wrap: anywhere;
+}
+
+.clew-step-figure [hidden] {
+  display: none;
+}
+
+.clew-step-figure .clew-player {
+  flex: none;
+}
+
+.clew-visual-source pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.clew-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+}
+
+.clew-grid-scroll {
+  overflow-x: auto;
+}
+
+.clew-grid-table {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-modifier-border);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-tight);
+  overflow: hidden;
+}
+
+.clew-grid-row {
+  display: contents;
+}
+
+.clew-grid-head,
+.clew-grid-cell {
+  display: grid;
+  align-content: center;
+  min-width: 2.75em;
+  padding: var(--size-4-2) var(--size-4-3);
+  background: var(--background-primary);
+  text-align: center;
+  transition: background-color 0.2s ease;
+}
+
+.clew-grid-head {
+  background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+/* A cell no step has reached yet is tinted, so an empty one reads as waiting, not missing. */
+.clew-grid-cell.is-pending {
+  background: color-mix(in srgb, var(--text-normal) 2.5%, var(--background-primary));
+}
+
+.clew-grid-cell.is-source {
+  background: color-mix(in srgb, var(--color-orange) 14%, var(--background-primary));
+}
+
+.clew-grid-cell.is-new {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary));
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+  font-weight: var(--font-semibold);
+}
+
+/* Invisible finished values reserve cell size before a step reveals them. */
+.clew-grid-cell::before {
+  content: attr(data-value);
+  visibility: hidden;
+  font-weight: var(--font-semibold);
+}
+
+.clew-grid-cell::before,
+.clew-grid-cell > span {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+/* Stack all captions invisibly so wrapping and pane resizing preserve the tallest one's height. */
+.clew-captions:not([hidden]),
+.clew-caption-sizes {
+  display: grid;
+}
+
+.clew-captions > *,
+.clew-caption-sizes > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.clew-caption-sizes {
+  visibility: hidden;
+}
+
+.clew-caption {
+  color: var(--text-muted);
+}
+
+.clew-caption > :first-child,
+.clew-caption > :first-child > :first-child {
+  margin: 0;
+}
+
+.clew-grid .clew-caption {
+  font-size: var(--font-ui-small);
+}
+
+/* Markdown tables share one presentation in prose and OpenUI text. */
+.clew-reply.markdown-rendered .table-wrapper {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.clew-reply.markdown-rendered table {
+  width: 100%;
+}
+
+.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) table {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  line-height: var(--line-height-tight);
+}
+
+.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) th,
+.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) td {
+  padding: var(--size-4-2) var(--size-4-3);
+  vertical-align: middle;
+}
+
+.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) th {
+  background: var(--background-secondary);
+}
+
+.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) td {
+  background: var(--background-primary);
+}
+
+.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) tbody tr:hover > td {
+  background: var(--background-modifier-hover);
+}
+
+.clew-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.clew-quiz-question {
+  font-weight: var(--font-semibold);
+}
+
+.clew-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-2-3);
+}
+
+/* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
+.clew-quiz .clew-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-3);
+  width: 100%;
+  height: auto;
+  padding: var(--size-4-2) var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.clew-quiz .clew-quiz-option > span {
+  flex: 1;
+}
+
+/* A round mark in front of each option. Picked, it fills with a dot; marked, it becomes a tick or a cross. */
+.clew-quiz .clew-quiz-option::before {
+  content: '';
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--text-faint);
+  border-radius: 50%;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clew-quiz .clew-quiz-option > span > :first-child,
+.clew-quiz .clew-quiz-option > span > :first-child > :first-child {
+  margin: 0;
+}
+
+.clew-quiz .clew-quiz-option:hover:not(:disabled) {
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
+}
+
+.clew-quiz .clew-quiz-option:hover:not(:disabled)::before {
+  border-color: var(--text-muted);
+}
+
+.clew-quiz .clew-quiz-option:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.clew-quiz .clew-quiz-option[aria-checked='true'] {
+  border-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
+}
+
+.clew-quiz .clew-quiz-option[aria-checked='true']::before {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  box-shadow: inset 0 0 0 2px var(--background-primary);
+}
+
+.clew-quiz .clew-quiz-option:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.clew-quiz .clew-quiz-option:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+/* Once marked, a tick or a cross replaces the round mark, and the border grows by 1px that the padding gives back. */
+.clew-quiz .clew-quiz-option.is-correct,
+.clew-quiz .clew-quiz-option.is-wrong {
+  padding: calc(var(--size-4-2) - 1px) calc(var(--size-4-3) - 1px);
+  border-width: 2px;
+}
+
+.clew-quiz .clew-quiz-option.is-correct::before,
+.clew-quiz .clew-quiz-option.is-wrong::before {
+  width: 16px;
+  height: auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-bold);
+  line-height: 1;
+  text-align: center;
+  animation: clew-check-in 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.clew-quiz .clew-quiz-option.is-correct {
+  border-style: dashed;
+  border-color: var(--text-success);
+  background: color-mix(in srgb, var(--text-success) 6%, var(--background-primary));
+}
+
+.clew-quiz .clew-quiz-option.is-correct::before {
+  content: '✓';
+  color: var(--text-success);
+}
+
+.clew-quiz .clew-quiz-option.is-wrong {
+  border-color: var(--color-orange);
+  background: color-mix(in srgb, var(--color-orange) 10%, var(--background-primary));
+  animation: clew-quiz-shake 0.3s ease;
+}
+
+.clew-quiz .clew-quiz-option.is-wrong::before {
+  content: '✕';
+  color: var(--color-orange);
+}
+
+.clew-quiz-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-3);
+  margin-top: var(--size-4-1);
+}
+
+.clew-quiz-note {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.clew-quiz .clew-quiz-submit {
+  height: auto;
+  padding: var(--size-4-2) var(--size-4-6);
+  border-radius: var(--radius-m);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+}
+
+.clew-quiz .clew-quiz-submit:disabled {
+  opacity: 0.45;
+}
+
+.clew-quiz .clew-quiz-submit:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.clew-quiz-feedback {
+  margin-top: var(--size-4-1);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  animation: clew-pop-in 0.25s ease;
+}
+
+@keyframes clew-quiz-shake {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-quiz *,
+  .clew-quiz *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Obsidian gives the thumb its own `cursor: default`, so the input's cursor never shows over it. */
+.clew-slider input[type='range'],
+.clew-slider input[type='range']::-webkit-slider-thumb,
+.clew-slider input[type='range']::-webkit-slider-runnable-track,
+.clew-player input[type='range'],
+.clew-player input[type='range']::-webkit-slider-thumb,
+.clew-player input[type='range']::-webkit-slider-runnable-track {
+  cursor: pointer;
+}
+
+/* A plot draws with Obsidian's own colours, so its series follow the vault's theme. */
+.clew-plot {
+  --clew-series-1: var(--color-blue);
+  --clew-series-2: var(--color-orange);
+  --clew-series-3: var(--color-green);
+  --clew-series-4: var(--color-purple);
+  --clew-series-5: var(--color-cyan);
+  --clew-series-6: var(--color-pink);
+  min-width: 0;
+}
+
+.clew-plot-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--size-2-2) var(--size-4-5);
+  margin-bottom: var(--size-4-2);
+  color: var(--text-normal);
+  font-size: calc(var(--font-ui-small) - 1px);
+}
+
+.clew-plot-legend:empty {
+  display: none;
+}
+
+.clew-plot-swatch {
+  display: inline-block;
+  margin-right: var(--size-2-3);
+  background: var(--clew-swatch);
+  vertical-align: middle;
+}
+
+.clew-plot-swatch.is-area,
+.clew-plot-swatch.is-bars {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.clew-plot-swatch.is-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.clew-plot-frame {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.clew-plot-svg {
+  display: block;
+}
+
+.clew-plot-svg text {
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.clew-plot-tick {
+  fill: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.clew-plot-svg .clew-plot-title {
+  font-size: 13px;
+}
+
+.clew-plot-label {
+  fill: var(--text-normal);
+  paint-order: stroke;
+  stroke: var(--background-primary);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.clew-plot-label.is-strong {
+  font-weight: var(--font-semibold);
+}
+
+.clew-plot-grid,
+.clew-plot-axis {
+  stroke: var(--background-modifier-border);
+  stroke-width: 1;
+}
+
+.clew-plot-grid {
+  stroke-dasharray: 5 4;
+}
+
+.clew-plot-axis {
+  stroke: var(--background-modifier-border-hover);
+}
+
+.clew-plot-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.clew-plot-rule {
+  stroke-width: 1.5;
+}
+
+.clew-plot-dot {
+  stroke: var(--background-primary);
+  stroke-width: 2;
+}
+
+.clew-plot-marker {
+  stroke: var(--background-primary);
+  stroke-width: 1.5;
+}
+
+.clew-plot-cross {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+}
+
+.clew-plot-hit {
+  fill: transparent;
+  pointer-events: all;
+  touch-action: pan-y;
+}
+
+.clew-plot-tip {
+  position: absolute;
+  z-index: 2;
+  max-width: 240px;
+  padding: var(--size-2-2) var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  pointer-events: none;
+}
+
+.clew-plot-tip-head {
+  color: var(--text-muted);
+}
+
+.clew-tools {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.clew-reply > .clew-tools:first-child {
+  margin-top: var(--size-4-2);
+}
+
+/* The header is a full line tall, so the reply's gap after it reads wider than the gap between text blocks. */
+.clew-tools + .clew-reply-text {
+  margin-top: calc(var(--size-4-1) * -1);
+}
+
+/* The reply's gap alone spaces its blocks, so paragraph margins at a text block's edges don't widen it. */
+.clew-reply-text > :first-child > :first-child,
+.clew-reply-text > .clew-reply-prose:first-child > :first-child > :first-child {
+  margin-top: 0;
+}
+
+.clew-reply-text > :last-child > :last-child,
+.clew-reply-text > .clew-reply-prose:last-child > :last-child > :last-child {
+  margin-bottom: 0;
+}
+
+/* As tall as a line of reply text, so a line that replaces another lands in the same spot. */
+.clew-tools .clew-tools-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  max-width: 100%;
+  height: auto;
+  min-height: calc(var(--font-ui-medium) * var(--clew-reply-line-height));
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  transition: color 150ms ease;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clew-tools .clew-tools-header:hover {
+  background: transparent;
+}
+
+.clew-tools:not(.is-empty) .clew-tools-header:hover {
+  color: var(--text-normal);
+}
+
+.clew-tools:not(.is-running) {
+  color: var(--text-faint);
+}
+
+.clew-tools.is-empty .clew-tools-header {
+  cursor: default;
+}
+
+.clew-tools-summary,
+.clew-tool {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-tools-summary {
+  font-weight: var(--font-medium);
+}
+
+.clew-tools.is-running .clew-tools-summary,
+.clew-tool[data-status='running'],
+.clew-diagram-card-label {
+  background: linear-gradient(90deg, var(--text-muted) 40%, var(--text-normal) 50%, var(--text-muted) 60%) 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: clew-shimmer 1.6s linear infinite;
+}
+
+.clew-tools-orb {
+  position: relative;
+  flex-shrink: 0;
+  width: 0;
+  height: 12px;
+  margin-inline-end: calc(-1 * var(--size-2-2));
+  opacity: 0;
+  transition:
+    width 240ms ease,
+    margin 240ms ease,
+    opacity 240ms ease;
+}
+
+.clew-tools.is-running .clew-tools-orb,
+.clew-diagram-card .clew-tools-orb {
+  width: 12px;
+  margin-inline-end: var(--size-2-1);
+  opacity: 1;
+  animation: clew-breathe 2.6s ease-in-out infinite;
+}
+
+.clew-tools-orb::before {
+  content: '';
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 58% 42% 54% 46% / 46% 56% 44% 54%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    color-mix(in srgb, var(--interactive-accent) 35%, white) 0%,
+    var(--interactive-accent) 55%,
+    color-mix(in srgb, var(--interactive-accent) 65%, black) 100%
+  );
+}
+
+/* A soft gradient halo instead of an animated box-shadow, so the glow pulses by opacity alone. */
+.clew-tools-orb::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -5px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--interactive-accent) 60%, transparent),
+    transparent
+  );
+  opacity: 0;
+}
+
+.clew-tools.is-running .clew-tools-orb::before,
+.clew-diagram-card .clew-tools-orb::before {
+  animation:
+    clew-squish 1.7s ease-in-out infinite,
+    clew-spin 3.6s linear infinite;
+}
+
+.clew-tools.is-running .clew-tools-orb::after,
+.clew-diagram-card .clew-tools-orb::after {
+  animation: clew-glow 2.6s ease-in-out infinite;
+}
+
+.clew-tools-time {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  transition: color 150ms ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.clew-tools:not(.is-empty) .clew-tools-header:hover .clew-tools-time {
+  color: inherit;
+}
+
+.clew-tools-time:empty {
+  display: none;
+}
+
+.clew-tools-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.clew-tools.is-empty .clew-tools-chevron {
+  display: none;
+}
+
+.clew-tools-chevron .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.clew-tools.is-open .clew-tools-chevron {
+  transform: rotate(90deg);
+}
+
+.clew-tools-list {
+  display: none;
+  flex-direction: column;
+  gap: var(--size-2-2);
+  margin-top: var(--size-2-3);
+  padding-left: var(--size-4-3);
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+.clew-tools.is-open .clew-tools-list {
+  display: flex;
+}
+
+.clew-tool[data-status='failed'] {
+  color: var(--text-error);
+}
+
+/* Only rotate, scale and opacity animate, so the orb never repaints; the uneven outline turning under an uneven squish reads as a morph. */
+@keyframes clew-squish {
+  0%,
+  100% {
+    scale: 1 0.9;
+  }
+  25% {
+    scale: 0.91 1;
+  }
+  50% {
+    scale: 1 0.94;
+  }
+  75% {
+    scale: 0.93 0.99;
+  }
+}
+
+@keyframes clew-spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+/* Quick inhale, slow exhale. */
+@keyframes clew-breathe {
+  0%,
+  100% {
+    scale: 0.78;
+  }
+  38% {
+    scale: 1;
+  }
+}
+
+@keyframes clew-glow {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  38% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes clew-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* The look every floating menu shares; each menu sets its own placement. */
+.clew-picker-menu,
+.clew-skill-menu,
+.clew-history-menu {
+  z-index: var(--layer-popover);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 14px;
+  background-color: Canvas;
+  background-image: linear-gradient(var(--background-primary), var(--background-primary));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  font-size: var(--font-ui-small);
+}
+
+.clew-skill-option {
+  padding: 5px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.clew-skill-option.is-active {
+  background: var(--background-modifier-hover);
+}
+
+.clew-skill-name {
+  font-weight: var(--font-medium);
+}
+
+.clew-skill-hint {
+  color: var(--text-faint);
+  font-weight: var(--font-normal);
+}
+
+.clew-skill-description {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-skill-token,
+.clew-skill-match {
+  color: var(--text-accent);
+}
+
+/* No padding or margin: the input's mirror must keep the textarea's text metrics. */
+.clew-mention-token {
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+  border-radius: 4px;
+  box-decoration-break: clone;
+}
+
+.clew-history-menu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, 90vw);
+  padding-inline-end: 12px;
+  max-height: min(400px, 70vh);
+  transform-origin: top right;
+  scrollbar-width: auto;
+}
+
+.clew-history-menu::-webkit-scrollbar {
+  width: 3px;
+}
+
+.clew-history-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.clew-history-menu::-webkit-scrollbar-thumb {
+  border: none;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb-bg);
+}
+
+.clew-history-menu :is(.clew-history-row, .clew-history-all) {
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.clew-history-row[aria-current='true'] {
+  color: var(--text-accent);
+}
+
+.clew-history-row .clew-agent-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.clew-history-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-history-when {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.clew-history-menu .clew-history-all {
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.clew-history-empty {
+  padding: 6px 8px;
+  color: var(--text-faint);
+}
+
+.clew-chat-header {
+  position: absolute;
+  top: var(--size-4-2);
+  inset-inline-end: var(--size-4-3);
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.clew-chat-header .clew-icon-action {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-normal) 8%, transparent);
+  color: var(--text-muted);
+}
+
+.clew-chat-header .clew-icon-action .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.clew-chat-panels,
+.clew-chat-panel {
+  display: grid;
+  min-height: 0;
+  min-width: 0;
+}
+
+.clew-chat-panels {
+  position: relative;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
+.clew-chat-panel {
+  grid-area: 1 / 1 / 4 / 2;
+  grid-template-rows: subgrid;
+}
+
+.clew-chat-panel .clew-messages {
+  grid-row: 1;
+  min-height: 0;
+}
+
+.clew-chat-panel[hidden],
+.clew-chat-tab[hidden] { display: none; }
+
+.clew-chat-composer-area {
+  grid-row: 3;
+  container-type: inline-size;
+  min-width: 0;
+  padding: 0 4px 4px;
+  margin-bottom: var(--size-4-2);
+}
+
+.clew-chat-composer-area .clew-composer {
+  margin-bottom: 0;
+}
+
+.clew-approval-card {
+  grid-row: 2;
+  min-width: 0;
+  margin: 0 4px 42px;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 14px;
+  background: var(--background-primary);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--text-normal) 3%, transparent), 0 8px 24px color-mix(in srgb, var(--text-normal) 4%, transparent);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  animation: clew-approval-enter 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.clew-approval-card[hidden] { display: none; }
+.clew-approval-body {
+  max-height: min(300px, 32vh);
+  min-width: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  animation: clew-approval-reveal 180ms ease-out;
+}
+.clew-approval-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 10px; }
+.clew-approval-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--interactive-accent) 9%, var(--background-primary));
+  color: var(--text-accent);
+}
+.clew-approval-icon .svg-icon { width: 16px; height: 16px; }
+.clew-approval-title { min-width: 0; font-weight: var(--font-semibold); line-height: 1.35; overflow-wrap: anywhere; }
+.clew-approval-reason {
+  margin: 0 14px 10px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.clew-approval-summary { padding: 0 14px 6px; }
+.clew-approval-diff + .clew-approval-diff { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--background-modifier-border); }
+.clew-approval-diff-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.clew-approval-diff-path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-smallest); font-weight: var(--font-medium); }
+.clew-approval-diff-kind { flex: none; color: var(--text-muted); font-size: var(--font-smallest); }
+.clew-approval-diff-note { margin: 6px 0; color: var(--text-muted); font-size: var(--font-smallest); overflow-wrap: anywhere; }
+.clew-approval-diff-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; tab-size: 2; }
+.clew-approval-diff-text + .clew-approval-diff-text { margin-top: 8px; }
+.clew-approval-diff-text :is(del, ins) { padding-inline: 2px; border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.clew-approval-diff-text del { color: var(--text-error); background: color-mix(in srgb, var(--color-red) 12%, transparent); text-decoration: line-through; }
+.clew-approval-diff-text ins { color: var(--text-success, var(--color-green)); background: color-mix(in srgb, var(--color-green) 12%, transparent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.clew-approval-label { color: var(--text-muted); font-size: var(--font-smallest); }
+.clew-approval-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.clew-approval-row:first-child { margin-top: 0; }
+.clew-approval-row-icon { display: flex; flex: 0 0 auto; padding-top: 3px; color: var(--text-muted); }
+.clew-approval-row-icon .svg-icon { width: 16px; height: 16px; }
+.clew-approval-row-content { min-width: 0; flex: 1; }
+.clew-approval-card .clew-approval-value,
+.clew-approval-card .clew-approval-details {
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-smallest);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.clew-approval-row[data-field="command"] .clew-approval-value,
+.clew-approval-card .clew-approval-details {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  line-height: 1.5;
+  tab-size: 2;
+}
+.clew-approval-row[data-field="cwd"] .clew-approval-value { color: var(--text-muted); }
+.clew-approval-row[data-field="command"] .clew-approval-row-icon { padding-top: 12px; }
+.clew-approval-disclosure { margin-top: 6px; }
+.clew-approval-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 6px;
+  margin-inline-start: -6px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-smallest);
+  list-style: none;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.clew-approval-disclosure > summary::-webkit-details-marker { display: none; }
+.clew-approval-disclosure > summary:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.clew-approval-chevron { display: flex; flex: 0 0 auto; }
+.clew-approval-chevron .svg-icon { width: 14px; height: 14px; transform: rotate(0deg); transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+.clew-approval-chevron:dir(rtl) .svg-icon { transform: rotate(180deg); }
+.clew-approval-disclosure[open] .clew-approval-chevron .svg-icon { transform: rotate(90deg); }
+.clew-approval-disclosure[open] > pre { animation: clew-approval-reveal 180ms ease-out; }
+.clew-approval-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.clew-approval-actions button {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  white-space: normal;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 100ms ease;
+}
+.clew-approval-actions .clew-approval-deny { background: var(--background-primary); color: var(--text-normal); }
+.clew-approval-actions .clew-approval-deny:hover { background: var(--background-modifier-hover); }
+.clew-approval-actions .clew-approval-allow { background: var(--text-normal); color: var(--background-primary); border-color: transparent; }
+.clew-approval-actions .clew-approval-allow:hover { background: color-mix(in srgb, var(--text-normal) 88%, var(--background-primary)); }
+.clew-approval-actions button:hover { transform: translateY(-1px); box-shadow: 0 2px 4px color-mix(in srgb, var(--text-normal) 8%, transparent); }
+.clew-approval-actions button:active { transform: scale(0.97); box-shadow: none; }
+.clew-approval-actions button:focus-visible,
+.clew-approval-disclosure > summary:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+@keyframes clew-approval-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes clew-approval-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .clew-approval-card,
+  .clew-approval-body,
+  .clew-approval-disclosure[open] > pre { animation: none; }
+  .clew-approval-actions button,
+  .clew-approval-disclosure > summary,
+  .clew-approval-chevron .svg-icon { transition: none; }
+  .clew-approval-actions button:is(:hover, :active) { transform: none; }
+}
+@container (max-width: 360px) {
+  .clew-permission-picker .clew-picker-chevron,
+  .clew-permission-picker .clew-picker-label > span:last-child { display: none; }
+}
+.clew-chat-tab.is-running.needs-approval .clew-chat-tab-status {
+  background: var(--text-warning);
+  animation: none;
+}
+
+.clew-chat-tab-bar {
+  position: absolute;
+  grid-area: 3 / 1;
+  inset-inline: 7px;
+  bottom: 100%;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  margin: 0 0 6px;
+  pointer-events: none;
+}
+
+.clew-chat-tabs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.clew-chat-tabs .clew-chat-tab {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  margin-inline-end: 4px;
+  border: none;
+  outline: 1px solid var(--background-modifier-border);
+  outline-offset: -1px;
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-normal) 8%, transparent);
+  pointer-events: auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.clew-chat-tab-list { display: flex; flex: none; }
+
+.clew-chat-tabs .clew-chat-tab-add { margin-inline-end: 0; }
+
+.clew-chat-tab:is(.is-entering, .is-leaving) {
+  overflow: hidden;
+}
+
+.clew-chat-tabs .clew-chat-tab:is(:hover, :focus-visible) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.clew-chat-tabs .clew-chat-tab:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus);
+  outline-offset: 2px;
+}
+
+.clew-chat-tabs .clew-chat-tab:active {
+  transform: scale(0.94);
+}
+
+.clew-chat-tabs .clew-chat-tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary));
+  color: var(--text-accent);
+  font-weight: var(--font-semibold);
+}
+
+.clew-chat-tab-title {
+  position: fixed;
+  z-index: var(--layer-popover);
+  width: max-content;
+  max-width: min(280px, 65vw);
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+  color: var(--text-normal);
+  font-weight: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 100ms ease, visibility 0s linear 100ms;
+}
+
+.clew-chat-tab:is(:hover, :focus-visible) .clew-chat-tab-title {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 200ms;
+}
+
+.clew-chat-tab-status {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.clew-chat-tab.is-unread .clew-chat-tab-status { background: var(--text-accent); }
+.clew-chat-tab.is-failed .clew-chat-tab-status { background: var(--text-error); }
+.clew-chat-tab.is-running .clew-chat-tab-status {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--text-faint);
+  border-top-color: var(--text-accent);
+  background: transparent;
+  animation: clew-tab-spin 900ms linear infinite;
+}
+
+@keyframes clew-tab-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .clew-chat-tab.is-running .clew-chat-tab-status { animation: none; }
+  .clew-chat-tab-title { transition: none; }
+  .clew-chat-tabs .clew-chat-tab { transition: none; }
+  .clew-chat-tabs .clew-chat-tab:active { transform: none; }
+}
+
+.clew-history-group {
+  padding: 6px 8px 3px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.clew-history-number {
+  flex: none;
+  min-width: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.clew-history-status {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.clew-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Beats Obsidian's own cursor on buttons and icons, but not the rules that set another cursor (an empty tool header). */
+:is(.clew-chat, .clew-history-menu, .clew-chat-modal) :is(button:not(:disabled), .clickable-icon) {
+  cursor: pointer;
+}
+
+.clew-chat-list {
+  min-height: 0;
+}
+
+.clew-chat-group {
+  padding: 10px 8px 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+}
+
+.clew-chat-empty {
+  padding: 12px 8px;
+  color: var(--text-faint);
+}
+
+.clew-chat-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  corner-shape: round;
+}
+
+.clew-chat-row:is(:hover, .is-active, :focus-within) {
+  background: var(--background-modifier-hover);
+}
+
+.clew-chat-modal .clew-chat-open {
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 14px 6px 8px;
+}
+
+.clew-chat-open .clew-agent-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.clew-chat-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.clew-chat-title,
+.clew-chat-confirm-text {
+  line-height: 20px;
+}
+
+.clew-chat-title,
+.clew-chat-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-chat-snippet {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.clew-chat-when {
+  flex: none;
+  width: 56px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  text-align: right;
+  transition: opacity 120ms ease;
+}
+
+.clew-chat-delete {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%) scale(0.8);
+  opacity: 0;
+  color: var(--text-muted);
+  transition: opacity 120ms ease, transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.clew-chat-row:is(:hover, :has(.clew-chat-delete:focus-visible)) .clew-chat-when {
+  opacity: 0;
+}
+
+.clew-chat-row:is(:hover, :has(.clew-chat-delete:focus-visible)) .clew-chat-delete {
+  transform: translateY(-50%);
+  opacity: 1;
+}
+
+.clew-chat-delete:hover {
+  color: var(--text-error);
+}
+
+.clew-chat-row.is-confirming {
+  background: color-mix(in srgb, var(--text-error) 10%, transparent);
+  animation: clew-confirm-bg 160ms ease-out;
+}
+
+.is-confirming :is(.clew-chat-confirm-text, .clew-chat-confirm) {
+  animation: clew-confirm-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes clew-confirm-bg {
+  from {
+    background-color: transparent;
+  }
+}
+
+@keyframes clew-confirm-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+}
+
+.clew-chat-confirm-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-chat-confirm {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  padding-right: 10px;
+}
+
+.clew-chat-confirm button {
+  height: auto;
+  padding: 3px 10px;
+  font-size: var(--font-ui-smaller);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-chat-row.is-confirming,
+  .is-confirming :is(.clew-chat-confirm-text, .clew-chat-confirm) {
+    animation-duration: 1ms;
+  }
+
+  .clew-chat-delete,
+  .clew-chat-when {
+    transition-duration: 1ms;
+  }
+}
+
+.clew-context-meter {
+  --clew-context-share: 0%;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: conic-gradient(var(--text-muted) var(--clew-context-share), var(--background-modifier-border) 0);
+  mask: radial-gradient(circle, transparent 3px, #000 3.5px);
+}
+
+.clew-context-meter[data-high='true'] {
+  background: conic-gradient(var(--text-error) var(--clew-context-share), var(--background-modifier-border) 0);
+}
+
+.clew-context-meter.is-empty {
+  display: none;
+}
+
+.clew-highlight,
+::highlight(clew-highlight) {
+  background-color: color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+.clew-highlight {
+  border-radius: 2px;
+}
+
+.clew-tour,
+.clew-walkthrough {
+  --clew-accent: var(--color-purple, #8b5cf6);
+}
+
+.clew-tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--layer-popover, 30);
+  display: none;
+  pointer-events: none;
+}
+
+.clew-tour.is-active {
+  display: block;
+}
+
+.clew-tour.is-hidden > * {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.clew-tour-cursor,
+.clew-tour-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: opacity 120ms ease;
+}
+
+.clew-tour.is-gliding > .clew-tour-cursor,
+.clew-tour.is-gliding > .clew-tour-card {
+  transition: opacity 120ms ease, transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.clew-tour-cursor svg {
+  display: block;
+  /* The tip is the svg's top-left corner, drawn two units in; this puts it on the point. */
+  margin: -2px 0 0 -2px;
+  overflow: visible;
+  fill: var(--clew-accent);
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.5)) drop-shadow(0 2px 5px rgb(0 0 0 / 0.35));
+}
+
+.clew-tour-card {
+  max-width: 300px;
+  padding: 8px 12px;
+  overflow: hidden;
+  pointer-events: auto;
+  border: 1px solid var(--clew-accent);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  line-height: 1.4;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+}
+
+.clew-tour-card.is-empty {
+  display: none;
+}
+
+/* How long the step has left; it drains slowly and freezes under the pointer. */
+.clew-tour-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--clew-accent) 30%, transparent);
+  transform-origin: left;
+}
+
+.clew-tour-bar.is-timing {
+  animation: clew-tour-drain var(--clew-tour-ms) linear forwards;
+}
+
+.clew-tour-card:hover .clew-tour-bar,
+.clew-tour-card:focus-within .clew-tour-bar {
+  animation-play-state: paused;
+}
+
+@keyframes clew-tour-drain {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.clew-tour-card.is-in {
+  animation: clew-tour-card-in 220ms ease-out;
+}
+
+@keyframes clew-tour-card-in {
+  from {
+    opacity: 0;
+    margin-top: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-tour.is-gliding > .clew-tour-cursor,
+  .clew-tour.is-gliding > .clew-tour-card {
+    transition: none;
+  }
+
+  .clew-tour-card.is-in {
+    animation: none;
+  }
+
+  .clew-tour-bar {
+    display: none;
+  }
+}
+
+.clew-walkthrough {
+  display: flex;
+  flex-direction: column;
+  margin: 8px 0;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+/* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
+.clew-walkthrough .clew-walk-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: auto;
+  padding: 7px 10px 7px 8px;
+  border: 0;
+  border-radius: calc(var(--radius-m) - 2px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.clew-walkthrough .clew-walk-step:hover,
+.clew-walkthrough .clew-walk-step:focus-visible {
+  background: var(--background-modifier-hover);
+}
+
+.clew-walkthrough .clew-walk-step:focus-visible {
+  outline: 2px solid var(--clew-accent);
+  outline-offset: -2px;
+}
+
+/* A line from each number to the next, so the stops read as one path. It sits above the next row's background, which would hide its end. */
+.clew-walkthrough .clew-walk-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 31px;
+  bottom: -7px;
+  left: 18px;
+  width: 2px;
+  background: var(--background-modifier-border);
+}
+
+.clew-walkthrough .clew-walk-step.is-seen:not(:last-child)::before {
+  background: color-mix(in srgb, var(--clew-accent) 55%, transparent);
+}
+
+/* A play mark on hover says a click starts the tour here. */
+.clew-walkthrough .clew-walk-step::after {
+  content: '';
+  align-self: center;
+  flex: none;
+  width: 0;
+  height: 0;
+  margin-left: auto;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid var(--clew-accent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.clew-walkthrough .clew-walk-step:hover::after,
+.clew-walkthrough .clew-walk-step:focus-visible::after {
+  opacity: 0.9;
+}
+
+.clew-walk-num {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--background-modifier-border);
+  border-radius: 50%;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.clew-walk-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.clew-walk-comment {
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+}
+
+.clew-walk-quote {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clew-walk-quote::before {
+  content: '\201C';
+}
+
+.clew-walk-quote::after {
+  content: '\201D';
+}
+
+.clew-walk-note {
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.clew-walkthrough .clew-walk-step.is-seen .clew-walk-num {
+  border-color: var(--clew-accent);
+  color: var(--clew-accent);
+}
+
+.clew-walkthrough .clew-walk-step.is-active {
+  background: color-mix(in srgb, var(--clew-accent) 13%, transparent);
+}
+
+.clew-walkthrough .clew-walk-step.is-active .clew-walk-num {
+  border-color: var(--clew-accent);
+  background: var(--clew-accent);
+  color: #fff;
+}
+
+.clew-walkthrough .clew-walk-step.is-missed {
+  opacity: 0.55;
+}
+
+.clew-walkthrough .clew-walk-step.is-missed .clew-walk-num {
+  border-style: dashed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-walkthrough .clew-walk-step,
+  .clew-walkthrough .clew-walk-step::after,
+  .clew-walk-num {
+    transition: none;
+  }
+}
+
+.clew-env-setting {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--size-4-2);
+}
+
+.clew-env-setting textarea {
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+}
+
+.clew-env-problems {
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+}

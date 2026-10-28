@@ -1,0 +1,18 @@
+[
+  {
+    "name": "zebra",
+    "description": "Answer with a fixed word.",
+    "argumentHint": ""
+  },
+  {
+    "name": "outline",
+    "description": "Outline a note.",
+    "argumentHint": "<note>"
+  },
+  {
+    "name": "simplify",
+    "description": "Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes.",
+    "argumentHint": "[<target>]",
+    "builtin": true
+  }
+]
