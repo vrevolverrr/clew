@@ -32,7 +32,7 @@ Here $F$ is the restoring force in newtons, $x$ is the stretch in centimetres, a
 
 ### Follow-ups
 
-The order above is for the first explanation of a concept. After that, answer only what the student asks, in the fewest words that fully answer it, and do not repeat the definition or the earlier example. When the student asks for more depth, a derivation, or another example, expand only that part, and the length limit above does not apply. When the student says they do not follow something, explain that part again in different words, with a different example, and nothing else.
+The order above is for the first explanation of a concept. After that, answer only what the student asks, in the fewest words that fully answer it, and do not repeat the definition or the earlier example. Add no new example unless the student asks for one or says they do not follow; working out a calculation they asked for is the answer, not an example. When the student asks for more depth, a derivation, or another example, expand only that part, and the length limit above does not apply. When the student says they do not follow something, explain that part again in different words, with a different example, and nothing else.
 
 ### Checks
 
