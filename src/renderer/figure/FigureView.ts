@@ -6,9 +6,9 @@ import { drawLinks, type Link } from '@/renderer/figure/drawLinks';
 import { drawParams } from '@/renderer/figure/drawParams';
 import { plotModel } from '@/renderer/figure/drawPlot';
 import { drawQuiz } from '@/renderer/figure/drawQuiz';
-import { type FigureData, type FigureNode, TAGS, type Tag } from '@/renderer/figure/FigureData';
+import { type FigureData, type FigureNode, type Param, TAGS, type Tag } from '@/renderer/figure/FigureData';
 import { figureSandbox, type FigureSandbox } from '@/renderer/figure/FigureSandbox';
-import { drawTex, drawTexIn, type Rgb, type TagColour, texTags } from '@/renderer/figure/figureTex';
+import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texTags } from '@/renderer/figure/figureTex';
 import { figureText } from '@/renderer/figure/figureText';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { status } from '@/renderer/figure/geometry';
@@ -20,6 +20,9 @@ import { validateFigure } from '@/renderer/figure/validateFigure';
 export interface FigureHost {
   /** Renders Markdown into `el` with the chat's renderer; strings pass through `figureText` first. Resolves once MathJax has finished. */
   renderMarkdown(el: HTMLElement, markdown: string): Promise<void>;
+  /** Draws TeX with MathJax at once; a glyph MathJax has not used before shows once `finishRenderMath` resolves. */
+  renderMath(tex: string, display: boolean): HTMLElement;
+  finishRenderMath(): Promise<void>;
   /** Sends a Quiz answer as the student's next message; false when the chat cannot take one now. */
   send?(message: string): boolean;
 }
@@ -36,6 +39,31 @@ const FALLBACK_WIDTH = 480;
 const RENDERED_LIMIT = 500;
 /** No character Markdown or TeX would read, and no list or quote marker: shown as text, with no render. */
 const isPlain = (text: string): boolean => !/[*_`$\\[\]<>#|~!&]/.test(text) && !/^\s*([-+>]|\d+[.)])\s/.test(text);
+/** Plain text and `$…$` maths only, which MathJax draws at once with no Markdown render to wait for; else undefined. */
+function mathParts(markdown: string): (string | { tex: string; display: boolean })[] | undefined {
+  const parts: (string | { tex: string; display: boolean })[] = [];
+  let plain = true;
+  mapMath(markdown, (math) => {
+    const display = math.startsWith('$$');
+    parts.push({ tex: display ? math.slice(2, -2) : math.slice(1, -1), display });
+    return '';
+  }, (text) => {
+    plain &&= isPlain(text);
+    parts.push(text);
+    return '';
+  });
+  return plain ? parts : undefined;
+}
+/** Runs per param when fitting a Diagram's frame to its range. */
+const RANGE_SAMPLES = 12;
+/** A param's values to fit a Diagram's frame to: every choice, a slider's ends and evenly spaced steps between. */
+function rangeOf(param: Param): unknown[] {
+  if (param.kind === 'choice') return [...param.options];
+  if (param.kind === 'text') return [];
+  const steps = Math.floor((param.max - param.min) / param.step);
+  const count = Math.min(steps + 1, RANGE_SAMPLES);
+  return Array.from({ length: count }, (_, i) => param.min + Math.round((i * steps) / Math.max(1, count - 1)) * param.step);
+}
 /** The px size of a Graph's text, as `styles.css` sets it. */
 const GRAPH_FONT = 13;
 
@@ -141,6 +169,7 @@ export class FigureView {
     const result = await this.execute();
     if (!result.ok) return { drawn: false, error: result.error, repairable: result.repairable };
     await this.draw(result.figure, false);
+    void this.fitRange(result.figure);
     return { drawn: true };
   }
 
@@ -174,13 +203,14 @@ export class FigureView {
     if (this.figure && this.body?.isConnected) void this.draw(this.figure, true);
   }
 
-  private async execute(): Promise<{ ok: true; figure: FigureData } | { ok: false; error: string; repairable: boolean }> {
+  /** `background` runs queue behind every figure on screen and every run the student asked for. */
+  private async execute(params = Object.fromEntries(this.values), background = false): Promise<{ ok: true; figure: FigureData } | { ok: false; error: string; repairable: boolean }> {
     // A figure in a hidden tab has no box; it waits behind every figure on screen.
     const near = (): number => {
       const box = this.el.getBoundingClientRect();
-      return box.width === 0 ? Infinity : Math.abs(box.top);
+      return box.width === 0 ? Infinity : background ? Number.MAX_SAFE_INTEGER : Math.abs(box.top);
     };
-    const result = await this.sandbox.run(this.source, Object.fromEntries(this.values), near, this.controller.signal);
+    const result = await this.sandbox.run(this.source, params, near, this.controller.signal);
     if (!result.ok) return { ok: false, error: result.line ? `${result.error} (line ${result.line})` : result.error, repairable: result.repairable };
     const valid = validateFigure(result.payload);
     return valid.ok ? { ok: true, figure: valid.figure } : { ok: false, error: valid.error, repairable: true };
@@ -203,23 +233,45 @@ export class FigureView {
     });
   }
 
-  private render(el: HTMLElement, markdown: string, renders: Promise<unknown>[]): void {
+  /** `typeset` is told when MathJax drew here at once, so its new glyphs are measured again once they show. */
+  private render(el: HTMLElement, markdown: string, renders: Promise<unknown>[], typeset: () => void): void {
     const done = this.rendered.get(markdown);
     if (done) {
       el.replaceChildren(done.cloneNode(true));
       return;
     }
-    renders.push(this.host.renderMarkdown(el, markdown).then(() => {
+    const remember = (): void => {
       if (this.rendered.size >= RENDERED_LIMIT) this.rendered.clear();
       const copy = document.createDocumentFragment();
       for (const node of el.childNodes) copy.append(node.cloneNode(true));
       this.rendered.set(markdown, copy);
-    }));
+    };
+    const parts = mathParts(markdown);
+    if (parts) {
+      try {
+        el.replaceChildren(...parts.map((part) => (typeof part === 'string' ? part : this.host.renderMath(part.tex, part.display))));
+        typeset();
+        remember();
+        return;
+      } catch {
+        // MathJax is not loaded yet; the Markdown render loads it.
+      }
+    }
+    renders.push(this.host.renderMarkdown(el, markdown).then(remember));
   }
 
-  /** Diagrams keep their largest extent while a slider moves, so nothing jumps; once it is let go they fit what they draw. */
-  private refit(): void {
-    this.extents.clear();
+  /**
+   * Runs the program across each param's range, so each Diagram's extent holds every value the student can pick and
+   * its frame never moves as they pick one. Redraws if that grew an extent.
+   */
+  private async fitRange(figure: FigureData): Promise<void> {
+    let diagrams = false;
+    for (const step of figure.steps) walk(step.root, (node) => (diagrams ||= node.type === 'Diagram'));
+    if (!diagrams) return;
+    const before = JSON.stringify([...this.extents]);
+    const runs = figure.params.flatMap((param) => rangeOf(param).map((value) => this.execute({ ...Object.fromEntries(this.values), [param.key]: value }, true)));
+    for (const result of await Promise.all(runs)) if (result.ok) this.diagramExtents(result.figure);
+    if (this.controller.signal.aborted || JSON.stringify([...this.extents]) === before) return;
     if (!this.rerunning && this.figure && this.body?.isConnected) void this.draw(this.figure, true);
   }
 
@@ -262,6 +314,10 @@ export class FigureView {
     const shown = this.body?.isConnected ? this.body : undefined;
     if (!shown) this.el.replaceChildren();
     const renders: Promise<unknown>[] = [];
+    let typeset = false;
+    const typed = (): void => {
+      typeset = true;
+    };
     const used = new Set<Tag>();
     const colour: TagColour = (tag, fill) => this.colour(tag, fill);
     const drawing: Drawing = {
@@ -271,11 +327,11 @@ export class FigureView {
           return;
         }
         for (const tag of texTags(text)) used.add(tag);
-        this.render(el, figureText(drawTexIn(text, colour)), renders);
+        this.render(el, figureText(drawTexIn(text, colour)), renders, typed);
       },
       tex: (el, tex) => {
         for (const tag of texTags(tex)) used.add(tag);
-        this.render(el, figureText(`$$\n${drawTex(tex, colour)}\n$$`), renders);
+        this.render(el, figureText(`$$\n${drawTex(tex, colour)}\n$$`), renders, typed);
       },
       graphs: this.layoutGraphs(figure),
       lanes: this.pointerLanes(figure),
@@ -288,7 +344,7 @@ export class FigureView {
       drawParams(this.params, figure.params, this.values, (key, value) => {
         this.values.set(key, value);
         void this.rerun();
-      }, () => this.refit());
+      });
       this.paramError = this.el.appendChild(div('clew-figure-param-error'));
     }
     const body = this.el.appendChild(div('clew-figure-body'));
@@ -360,11 +416,28 @@ export class FigureView {
       return;
     }
     if (shown) commit();
-    this.reserveWidths();
-    for (const step of this.steps) drawLinks(step.el, step.links, drawing.markdown);
+    // Diagram labels drawn while their render ran were placed from an estimate.
+    this.remeasure(drawing.markdown, renders.length > 0);
     void document.fonts?.ready.then(() => {
       if (generation === this.generation) for (const step of this.steps) drawLinks(step.el, step.links, drawing.markdown);
     });
+    if (typeset) {
+      void this.host.finishRenderMath().then(() => {
+        if (generation === this.generation) this.remeasure(drawing.markdown, true);
+      });
+    }
+  }
+
+  /** Places what depends on measured boxes again: reserved widths, links, and with `diagrams` the shown step's Diagram labels. */
+  private remeasure(markdown: Drawing['markdown'], diagrams: boolean): void {
+    if (diagrams) {
+      this.steps.forEach((step, k) => {
+        if (k === this.current) step.diagrams.forEach((paint) => paint());
+        else if (step.diagrams.length) step.dirty = true;
+      });
+    }
+    this.reserveWidths();
+    for (const step of this.steps) drawLinks(step.el, step.links, markdown);
   }
 
   private show(index: number): void {

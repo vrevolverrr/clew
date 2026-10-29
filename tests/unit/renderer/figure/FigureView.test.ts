@@ -41,10 +41,11 @@ function sandbox(answer: (params: Record<string, unknown>) => unknown): FigureSa
 }
 
 /** A host whose Markdown renders resolve only when the test says. */
-function host(): FigureHost & { rendered: string[]; finish(): void; sent: string[]; accept: boolean } {
+function host(): FigureHost & { rendered: string[]; math: string[]; finish(): void; sent: string[]; accept: boolean } {
   const pending: (() => void)[] = [];
   const self = {
     rendered: [] as string[],
+    math: [] as string[],
     sent: [] as string[],
     accept: true,
     finish: () => pending.splice(0).forEach((go) => go()),
@@ -53,6 +54,11 @@ function host(): FigureHost & { rendered: string[]; finish(): void; sent: string
       target.textContent = markdown;
       return new Promise<void>((resolve) => pending.push(resolve));
     },
+    renderMath: (tex: string, display: boolean) => {
+      self.math.push(display ? `$$${tex}$$` : `$${tex}$`);
+      return Object.assign(document.createElement('span'), { textContent: tex });
+    },
+    finishRenderMath: () => Promise.resolve(),
     send: (message: string) => {
       self.sent.push(message);
       return self.accept;
@@ -133,8 +139,38 @@ describe('FigureView', () => {
     const view = new FigureView(document.body, markdown, sandbox(() => payload([{ caption: 'a', root: tex(true) }, { caption: 'b', root: tex(false) }])));
     void view.run('src');
     await flush();
-    const formulas = markdown.rendered.filter((text) => text.startsWith('$$'));
-    expect(formulas).toEqual(['$$\n\\data{figure-id=r2}{0} + 1\n$$', '$$\n0 + 1\n$$']);
+    expect(markdown.math).toEqual(['$$\n\\data{figure-id=r2}{0} + 1\n$$', '$$\n0 + 1\n$$']);
+  });
+
+  it('draws text that is only words and maths with MathJax at once, and Markdown through the render', async () => {
+    const markdown = host();
+    const view = new FigureView(document.body, markdown, sandbox(() => payload([{ caption: '**Bold**', root: el('Node', { id: 'a', label: 'Force $mg$' }) }])));
+    void view.run('src');
+    await flush();
+    expect(markdown.math).toEqual(['$mg$']);
+    expect([...new Set(markdown.rendered)]).toEqual(['**Bold**']);
+    expect(view.el.querySelector('.clew-figure-node-label')!.textContent).toBe('Force mg');
+  });
+
+  it("frames a Diagram for every value of its slider, so moving it never moves the drawing", async () => {
+    const markdown = host();
+    const runs = sandbox((params) => payload(
+      [{ caption: '', root: el('Diagram', { width: 1, height: 1 }, el('Points', { pts: [[0, 0], [params.n ?? 3, 1]] })) }],
+      { n: { label: 'n', min: 1, max: 9, step: 1, value: 3 } },
+    ));
+    const view = new FigureView(document.body, markdown, runs);
+    await view.run('src');
+    for (let i = 0; i < 4; i += 1) await flush();
+    const height = (): string | null => view.el.querySelector('.clew-figure-body:not(.is-pending) svg')!.getAttribute('height');
+    const first = height();
+    const slider = view.el.querySelector<HTMLInputElement>('input[type="range"]')!;
+    for (const value of ['9', '1']) {
+      slider.value = value;
+      slider.dispatchEvent(new Event('input'));
+      for (let i = 0; i < 4; i += 1) await flush();
+      expect(height()).toBe(first);
+    }
+    expect(runs.calls.map((params) => params.n).filter((n) => n !== undefined)).toEqual(expect.arrayContaining([1, 2, 3, 4, 5, 6, 7, 8, 9]));
   });
 
   it('creates one ResizeObserver per figure however many plots it has, and disconnects it on destroy', async () => {

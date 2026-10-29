@@ -7,10 +7,12 @@ import { figureSandbox } from '@/renderer/figure/FigureSandbox';
 import { type FigureHost, FigureView } from '@/renderer/figure/FigureView';
 import { canAnimate } from '@/shared/view/iconButtons';
 
-/** What a reply needs to draw Markdown; the chat pane provides it. `diagrams` also draws its Mermaid fences. */
+/** What a reply needs to draw Markdown and maths; the chat pane provides it. `diagrams` also draws its Mermaid fences. */
 export interface MarkdownTarget {
   render(el: HTMLElement, markdown: string, options?: { diagrams?: boolean }): Promise<void>;
   release(container?: HTMLElement): void;
+  renderMath(tex: string, display: boolean): HTMLElement;
+  finishRenderMath(): Promise<void>;
 }
 
 /** Grows the card from its drawing height to the diagram's while the drawing card fades out. */
@@ -219,7 +221,12 @@ export class TextBlock {
     if (ordinal >= LIMITS.figuresPerReply) return { kind: 'figure', el, drawn: false, ordinal };
     figureSandbox.warm();
     // A label in a figure is not a diagram, so its fences never draw as Mermaid.
-    const host: FigureHost = { renderMarkdown: (target, markdown) => this.markdown.render(target, markdown, { diagrams: false }), send: this.figures.send };
+    const host: FigureHost = {
+      renderMarkdown: (target, markdown) => this.markdown.render(target, markdown, { diagrams: false }),
+      renderMath: (tex, display) => this.markdown.renderMath(tex, display),
+      finishRenderMath: () => this.markdown.finishRenderMath(),
+      send: this.figures.send,
+    };
     return { kind: 'figure', el, view: new FigureView(el, host), drawn: false, ordinal };
   }
 

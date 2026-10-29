@@ -7,15 +7,25 @@ const unit = (from: Point, to: Point): [number, number] => {
 
 const degrees = (v: readonly [number, number]): number => (Math.atan2(v[1], v[0]) * 180) / Math.PI;
 
-/** The arc of the smaller angle at `at` between the rays towards `from` and `to`, counter-clockwise from `start` to `end`, with its label outside the arc on the bisector. */
-export function angleMark(at: Point, from: Point, to: Point, radius: number): { start: number; end: number; radius: number; label: Point } {
+/**
+ * The arc of the smaller angle at `at` between the rays towards `from` and `to`, counter-clockwise from `start` to
+ * `end`, and the centre of its label on the bisector, `gap` outside the arc, for a label of half-size `half`. A narrow
+ * angle takes its arc further out, within 0.6 of the shorter ray, until the label also clears both rays.
+ */
+export function angleMark(at: Point, from: Point, to: Point, radius: number, half: readonly [number, number] = [0, 0], gap = 0): { start: number; end: number; radius: number; label: Point } {
   let start = degrees(unit(at, from));
   let end = degrees(unit(at, to));
   if ((((end - start) % 360) + 360) % 360 > 180) [start, end] = [end, start];
   if (end < start) end += 360;
   const middle = (((start + end) / 2) * Math.PI) / 180;
-  const out = radius * 1.7;
-  return { start, end, radius, label: [at[0] + out * Math.cos(middle), at[1] + out * Math.sin(middle)] };
+  const [w, h] = half;
+  const along = w * Math.abs(Math.cos(middle)) + h * Math.abs(Math.sin(middle));
+  const across = Math.max(...[start, end].map((ray) => w * Math.abs(Math.sin((ray * Math.PI) / 180)) + h * Math.abs(Math.cos((ray * Math.PI) / 180))));
+  const clear = (across + gap) / Math.sin((((end - start) / 2) * Math.PI) / 180);
+  const reach = 0.6 * Math.min(Math.hypot(from[0] - at[0], from[1] - at[1]), Math.hypot(to[0] - at[0], to[1] - at[1]));
+  const arc = Math.max(radius, Math.min(reach, clear - along - gap));
+  const out = arc + gap + along;
+  return { start, end, radius: arc, label: [at[0] + out * Math.cos(middle), at[1] + out * Math.sin(middle)] };
 }
 
 /** The three outer corners of the square mark at `at`. */

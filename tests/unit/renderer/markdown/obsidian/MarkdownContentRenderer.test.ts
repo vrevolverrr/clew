@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import type { App, Component } from 'obsidian';
-import { finishRenderMath, MarkdownRenderer } from 'obsidian';
+import { MarkdownRenderer } from 'obsidian';
 
 import { MarkdownContentRenderer } from '@/renderer/markdown/obsidian/MarkdownContentRenderer';
 
@@ -54,21 +54,6 @@ function createRenderer() {
 describe('MarkdownContentRenderer', () => {
   beforeEach(() => {
     render.mockReset();
-    (finishRenderMath as jest.Mock).mockClear();
-  });
-
-  it('flushes the MathJax stylesheet after rendering math, so new glyphs get their styles', async () => {
-    render.mockImplementation(async (_app: App, _markdown: string, el: HTMLElement) => {
-      el.innerHTML = '<p>needs <mjx-container>M - 1</mjx-container> buffers</p>';
-    });
-    const { root, renderer } = createRenderer();
-
-    await renderer.render(root.appendChild(document.createElement('div')), 'needs $M - 1$ buffers');
-    expect(finishRenderMath).toHaveBeenCalledTimes(1);
-
-    renderAndRunInlineProcessors([]);
-    await renderer.render(root.appendChild(document.createElement('div')), 'no math');
-    expect(finishRenderMath).toHaveBeenCalledTimes(1);
   });
 
   it('never lets post-processors see inline code from model output, and shows it as written', async () => {

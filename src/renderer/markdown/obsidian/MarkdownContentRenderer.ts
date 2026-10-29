@@ -1,4 +1,4 @@
-import { Component, finishRenderMath, MarkdownRenderer } from 'obsidian';
+import { Component, MarkdownRenderer } from 'obsidian';
 import type { App } from 'obsidian';
 
 import { escapeRawHTMLTags } from '@/renderer/markdown/markdownHTML';
@@ -84,8 +84,6 @@ export class MarkdownContentRenderer {
       const sourcePath = this.getSourcePath();
       const processedMarkdown = replaceImageEmbedsWithHTML(displayOnlyInlineCode.markdown, this.app, sourcePath);
       await MarkdownRenderer.render(this.app, processedMarkdown, el, sourcePath, scope);
-      // MathJax styles each glyph the first time it is used, and those styles apply only once flushed.
-      if (el.querySelector('mjx-container')) await finishRenderMath();
       if (!isCurrent()) return;
       restoreDisplayOnlyInlineCode(el, displayOnlyInlineCode.spans);
       await restoreDisplayOnlyCodeFences(el, displayOnlyCodeFences.fences);

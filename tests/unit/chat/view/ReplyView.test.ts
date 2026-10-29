@@ -341,11 +341,13 @@ describe('ReplyView', () => {
         asked.push([text.split('\n')[0]!, options?.diagrams]);
       },
       release: () => undefined,
+      renderMath: () => document.createElement('span'),
+      finishRenderMath: () => Promise.resolve(),
     }, hostOf());
-    reply.appendText('Prose.\n\n```mermaid\nflowchart LR\n```\n\n```figure\n' + figure({ type: 'Text', props: { text: 'Inside $x$' }, children: [] }) + '\n```\n');
+    reply.appendText('Prose.\n\n```mermaid\nflowchart LR\n```\n\n```figure\n' + figure({ type: 'Text', props: { text: '**Inside** $x$' }, children: [] }) + '\n```\n');
     reply.finish();
     await settle();
-    expect(asked).toEqual([['Prose.', undefined], ['```mermaid', true], ['Inside $x$', false]]);
+    expect(asked).toEqual([['Prose.', undefined], ['```mermaid', true], ['**Inside** $x$', false]]);
   });
 
   it('renders each finished paragraph once while the next one streams', async () => {

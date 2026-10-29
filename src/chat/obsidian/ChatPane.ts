@@ -101,6 +101,8 @@ export class ChatPane extends Component {
     this.replyMarkdown = {
       render: (el, text, options) => markdown.render(el, text, options?.diagrams ? diagrams : undefined),
       release: (container) => markdown.release(container),
+      renderMath,
+      finishRenderMath,
     };
     this.registerDomEvent(this.messagesEl, 'click', (event) => this.openInternalLink(event));
     this.approvals = new ApprovalCard(root, () => this.refreshTab());

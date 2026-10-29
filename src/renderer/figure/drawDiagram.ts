@@ -7,9 +7,11 @@ import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
 type Diagram = Extract<FigureNode, { type: 'Diagram' }>;
 export type Markdown = (el: HTMLElement, text: string | number) => void;
 
-const PAD = 20;
+const PAD = 10;
 const MAX_HEIGHT = 340;
 const CHAR_WIDTH = 7.5;
+/** More than the 2 px margin `placeLabels` counts a line crossing within. */
+const LABEL_GAP = 3;
 let markerId = 0;
 
 function pointsOf(layer: DiagramLayer): readonly Point[] {
@@ -46,7 +48,7 @@ export function diagramExtent(diagram: Diagram, keep?: Extent): Extent {
       ? [0, 0, Math.max(...xs), Math.max(...ys)]
       : [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
   // A single point has no size to scale to, so it gets a unit around it.
-  const pad = anchored && (x1 > x0 || y1 > y0) ? 0 : Math.max(x1 - x0, y1 - y0) * 0.05 || 1;
+  const pad = x1 > x0 || y1 > y0 ? 0 : 1;
   const own: Extent = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
   return keep ? [Math.min(own[0], keep[0]), Math.min(own[1], keep[1]), Math.max(own[2], keep[2]), Math.max(own[3], keep[3])] : own;
 }
@@ -68,7 +70,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
   const head = svg('marker', { id: marker, viewBox: '0 0 10 10', refX: 9, refY: 5, markerUnits: 'userSpaceOnUse', markerWidth: 11, markerHeight: 11, orient: 'auto-start-reverse' }, svg('defs', {}, root));
   svg('path', { d: 'M0 0L10 5L0 10z', fill: 'context-stroke' }, head);
   const lines: [number, number][][] = [];
-  const labels: (LabelBox & { text: string | number; tag?: Tag })[] = [];
+  const labels: (LabelBox & { box: HTMLElement })[] = [];
   const mark = (tag: string, attrs: Record<string, string | number>, layerTag?: Tag): SVGElement => {
     const shape = svg(tag, { ...attrs, class: `clew-figure-mark${attrs.class ? ` ${attrs.class}` : ''}` }, root);
     if (layerTag) shape.style.color = `var(--clew-figure-tag-${layerTag})`;
@@ -80,10 +82,25 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
     mark('path', { d: path(points, close), fill: 'none', ...extra }, tag);
     lines.push((close ? [...points, points[0]] : points).map(px));
   };
-  const label = (at: Point, text: string | number | undefined, tag?: Tag, center = false): void => {
-    if (text === undefined) return;
+  // Every label is drawn and then measured in one layout; one not laid out (no layout, or a render still running) keeps an estimate.
+  const boxes = new Map<DiagramLayer, { box: HTMLElement; width: number; height: number }>();
+  for (const layer of diagram.children) {
+    const text = layer.type === 'Label' ? layer.text : 'label' in layer ? layer.label : undefined;
+    if (text === undefined) continue;
+    const box = el.appendChild(div('clew-figure-diagram-label'));
+    if (layer.tag) box.style.color = `var(--clew-figure-tag-${layer.tag})`;
+    markdown(box, text);
+    boxes.set(layer, { box, width: formatFigure(text).length * CHAR_WIDTH + 8, height: 18 });
+  }
+  for (const size of boxes.values()) {
+    const rect = size.box.getBoundingClientRect();
+    if (rect.width) Object.assign(size, { width: rect.width, height: rect.height });
+  }
+  const label = (at: Point, layer: DiagramLayer, center = false): void => {
+    const size = boxes.get(layer);
+    if (!size) return;
     const [x, y] = px(at);
-    labels.push({ x, y, width: formatFigure(text).length * CHAR_WIDTH + 8, height: 18, text, tag, center });
+    labels.push({ x, y, width: size.width, height: size.height, box: size.box, center });
   };
 
   const all = diagram.children.flatMap(pointsOf);
@@ -94,7 +111,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
         polyline(layer.pts, layer.tag, layer.closed ? { class: 'is-closed' } : {}, layer.closed);
         if (layer.pts.length) {
           const middle: Point = [layer.pts.reduce((s, p) => s + p[0], 0) / layer.pts.length, layer.pts.reduce((s, p) => s + p[1], 0) / layer.pts.length];
-          label(layer.closed ? middle : layer.pts[layer.pts.length - 1], layer.label, layer.tag, layer.closed);
+          label(layer.closed ? middle : layer.pts[layer.pts.length - 1], layer, layer.closed);
         }
         break;
       }
@@ -102,32 +119,33 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
         const [cx, cy] = px(layer.at);
         mark('circle', { cx, cy, r: layer.r * scale, fill: 'none' }, layer.tag);
         lines.push(Array.from({ length: 33 }, (_, i) => px([layer.at[0] + layer.r * Math.cos((i * Math.PI) / 16), layer.at[1] + layer.r * Math.sin((i * Math.PI) / 16)])));
-        label([layer.at[0], layer.at[1] + layer.r], layer.label, layer.tag);
+        label([layer.at[0], layer.at[1] + layer.r], layer);
         break;
       }
       case 'Vector':
       case 'Segment':
         polyline([layer.from, layer.to], layer.tag, layer.type === 'Vector' ? { 'marker-end': `url(#${marker})`, class: 'is-vector' } : {});
-        label([(layer.from[0] + layer.to[0]) / 2, (layer.from[1] + layer.to[1]) / 2], layer.label, layer.tag);
+        label([(layer.from[0] + layer.to[0]) / 2, (layer.from[1] + layer.to[1]) / 2], layer);
         break;
       case 'Points':
         for (const p of layer.pts) {
           const [cx, cy] = px(p);
           mark('circle', { cx, cy, r: 3.5, class: 'is-point' }, layer.tag);
         }
-        if (layer.pts.length) label(layer.pts[0], layer.label, layer.tag);
+        if (layer.pts.length) label(layer.pts[0], layer);
         break;
       case 'Label':
-        label(layer.at, layer.text, layer.tag, true);
+        label(layer.at, layer, true);
         break;
       case 'Angle': {
-        const arc = angleMark(layer.at, layer.from, layer.to, units(22));
+        const size = boxes.get(layer);
+        const arc = angleMark(layer.at, layer.from, layer.to, units(22), size ? [units(size.width / 2), units(size.height / 2)] : undefined, units(LABEL_GAP));
         const points = Array.from({ length: 25 }, (_, i): Point => {
           const t = ((arc.start + ((arc.end - arc.start) * i) / 24) * Math.PI) / 180;
           return [layer.at[0] + arc.radius * Math.cos(t), layer.at[1] + arc.radius * Math.sin(t)];
         });
         polyline(points, layer.tag);
-        label(arc.label, layer.label, layer.tag, true);
+        label(arc.label, layer, true);
         break;
       }
       case 'RightAngle':
@@ -143,20 +161,28 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
         const dimension = dimensionMark(layer.from, layer.to, side * units(16));
         polyline(dimension.line, layer.tag, { class: 'is-dimension' });
         for (const bar of dimension.bars) polyline(bar, layer.tag, { class: 'is-dimension' });
-        label(dimension.label, layer.label, layer.tag, true);
+        label(dimension.label, layer, true);
         break;
       }
     }
   }
 
-  placeLabels(labels, { x0: 0, y0: 0, x1: width, y1: height }, lines).forEach((at, i) => {
-    const { text, tag } = labels[i];
-    const box = el.appendChild(div('clew-figure-diagram-label'));
-    box.style.left = `${at.x}px`;
-    box.style.top = `${at.y}px`;
-    if (tag) box.style.color = `var(--clew-figure-tag-${tag})`;
-    markdown(box, text);
+  // A mark drawn at a pixel offset from its points (a Dimension's line and bars) can reach past the border; the drawing grows to hold it.
+  const xs = lines.flat().map((p) => p[0]);
+  const ys = lines.flat().map((p) => p[1]);
+  const left = Math.max(0, PAD - Math.min(PAD, ...xs));
+  const top = Math.max(0, PAD - Math.min(PAD, ...ys));
+  const right = Math.max(0, Math.max(width - PAD, ...xs) - width + PAD);
+  const bottom = Math.max(0, Math.max(height - PAD, ...ys) - height + PAD);
+  const frame = { x0: -left, y0: -top, x1: width + right, y1: height + bottom };
+  for (const [name, value] of Object.entries({ width: frame.x1 - frame.x0, height: frame.y1 - frame.y0, viewBox: `${frame.x0} ${frame.y0} ${frame.x1 - frame.x0} ${frame.y1 - frame.y0}` })) root.setAttribute(name, String(value));
+
+  placeLabels(labels, frame, lines).forEach((at, i) => {
+    labels[i].box.style.left = `${at.x + left}px`;
+    labels[i].box.style.top = `${at.y + top}px`;
   });
-  el.style.width = `${width}px`;
-  el.style.height = `${height}px`;
+  const placed = new Set(labels.map((item) => item.box));
+  for (const { box } of boxes.values()) if (!placed.has(box)) box.remove();
+  el.style.width = `${frame.x1 - frame.x0}px`;
+  el.style.height = `${frame.y1 - frame.y0}px`;
 }
