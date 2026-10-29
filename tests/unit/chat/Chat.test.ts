@@ -54,16 +54,17 @@ function setup(record: Partial<ChatRecord> = {}, title?: string, claudeModels: P
 const context: ChatContext = { message: 'Why is the sky blue?', attachments: [] };
 
 describe('Chat', () => {
-  it('sends the context as the turn text, saves the turn, and titles the first one from its message', async () => {
+  it('sends the context as the turn text, saves the turn, resolves with it, and titles the first one from its message', async () => {
     const { chat, sessions, store, finish } = setup();
     chat.open(); await settle();
     const sending = chat.send({ ...context, note: { path: 'optics.md' } }, view);
     await settle();
     expect(sessions[0]!.input[0]).toContain('<note path="optics.md"/>');
     finish(sessions[0]!);
-    await sending;
+    const turn = await sending;
     const saved = await store.load(ID);
     expect(saved?.turns).toHaveLength(1);
+    expect(turn).toEqual(saved?.turns[0]);
     expect(saved?.title).toBe('Why is the sky blue?');
     expect(saved?.sessionId).toBe('claude-0');
   });
@@ -76,14 +77,15 @@ describe('Chat', () => {
     expect((await store.load(ID))?.title).toBe('Rayleigh scattering');
   });
 
-  it('ignores a second message while a turn runs', async () => {
+  it('ignores a second message while a turn runs, resolving it with no turn', async () => {
     const { chat, sessions, finish } = setup();
     chat.open(); await settle();
     const first = chat.send(context, view);
     await settle();
     expect(chat.busy).toBe(true);
-    await chat.send({ ...context, message: 'And at sunset?' }, view);
-    finish(sessions[0]!); await first;
+    expect(await chat.send({ ...context, message: 'And at sunset?' }, view)).toBeUndefined();
+    finish(sessions[0]!);
+    expect((await first)?.status).toBe('completed');
     expect(sessions[0]!.input).toHaveLength(1);
     expect(chat.busy).toBe(false);
   });

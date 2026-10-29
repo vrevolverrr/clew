@@ -77,8 +77,8 @@ export class Chat {
     void this.upgradeChoice();
   }
 
-  /** Runs one turn on `context` and saves it. */
-  send(context: ChatContext, view: TurnView): Promise<void> {
+  /** Runs one turn on `context` and saves it. Resolves with the saved turn, or undefined when none ran: the chat was busy or the turn could not start. */
+  send(context: ChatContext, view: TurnView): Promise<ChatTurn | undefined> {
     const chat = this.chat;
     return this.guarded(async (signal) => {
       const agent = this.deps.agents[this.current];
@@ -88,16 +88,16 @@ export class Chat {
         { context, root: this.deps.cwd, text, signal, sessionId: chat.sessionId, wantTitle: !chat.turns.length },
         view,
       );
-      await this.remember(turn, sessionId, title, this.session.promptId);
+      return this.remember(turn, sessionId, title, this.session.promptId);
     });
   }
 
   /** Runs a turn on a session the caller made, as if the student had sent `context`, and saves it. */
-  play(context: ChatContext, session: AgentSession, view: TurnView): Promise<void> {
+  play(context: ChatContext, session: AgentSession, view: TurnView): Promise<ChatTurn | undefined> {
     const { sessionId } = this.chat;
     return this.guarded(async (signal) => {
       const { turn } = await runTurn(async () => session, { context, root: this.deps.cwd, text: context.message, signal }, view);
-      await this.remember(turn, sessionId, undefined, undefined);
+      return this.remember(turn, sessionId, undefined, undefined);
     });
   }
 
@@ -174,18 +174,20 @@ export class Chat {
     await this.session?.close();
   }
 
-  private async guarded(work: (signal: AbortSignal) => Promise<void>): Promise<void> {
-    if (this.busy) return;
+  private async guarded<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T | undefined> {
+    if (this.busy) return undefined;
     const controller = new AbortController();
     this.turn = controller;
     this.hasFailed = false;
     this.events.changed();
-    this.task = work(controller.signal).catch((error: unknown) => {
+    const task = work(controller.signal).catch((error: unknown) => {
       this.hasFailed = true;
       this.events.notice(`Could not send this message: ${messageOf(error)}`);
+      return undefined;
     });
+    this.task = task.then(() => undefined);
     try {
-      await this.task;
+      return await task;
     } finally {
       this.turn = null;
       this.events.changed();
@@ -194,14 +196,15 @@ export class Chat {
   }
 
   /** Adds the finished turn to the chat and saves it, so a restart can show it and the agent can resume it. */
-  private async remember(turn: ChatTurn, sessionId: string | undefined, title: string | undefined, prompt: string | undefined): Promise<void> {
+  private async remember(turn: ChatTurn, sessionId: string | undefined, title: string | undefined, prompt: string | undefined): Promise<ChatTurn> {
+    const saved = { ...turn, prompt };
     const next: ChatRecord = {
       ...this.chat,
       choice: this.choices[this.current],
       sessionId,
       title: this.chat.turns.length ? this.chat.title : (title ?? turnTitle(turn)),
       updatedAt: Date.now(),
-      turns: [...this.chat.turns, { ...turn, prompt }],
+      turns: [...this.chat.turns, saved],
     };
     this.chat = next;
     this.hasFailed = turn.status === 'failed';
@@ -213,6 +216,7 @@ export class Chat {
     } catch (error) {
       this.events.warn(`Could not save this chat: ${messageOf(error)}`);
     }
+    return saved;
   }
 
   /** Opens a session for `agent`, resuming `resume`, and closes the old one. The returned promise ends when the old one is closed. */
