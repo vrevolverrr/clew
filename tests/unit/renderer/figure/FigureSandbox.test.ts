@@ -48,7 +48,7 @@ afterEach(() => {
 });
 
 describe('FigureSandbox', () => {
-  it('starts one hidden iframe with only allow-scripts, from the data: document with the exact policy', async () => {
+  it('starts one invisible iframe with only allow-scripts, from the data: document with the exact policy', async () => {
     await started(sandbox);
     const iframes = document.querySelectorAll('iframe');
     expect(iframes).toHaveLength(1);
@@ -67,11 +67,19 @@ describe('FigureSandbox', () => {
     await expect(result).resolves.toEqual({ ok: true, payload: { frames: [] } });
   });
 
-  it.each([['no load', false], ['no ready', true]])('fails pending runs when start-up gets %s in time', async (_, load) => {
+  it.each([['no load', false], ['no ready', true]])('retries a new iframe once, then fails, when start-up gets %s in time', async (_, load) => {
     sandbox.warm();
     const side = frame();
     if (load) side.iframe.dispatchEvent(new Event('load'));
-    const result = sandbox.run('x', {}, () => 0);
+    let settled = false;
+    const result = sandbox.run('x', {}, () => 0).finally(() => {
+      settled = true;
+    });
+    await jest.advanceTimersByTimeAsync(LIMITS.startMs);
+    expect(settled).toBe(false);
+    const second = document.querySelector('iframe')!;
+    expect(second).not.toBe(side.iframe);
+    if (load) second.dispatchEvent(new Event('load'));
     await jest.advanceTimersByTimeAsync(LIMITS.startMs);
     await expect(result).resolves.toEqual({ ok: false, error: 'The figure could not run', repairable: false });
     expect(document.querySelector('iframe')).toBeNull();
@@ -130,15 +138,26 @@ describe('FigureSandbox', () => {
     expect(runs(side).map((post) => post.request.source)).toEqual(['a', 'b', 'c', 'd', 'near']);
   });
 
-  it('recreates a silent iframe and fails what was pending', async () => {
+  it('recreates a silent iframe and runs what was pending there once more', async () => {
     const side = await started(sandbox);
     const result = sandbox.run('x', {}, () => 0);
     await flush();
     await jest.advanceTimersByTimeAsync(LIMITS.replyWaitMs);
-    await expect(result).resolves.toEqual({ ok: false, error: 'The figure could not run', repairable: false });
     const iframes = document.querySelectorAll('iframe');
     expect(iframes).toHaveLength(1);
     expect(iframes[0]).not.toBe(side.iframe);
+    const again = frame();
+    again.iframe.dispatchEvent(new Event('load'));
+    await flush();
+    again.say({ type: 'ready' });
+    await flush();
+    again.say({ type: 'result', id: again.posts.find((post) => post.request?.kind === 'probe')!.id, payload: SAFE_PROBE });
+    await flush();
+    const [rerun] = runs(again);
+    expect(rerun.request.source).toBe('x');
+    // Silent a second time, it fails without another try.
+    await jest.advanceTimersByTimeAsync(LIMITS.replyWaitMs);
+    await expect(result).resolves.toEqual({ ok: false, error: 'The figure could not run', repairable: false });
   });
 
   it.each([

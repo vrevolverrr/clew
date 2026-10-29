@@ -15,6 +15,8 @@ interface Queued {
   params: Record<string, unknown>;
   near: () => number;
   settle(result: RunResult): void;
+  /** Set once the run has gone back in the queue after the sandbox was reset under it. */
+  retried?: boolean;
 }
 
 interface Posted {
@@ -27,7 +29,7 @@ const isObject = (value: unknown): value is Plain => typeof value === 'object' &
 const own = (object: Plain, key: string): unknown => (Object.hasOwn(object, key) ? object[key] : undefined);
 
 /**
- * Runs figure programs in one hidden `<iframe sandbox="allow-scripts">` with an opaque origin, each in a fresh Worker
+ * Runs figure programs in one invisible `<iframe sandbox="allow-scripts">` with an opaque origin, each in a fresh Worker
  * the iframe starts. Never a Worker from plugin code: one started here has Node.
  */
 export class FigureSandbox {
@@ -118,7 +120,7 @@ export class FigureSandbox {
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.setAttribute('aria-hidden', 'true');
     iframe.tabIndex = -1;
-    iframe.hidden = true;
+    iframe.addClass('clew-figure-sandbox');
     iframe.src = SANDBOX_URL;
     this.iframe = iframe;
     let timer: number | undefined;
@@ -144,16 +146,17 @@ export class FigureSandbox {
     });
     iframe.contentWindow?.postMessage({ type: 'source', source: WORKER_SOURCE }, '*');
     await ready;
-    const payload = await new Promise<unknown>((reply, fail) => this.post({ kind: 'probe' }, { reply, fail }));
+    // The probe is the sandbox's own code; a busy start-up gets the start-up deadline, not a program's.
+    const payload = await new Promise<unknown>((reply, fail) => this.post({ kind: 'probe' }, { reply, fail }, LIMITS.startMs));
     if (this.iframe !== iframe) return;
     this.disabled = probeProblem(payload);
     if (this.disabled) console.warn(`Clew: ${this.disabled}`);
   }
 
-  private post(request: unknown, posted: Posted): void {
+  private post(request: unknown, posted: Posted, ms: number = LIMITS.runMs): void {
     const id = (this.nextId += 1);
     this.posted.set(id, posted);
-    this.iframe?.contentWindow?.postMessage({ type: 'run', id, request, ms: LIMITS.runMs }, '*');
+    this.iframe?.contentWindow?.postMessage({ type: 'run', id, request, ms }, '*');
   }
 
   private pump(): void {
@@ -183,7 +186,7 @@ export class FigureSandbox {
       },
       fail: (error) => {
         window.clearTimeout(timer);
-        entry.settle({ ok: false, error, repairable: false });
+        this.retryOrFail(entry, error);
       },
     });
   }
@@ -195,9 +198,21 @@ export class FigureSandbox {
     this.ready = false;
     this.onReady = undefined;
     const posted = [...this.posted.values()];
+    const queued = this.queue.splice(0);
     this.posted.clear();
     for (const entry of posted) entry.fail(error);
-    for (const entry of this.queue.splice(0)) entry.settle({ ok: false, error, repairable: false });
+    for (const entry of queued) this.retryOrFail(entry, error);
+  }
+
+  /** A run lost to a dead or slow sandbox, not to its program, gets one more try on a new one; `destroy` fails it. */
+  private retryOrFail(entry: Queued, error: string): void {
+    if (entry.retried || !this.listening) {
+      entry.settle({ ok: false, error, repairable: false });
+      return;
+    }
+    entry.retried = true;
+    this.queue.push(entry);
+    void this.start().then(() => this.pump());
   }
 }
 

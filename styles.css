@@ -3210,6 +3210,18 @@
   overflow-wrap: anywhere;
 }
 
+/* On screen but invisible: Chromium starves the process of a display:none cross-origin frame, and its workers with it. */
+.clew-figure-sandbox {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .clew-figure-body {
   display: flex;
   flex-direction: column;

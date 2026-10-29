@@ -4,18 +4,22 @@ export { default as WORKER_SOURCE } from 'figure-worker';
 export const SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; connect-src 'none'";
 
 // Runs in the iframe: keeps the worker source as one blob URL and runs each request in a fresh Worker under a deadline.
+// The next Worker is started ahead, so a run neither waits for nor is timed on parsing the worker source.
 const BOOTSTRAP = `
 let url;
+let spare;
 addEventListener('message', (event) => {
   if (event.source !== parent) return;
   const message = event.data;
   if (message.type === 'source') {
     url = URL.createObjectURL(new Blob([message.source], { type: 'text/javascript' }));
+    spare = new Worker(url);
     parent.postMessage({ type: 'ready' }, '*');
     return;
   }
   if (message.type !== 'run') return;
-  const worker = new Worker(url);
+  const worker = spare;
+  spare = new Worker(url);
   let done = false;
   const finish = (payload) => {
     if (done) return;
