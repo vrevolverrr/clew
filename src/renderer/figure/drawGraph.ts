@@ -39,7 +39,7 @@ export function layoutGraph(uses: readonly Graph[]): NetworkLayout {
     edgeKeys(graph.edges).forEach((key, i) => {
       const edge = graph.edges[i];
       if (!edges.has(key)) edges.set(key, { id: key, from: edge.from, to: edge.to });
-      if (edge.label !== undefined) edgeLabels.push(`▶ ${formatFigure(edge.label)}`);
+      if (edge.label !== undefined) edgeLabels.push(formatFigure(edge.label));
     });
   }
   return layoutNetwork({ nodes: [...nodes].map((id) => ({ id })), edges: [...edges.values()], nodeLabels, edgeLabels });

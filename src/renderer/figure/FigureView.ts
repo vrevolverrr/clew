@@ -1,6 +1,6 @@
 import { CaptionStack } from '@/renderer/figure/CaptionStack';
 import { div } from '@/renderer/figure/dom';
-import { drawDiagram } from '@/renderer/figure/drawDiagram';
+import { diagramExtent, drawDiagram, type Extent } from '@/renderer/figure/drawDiagram';
 import { drawGraph, layoutGraph } from '@/renderer/figure/drawGraph';
 import { drawLinks, type Link } from '@/renderer/figure/drawLinks';
 import { drawParams } from '@/renderer/figure/drawParams';
@@ -26,16 +26,18 @@ export interface FigureHost {
 
 export type FigureOutcome = { drawn: true } | { drawn: false; error: string; repairable: boolean };
 
-const MEANING: Record<Tag, string> = {
-  active: 'being worked on now',
-  done: 'done',
+/** The tags the key explains: ▶, ✓ and green or red say what they mean, these three do not. */
+const MEANING: Partial<Record<Tag, string>> = {
   match: 'a found or equal pair',
   new: 'just added or changed',
   dim: 'out of play',
-  good: 'right',
-  bad: 'wrong',
 };
 const FALLBACK_WIDTH = 480;
+const RENDERED_LIMIT = 500;
+/** No character Markdown or TeX would read, and no list or quote marker: shown as text, with no render. */
+const isPlain = (text: string): boolean => !/[*_`$\\[\]<>#|~!&]/.test(text) && !/^\s*([-+>]|\d+[.)])\s/.test(text);
+/** The px size of a Graph's text, as `styles.css` sets it. */
+const GRAPH_FONT = 13;
 
 /** One step's drawing, and what must be repainted when the figure's width changes. */
 interface StepView {
@@ -51,6 +53,7 @@ interface Drawing {
   markdown(el: HTMLElement, text: string | number): void;
   tex(el: HTMLElement, tex: string): void;
   graphs: Map<string, NetworkLayout>;
+  extents: Map<string, Extent>;
   lanes: Map<string, { count: number; name: number }>;
   used: Set<Tag>;
 }
@@ -109,6 +112,10 @@ export class FigureView {
   private again = false;
   private width = 0;
   private readonly colours = new Map<string, Rgb>();
+  /** What each Markdown string rendered to, so a redraw that shows it again copies it instead of typesetting it again. */
+  private readonly rendered = new Map<string, DocumentFragment>();
+  /** Each Diagram's extent, kept across redraws so it stays anchored as params change. */
+  private readonly extents = new Map<string, Extent>();
 
   constructor(parent: HTMLElement, private readonly host: FigureHost, private readonly sandbox: FigureSandbox = figureSandbox) {
     this.el = parent.appendChild(div('clew-figure'));
@@ -119,9 +126,13 @@ export class FigureView {
     watchTheme(this);
   }
 
-  /** Runs the program with its declared defaults, validates and draws it; does not show errors. */
-  async run(source: string): Promise<FigureOutcome> {
+  /**
+   * Runs the program with its declared defaults, validates and draws it; does not show errors. `whenVisible` waits
+   * until the figure is near the screen, so reopening a long chat runs only what the student can reach.
+   */
+  async run(source: string, { whenVisible = false } = {}): Promise<FigureOutcome> {
     this.source = source;
+    if (whenVisible) await this.visible();
     const result = await this.execute();
     if (!result.ok) return { drawn: false, error: result.error, repairable: result.repairable };
     await this.draw(result.figure, false);
@@ -144,7 +155,6 @@ export class FigureView {
     this.controller.abort();
     this.observer?.disconnect();
     live.delete(this);
-    this.generation += 1;
     this.clear();
   }
 
@@ -155,11 +165,52 @@ export class FigureView {
   }
 
   private async execute(): Promise<{ ok: true; figure: FigureData } | { ok: false; error: string; repairable: boolean }> {
-    const near = (): number => Math.abs(this.el.getBoundingClientRect().top);
+    // A figure in a hidden tab has no box; it waits behind every figure on screen.
+    const near = (): number => {
+      const box = this.el.getBoundingClientRect();
+      return box.width === 0 ? Infinity : Math.abs(box.top);
+    };
     const result = await this.sandbox.run(this.source, Object.fromEntries(this.values), near, this.controller.signal);
     if (!result.ok) return { ok: false, error: result.line ? `${result.error} (line ${result.line})` : result.error, repairable: result.repairable };
     const valid = validateFigure(result.payload);
     return valid.ok ? { ok: true, figure: valid.figure } : { ok: false, error: valid.error, repairable: true };
+  }
+
+  /** Resolves once the figure is within a screen of the viewport, or at once where that cannot be watched. */
+  private visible(): Promise<void> {
+    if (typeof IntersectionObserver === 'undefined') return Promise.resolve();
+    return new Promise((resolve) => {
+      const observer = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting) && !this.controller.signal.aborted) return;
+        observer.disconnect();
+        resolve();
+      }, { rootMargin: '100% 0px' });
+      observer.observe(this.el);
+      this.controller.signal.addEventListener('abort', () => {
+        observer.disconnect();
+        resolve();
+      });
+    });
+  }
+
+  private render(el: HTMLElement, markdown: string, renders: Promise<unknown>[]): void {
+    const done = this.rendered.get(markdown);
+    if (done) {
+      el.replaceChildren(done.cloneNode(true));
+      return;
+    }
+    renders.push(this.host.renderMarkdown(el, markdown).then(() => {
+      if (this.rendered.size >= RENDERED_LIMIT) this.rendered.clear();
+      const copy = document.createDocumentFragment();
+      for (const node of el.childNodes) copy.append(node.cloneNode(true));
+      this.rendered.set(markdown, copy);
+    }));
+  }
+
+  /** Diagrams keep their largest extent while a slider moves, so nothing jumps; once it is let go they fit what they draw. */
+  private refit(): void {
+    this.extents.clear();
+    if (!this.rerunning && this.figure && this.body?.isConnected) void this.draw(this.figure, true);
   }
 
   /** A param changed: one run in flight per figure, and the latest value wins. */
@@ -184,6 +235,7 @@ export class FigureView {
   }
 
   private clear(): void {
+    this.generation += 1;
     this.playback?.stop();
     for (const step of this.steps) for (const plot of step.plots) plot.destroy();
     this.steps = [];
@@ -191,49 +243,50 @@ export class FigureView {
     this.el.replaceChildren();
   }
 
+  /**
+   * Draws `figure`. A redraw (a param change, a theme change) builds the new drawing hidden beside the one on screen
+   * and swaps them once its renders have finished, so the figure never blanks or jumps while it redraws.
+   */
   private async draw(figure: FigureData, keepStep: boolean): Promise<void> {
     const generation = (this.generation += 1);
-    this.figure = figure;
-    const params = this.params?.isConnected ? this.params : undefined;
-    const paramError = this.paramError;
-    this.playback?.stop();
-    for (const step of this.steps) for (const plot of step.plots) plot.destroy();
-    this.el.replaceChildren();
+    const shown = this.body?.isConnected ? this.body : undefined;
+    if (!shown) this.el.replaceChildren();
     const renders: Promise<unknown>[] = [];
     const used = new Set<Tag>();
     const colour: TagColour = (tag, fill) => this.colour(tag, fill);
     const drawing: Drawing = {
       markdown: (el, text) => {
-        if (typeof text === 'number') {
-          el.textContent = formatFigure(text);
+        if (typeof text === 'number' || isPlain(text)) {
+          el.textContent = typeof text === 'number' ? formatFigure(text) : text;
           return;
         }
         for (const tag of texTags(text)) used.add(tag);
-        renders.push(this.host.renderMarkdown(el, figureText(drawTexIn(text, colour))));
+        this.render(el, figureText(drawTexIn(text, colour)), renders);
       },
       tex: (el, tex) => {
         for (const tag of texTags(tex)) used.add(tag);
-        renders.push(this.host.renderMarkdown(el, figureText(`$$\n${drawTex(tex, colour)}\n$$`)));
+        this.render(el, figureText(`$$\n${drawTex(tex, colour)}\n$$`), renders);
       },
       graphs: this.layoutGraphs(figure),
       lanes: this.pointerLanes(figure),
+      extents: this.diagramExtents(figure),
       used,
     };
 
-    if (figure.title) drawing.markdown(this.el.appendChild(div('clew-figure-title')), figure.title);
-    if (figure.params.length) {
-      this.params = params ?? div('clew-figure-params');
-      if (!params) drawParams(this.params, figure.params, this.values, (key, value) => {
+    if (figure.params.length && !this.params?.isConnected) {
+      this.params = this.el.appendChild(div('clew-figure-params'));
+      drawParams(this.params, figure.params, this.values, (key, value) => {
         this.values.set(key, value);
         void this.rerun();
-      });
-      this.paramError = paramError ?? div('clew-figure-param-error');
-      this.el.append(this.params, this.paramError);
+      }, () => this.refit());
+      this.paramError = this.el.appendChild(div('clew-figure-param-error'));
     }
-    const body = (this.body = this.el.appendChild(div('clew-figure-body')));
+    const body = this.el.appendChild(div('clew-figure-body'));
+    if (shown) body.classList.add('is-pending');
+    if (figure.title) drawing.markdown(body.appendChild(div('clew-figure-title')), figure.title);
     const stack = body.appendChild(div('clew-figure-scroll')).appendChild(div('clew-figure-stack'));
     this.width = this.paneWidth();
-    this.steps = figure.steps.map((step) => {
+    const steps = figure.steps.map((step) => {
       const view: StepView = { el: stack.appendChild(div('clew-figure-step')), links: [], plots: [], diagrams: [], dirty: false };
       const tags = new Map<string, Tag>();
       walk(step.root, (node) => {
@@ -251,30 +304,51 @@ export class FigureView {
       return view;
     });
 
-    const captions = (this.captions = new CaptionStack((el, text) => drawing.markdown(el, text)));
+    const captions = new CaptionStack((el, text) => drawing.markdown(el, text));
     body.append(captions.el);
     captions.set(figure.steps.map((step) => step.caption));
-    if (used.size) {
+    const explained = TAGS.filter((tag) => used.has(tag) && MEANING[tag]);
+    if (explained.length) {
       const key = body.appendChild(div('clew-figure-key'));
-      for (const tag of TAGS.filter((t) => used.has(t))) {
+      for (const tag of explained) {
         const item = key.appendChild(div('clew-figure-key-item'));
         const mark = item.appendChild(document.createElement('span'));
         mark.className = 'clew-figure-key-mark';
         mark.dataset.tag = tag;
-        mark.textContent = status(tag).trim() || ' ';
+        mark.textContent = ' ';
         item.append(`${tag}: ${MEANING[tag]}`);
       }
     }
-    this.playback = undefined;
-    if (figure.steps.length > 1) {
-      const playback = (this.playback = new Playback((index) => this.show(index)));
-      body.append(playback.el);
-    }
-    this.show(keepStep ? Math.min(this.current, figure.steps.length - 1) : 0);
+    const playback = figure.steps.length > 1 ? new Playback((index) => this.show(index)) : undefined;
+    if (playback) body.append(playback.el);
+
+    this.fitGraphs(body);
+
+    const commit = (): void => {
+      this.playback?.stop();
+      for (const step of this.steps) for (const plot of step.plots) plot.destroy();
+      shown?.remove();
+      body.classList.remove('is-pending');
+      this.figure = figure;
+      this.steps = steps;
+      this.captions = captions;
+      this.playback = playback;
+      this.body = body;
+      this.show(keepStep ? Math.min(this.current, figure.steps.length - 1) : 0);
+    };
+    if (!shown) commit();
 
     // Links and reserved widths need every box measured, so they wait for each Markdown and MathJax render.
     await Promise.allSettled(renders);
-    if (generation !== this.generation) return;
+    if (generation !== this.generation) {
+      if (body !== this.body) {
+        body.remove();
+        playback?.stop();
+        for (const step of steps) for (const plot of step.plots) plot.destroy();
+      }
+      return;
+    }
+    if (shown) commit();
     this.reserveWidths();
     for (const step of this.steps) drawLinks(step.el, step.links, drawing.markdown);
     void document.fonts?.ready.then(() => {
@@ -295,6 +369,7 @@ export class FigureView {
     const width = this.paneWidth();
     if (!this.steps.length || width === this.width) return;
     this.width = width;
+    if (this.body) this.fitGraphs(this.body);
     this.steps.forEach((step, k) => {
       if (k === this.current) this.repaint(step);
       else step.dirty = true;
@@ -312,6 +387,13 @@ export class FigureView {
       if (typeof text === 'number') el.textContent = formatFigure(text);
       else void this.host.renderMarkdown(el, figureText(drawTexIn(text, (tag, fill) => this.colour(tag, fill))));
     });
+  }
+
+  /** A Graph wider than the pane shrinks to fit, down to 9 px text; past that it scrolls. */
+  private fitGraphs(root: HTMLElement): void {
+    for (const graph of root.querySelectorAll<HTMLElement>('.clew-figure-graph')) {
+      graph.style.zoom = String(Math.min(1, Math.max(9 / GRAPH_FONT, this.width / parseFloat(graph.style.width))));
+    }
   }
 
   private paneWidth(): number {
@@ -344,6 +426,19 @@ export class FigureView {
       });
     }
     return new Map([...uses].map(([key, graphs]) => [key, layoutGraph(graphs)]));
+  }
+
+  /** Each Diagram's extent over every step, and over the figure's earlier draws (by id, else by its place in the step). */
+  private diagramExtents(figure: FigureData): Map<string, Extent> {
+    for (const step of figure.steps) {
+      let ordinal = 0;
+      walk(step.root, (node) => {
+        if (node.type !== 'Diagram') return;
+        const key = node.id ?? `#${ordinal++}`;
+        this.extents.set(key, diagramExtent(node, this.extents.get(key)));
+      });
+    }
+    return this.extents;
   }
 
   /** Room each Seq (below), Table (left) and Tex (right) keeps for its pointers: the most in any step, and the longest name. */
@@ -429,7 +524,7 @@ export class FigureView {
         const table = wrap.appendChild(document.createElement('table'));
         if (lane) wrap.style.paddingLeft = `${lane.name + 3}ch`;
         const head = table.createTHead().insertRow();
-        for (const column of node.columns) drawing.markdown(head.appendChild(document.createElement('th')), column);
+        for (const column of node.columns) drawing.markdown(head.appendChild(Object.assign(document.createElement('th'), { className: 'clew-figure-cell' })), column);
         const rows = table.createTBody();
         node.rows.forEach((cells, r) => {
           const rowId = node.rowIds[r];
@@ -482,6 +577,7 @@ export class FigureView {
         drawQuiz(mark(child('clew-figure-quiz'), node.id), node, drawing.markdown, this.host.send?.bind(this.host));
         return;
       case 'Plot': {
+        for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
         const el = mark(child('clew-figure-plot'), node.id);
         el.style.width = `${this.width}px`;
         const chart = new PlotChart(el, false);
@@ -491,11 +587,11 @@ export class FigureView {
         return;
       }
       case 'Diagram': {
+        for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
         const el = mark(child('clew-figure-diagram'), node.id);
-        const paint = (): void => {
-          el.style.width = `${this.width}px`;
-          drawDiagram(el, node, drawing.markdown);
-        };
+        const n = ordinal();
+        const extent = drawing.extents.get(node.id ?? `#${n}`) ?? diagramExtent(node);
+        const paint = (): void => drawDiagram(el, node, extent, this.width, drawing.markdown);
         paint();
         view.diagrams.push(paint);
         return;

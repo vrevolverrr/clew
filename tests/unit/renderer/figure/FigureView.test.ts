@@ -64,8 +64,8 @@ function host(): FigureHost & { rendered: string[]; finish(): void; sent: string
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 const linked = payload([
-  { caption: 'First', root: el('Row', {}, el('Node', { id: 'a', label: 'A', tag: 'active' }), el('Node', { id: 'b', label: 'B' }), el('Arrow', { from: 'a', to: 'b' })) },
-  { caption: 'Second', root: el('Row', {}, el('Node', { id: 'a', label: 'A', tag: 'done' }), el('Node', { id: 'b', label: 'B', tag: 'done' }), el('Arrow', { from: 'a', to: 'b' })) },
+  { caption: '**First**', root: el('Row', {}, el('Node', { id: 'a', label: 'A', tag: 'active' }), el('Node', { id: 'b', label: 'B' }), el('Arrow', { from: 'a', to: 'b' })) },
+  { caption: '**Second**', root: el('Row', {}, el('Node', { id: 'a', label: 'A', tag: 'done' }), el('Node', { id: 'b', label: 'B', tag: 'new' }), el('Arrow', { from: 'a', to: 'b' })) },
 ]);
 
 describe('FigureView', () => {
@@ -118,13 +118,13 @@ describe('FigureView', () => {
     expect(steps.map((step) => step.classList.contains('is-current'))).toEqual([false, true]);
   });
 
-  it('keeps every caption in the stack and lists exactly the tags used in the key', async () => {
+  it('keeps every caption in the stack, and keys only the tags whose mark does not explain itself', async () => {
     const markdown = host();
     const view = new FigureView(document.body, markdown, sandbox(() => linked));
     void view.run('src');
     await flush();
-    expect([...view.el.querySelectorAll('.clew-caption-sizes > .clew-caption')].map((caption) => caption.textContent)).toEqual(['First', 'Second']);
-    expect([...view.el.querySelectorAll('.clew-figure-key-mark')].map((mark) => (mark as HTMLElement).dataset.tag)).toEqual(['active', 'done']);
+    expect([...view.el.querySelectorAll('.clew-caption-sizes > .clew-caption')].map((caption) => caption.textContent)).toEqual(['**First**', '**Second**']);
+    expect([...view.el.querySelectorAll('.clew-figure-key-mark')].map((mark) => (mark as HTMLElement).dataset.tag)).toEqual(['new']);
   });
 
   it('writes a TeX anchor as a data attribute in its own step only', async () => {

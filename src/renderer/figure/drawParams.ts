@@ -1,8 +1,8 @@
 import type { Param } from '@/renderer/figure/FigureData';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 
-/** The controls for a figure's params; each change reports the param's new value. */
-export function drawParams(parent: HTMLElement, params: readonly Param[], values: ReadonlyMap<string, unknown>, change: (key: string, value: unknown) => void): void {
+/** The controls for a figure's params; each change reports the param's new value, and `release` when a slider is let go. */
+export function drawParams(parent: HTMLElement, params: readonly Param[], values: ReadonlyMap<string, unknown>, change: (key: string, value: unknown) => void, release: () => void): void {
   for (const param of params) {
     const value = values.has(param.key) ? values.get(param.key) : param.value;
     if (param.kind === 'slider') {
@@ -27,6 +27,7 @@ export function drawParams(parent: HTMLElement, params: readonly Param[], values
         show(Number(input.value));
         change(param.key, Number(input.value));
       });
+      input.addEventListener('change', release);
     } else if (param.kind === 'choice') {
       const el = parent.appendChild(document.createElement('div'));
       el.className = 'clew-choice';

@@ -53,21 +53,23 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
     pointer.dataset.tag = link.tag ?? 'active';
     const name = document.createElement('span');
     markdown(name, link.name);
+    const arrow = (glyph: string): HTMLElement => Object.assign(div('clew-figure-pointer-mark'), { textContent: glyph });
     const table = target.el.closest('table');
     const tex = target.el.closest('.clew-figure-tex');
     if (table) {
       pointer.classList.add('is-left');
-      pointer.append(name, ' →');
+      pointer.append(name, arrow('→'));
       const left = table.getBoundingClientRect().left - frame.left;
       pointer.style.left = `${left - 4}px`;
       pointer.style.top = `${(target.t + target.b) / 2 + k * 18}px`;
     } else if (tex) {
       pointer.classList.add('is-right');
-      pointer.append('← ', name);
-      pointer.style.left = `${tex.getBoundingClientRect().right - frame.left + 4}px`;
+      pointer.append(arrow('←'), name);
+      // Beside the formula itself: the Tex box also holds the room reserved for its pointers.
+      pointer.style.left = `${(target.el.closest('mjx-container') ?? tex).getBoundingClientRect().right - frame.left + 8}px`;
       pointer.style.top = `${(target.t + target.b) / 2 + k * 18}px`;
     } else {
-      pointer.append('↑ ', name);
+      pointer.append(arrow('↑'), name);
       pointer.style.left = `${(target.l + target.r) / 2}px`;
       pointer.style.top = `${target.b + 2 + k * 20}px`;
     }

@@ -7,6 +7,9 @@ interface EdgeGeometry {
   readonly path: string;
   readonly label: Point & Size;
 }
+/** Room around the drawing for a thick active border. */
+const MARGIN = 4;
+
 export interface NetworkLayout extends Size {
   readonly kind: 'tree' | 'graph';
   readonly nodes: ReadonlyMap<string, NodeGeometry>;
@@ -22,8 +25,8 @@ export interface NetworkInput {
 }
 
 export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkInput): NetworkLayout {
-  const nodeSize = fittedSize(nodeLabels, 48, 192);
-  const edgeSize = fittedSize(edgeLabels, 32, 160);
+  const nodeSize = fittedSize(nodeLabels, 40, 192);
+  const edgeSize = fittedSize(edgeLabels, 20, 160);
   const children = new Map(nodes.map(n => [n.id, [] as string[]]));
   const parents = new Map<string, number>();
   const pairs = new Map<string, typeof edges[number][]>();
@@ -58,8 +61,9 @@ export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkI
     points = nodes.map(n => positions.get(n.id)!);
   } else points = force(nodes.length, edges.map(e => [nodeIndex.get(e.from)!, nodeIndex.get(e.to)!]));
 
-  const spacingX = nodeSize.width + edgeSize.width + 32;
-  const spacingY = nodeSize.height + edgeSize.height + 32;
+  // Room between neighbours for one edge label and a little air, so a small graph fits beside its table.
+  const spacingX = nodeSize.width + edgeSize.width + 12;
+  const spacingY = nodeSize.height + edgeSize.height + 12;
   // A graph scales uniformly until every pair is a full gap apart on at least one axis.
   let scale = 0;
   if (!tree) for (let a = 0; a < points.length; a++) for (let b = a + 1; b < points.length; b++) scale = Math.max(scale, Math.min(spacingX / Math.max(0.001, Math.abs(points[a].x - points[b].x)), spacingY / Math.max(0.001, Math.abs(points[a].y - points[b].y))));
@@ -94,10 +98,10 @@ export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkI
     bounds.push(...path, { x: label.x, y: label.y }, { x: label.x + label.width, y: label.y + label.height });
     routes.push({ id: edge.id, points: path, loop, label });
   });
-  const minX = Math.min(0, ...bounds.map(p => p.x)) - 24;
-  const minY = Math.min(0, ...bounds.map(p => p.y)) - 24;
-  const maxX = Math.max(192, ...bounds.map(p => p.x)) + 24;
-  const maxY = Math.max(80, ...bounds.map(p => p.y)) + 24;
+  const minX = Math.min(0, ...bounds.map(p => p.x)) - MARGIN;
+  const minY = Math.min(0, ...bounds.map(p => p.y)) - MARGIN;
+  const maxX = Math.max(0, ...bounds.map(p => p.x)) + MARGIN;
+  const maxY = Math.max(0, ...bounds.map(p => p.y)) + MARGIN;
   const shifted = (p: Point) => ({ x: p.x - minX, y: p.y - minY });
   return {
     kind: tree ? 'tree' : 'graph', width: maxX - minX, height: maxY - minY,

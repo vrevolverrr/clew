@@ -7,9 +7,8 @@ import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
 type Diagram = Extract<FigureNode, { type: 'Diagram' }>;
 export type Markdown = (el: HTMLElement, text: string | number) => void;
 
-const PAD = 28;
-const MAX_HEIGHT = 360;
-const FALLBACK_WIDTH = 480;
+const PAD = 20;
+const MAX_HEIGHT = 340;
 const CHAR_WIDTH = 7.5;
 let markerId = 0;
 
@@ -29,24 +28,34 @@ function pointsOf(layer: DiagramLayer): readonly Point[] {
   }
 }
 
-/** The model's own extent, or the extent of what it drew when that spills out of it (a drawing centred on the origin). */
-function domain(diagram: Diagram): [number, number, number, number] {
+export type Extent = readonly [number, number, number, number];
+
+/**
+ * What a Diagram shows, as [x0, y0, x1, y1]: what it drew, from the origin when nothing goes below zero, else around
+ * it (a drawing centred on the origin); the model's width and height only when it drew nothing. `keep` is an extent
+ * to keep, so a redraw stays anchored.
+ */
+export function diagramExtent(diagram: Diagram, keep?: Extent): Extent {
   const points = diagram.children.flatMap(pointsOf);
-  const inside = points.every(([x, y]) => x >= -1e-9 && y >= -1e-9 && x <= diagram.width + 1e-9 && y <= diagram.height + 1e-9);
-  if (inside || !points.length) return [0, 0, diagram.width, diagram.height];
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
-  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const pad = Math.max(x1 - x0, y1 - y0) * 0.05 || 1;
-  return [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+  const anchored = points.every(([x, y]) => x >= -1e-9 && y >= -1e-9);
+  const [x0, y0, x1, y1] = !points.length
+    ? [0, 0, diagram.width, diagram.height]
+    : anchored
+      ? [0, 0, Math.max(...xs), Math.max(...ys)]
+      : [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const pad = anchored ? 0 : Math.max(x1 - x0, y1 - y0) * 0.05 || 1;
+  const own: Extent = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+  return keep ? [Math.min(own[0], keep[0]), Math.min(own[1], keep[1]), Math.max(own[2], keep[2]), Math.max(own[3], keep[3])] : own;
 }
 
-/** Draws a Diagram at the width `el` has, y upwards, scaled to fit; call again after a resize. */
-export function drawDiagram(el: HTMLElement, diagram: Diagram, markdown: Markdown): void {
+/** Draws a Diagram showing `extent` within `available` pixels of width, y upwards, scaled to fit; call again after a resize. */
+export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, available: number, markdown: Markdown): void {
   el.replaceChildren();
   el.classList.add('clew-figure-diagram');
-  const [x0, y0, x1, y1] = domain(diagram);
-  const available = Math.max(160, el.clientWidth || FALLBACK_WIDTH) - 2 * PAD;
+  const [x0, y0, x1, y1] = extent;
+  available = Math.max(160, available) - 2 * PAD;
   const scale = Math.min(available / (x1 - x0), (MAX_HEIGHT - 2 * PAD) / (y1 - y0));
   const width = (x1 - x0) * scale + 2 * PAD;
   const height = (y1 - y0) * scale + 2 * PAD;
@@ -76,13 +85,15 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, markdown: Markdow
     labels.push({ x, y, width: formatFigure(text).length * CHAR_WIDTH + 8, height: 18, text, tag, center });
   };
 
+  const all = diagram.children.flatMap(pointsOf);
+  const centre: Point = all.length ? [all.reduce((sum, p) => sum + p[0], 0) / all.length, all.reduce((sum, p) => sum + p[1], 0) / all.length] : [(x0 + x1) / 2, (y0 + y1) / 2];
   for (const layer of diagram.children) {
     switch (layer.type) {
       case 'Shape': {
         polyline(layer.pts, layer.tag, layer.closed ? { class: 'is-closed' } : {}, layer.closed);
         if (layer.pts.length) {
-          const centre: Point = [layer.pts.reduce((s, p) => s + p[0], 0) / layer.pts.length, layer.pts.reduce((s, p) => s + p[1], 0) / layer.pts.length];
-          label(layer.closed ? centre : layer.pts[layer.pts.length - 1], layer.label, layer.tag, layer.closed);
+          const middle: Point = [layer.pts.reduce((s, p) => s + p[0], 0) / layer.pts.length, layer.pts.reduce((s, p) => s + p[1], 0) / layer.pts.length];
+          label(layer.closed ? middle : layer.pts[layer.pts.length - 1], layer.label, layer.tag, layer.closed);
         }
         break;
       }
@@ -125,7 +136,10 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, markdown: Markdow
         for (const tick of tickMarks(layer.on[0], layer.on[1], layer.n ?? 1, units(10), units(4))) polyline(tick, layer.tag);
         break;
       case 'Dimension': {
-        const dimension = dimensionMark(layer.from, layer.to, units(16));
+        // Offset away from the rest of the drawing, so the measure never lies across it.
+        const [dx, dy] = [layer.to[0] - layer.from[0], layer.to[1] - layer.from[1]];
+        const side = -dy * (centre[0] - (layer.from[0] + layer.to[0]) / 2) + dx * (centre[1] - (layer.from[1] + layer.to[1]) / 2) > 0 ? -1 : 1;
+        const dimension = dimensionMark(layer.from, layer.to, side * units(16));
         polyline(dimension.line, layer.tag, { class: 'is-dimension' });
         for (const bar of dimension.bars) polyline(bar, layer.tag, { class: 'is-dimension' });
         label(dimension.label, layer.label, layer.tag, true);
@@ -142,5 +156,6 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, markdown: Markdow
     if (tag) box.style.color = `var(--clew-figure-tag-${tag})`;
     markdown(box, text);
   });
+  el.style.width = `${width}px`;
   el.style.height = `${height}px`;
 }
