@@ -5,8 +5,8 @@ function fakeSession(id: string): AgentSession {
   return { id, send: jest.fn(), skills: async () => [], setModel: async () => undefined, close: async () => undefined } as unknown as AgentSession;
 }
 
-function setup(openSession: (options: AgentSessionOptions) => Promise<AgentSession>, toolsOnResume = true) {
-  const adapter = { openSession: jest.fn(openSession), toolsOnResume } as unknown as AgentAdapter & { openSession: jest.Mock };
+function setup(openSession: (options: AgentSessionOptions) => Promise<AgentSession>) {
+  const adapter = { openSession: jest.fn(openSession) } as unknown as AgentAdapter & { openSession: jest.Mock };
   return { adapter, choice: () => ({ model: 'sonnet' }) };
 }
 
@@ -20,8 +20,8 @@ describe('ChatSession', () => {
     expect(adapter.openSession.mock.calls[0]![0]).toMatchObject({ cwd: '/vault', model: 'sonnet', resume: 's1', permissionPolicy: 'approval' });
   });
 
-  it('names the system prompt it opened with, and a prompt without the pack tool has another name', async () => {
-    const { adapter, choice } = setup(async () => fakeSession('s1'), false);
+  it('names the system prompt it opened with, the same for a new and a resumed conversation, and supplies no tool', async () => {
+    const { adapter, choice } = setup(async () => fakeSession('s1'));
     const fresh = new ChatSession(adapter, choice, { cwd: '/vault' });
     const resumed = new ChatSession(adapter, choice, { cwd: '/vault', resume: 's1' });
     expect(fresh.promptId).toBeUndefined();
@@ -31,11 +31,10 @@ describe('ChatSession', () => {
 
     const [first, second] = adapter.openSession.mock.calls.map(([options]) => options as AgentSessionOptions);
     expect(fresh.promptId).toMatch(/^[0-9a-f]{8}$/);
-    expect(first!.systemPrompt).not.toBe(second!.systemPrompt);
-    expect(resumed.promptId).not.toBe(fresh.promptId);
-    const again = new ChatSession(adapter, choice, { cwd: '/vault' });
-    await again.open();
-    expect(again.promptId).toBe(fresh.promptId);
+    expect(first!.systemPrompt).toBe(second!.systemPrompt);
+    expect(resumed.promptId).toBe(fresh.promptId);
+    expect(first!.tools).toBeUndefined();
+    expect(second!.tools).toBeUndefined();
   });
 
   it('starts a new conversation and tells the chat when the old one cannot be resumed', async () => {
@@ -69,39 +68,5 @@ describe('ChatSession', () => {
     await Promise.all([chat.open(), chat.open()]);
 
     expect(adapter.openSession).toHaveBeenCalledTimes(1);
-  });
-
-  describe('the pack tool', () => {
-    const named = (prompt: string) => prompt.includes('call the load_pack tool');
-
-    it('is offered to a new conversation, with a prompt that points at it', async () => {
-      const { adapter, choice } = setup(async () => fakeSession('s1'), false);
-
-      await new ChatSession(adapter, choice, { cwd: '/vault' }).open();
-
-      const options = adapter.openSession.mock.calls[0]![0] as AgentSessionOptions;
-      expect(options.tools?.map((tool) => tool.name)).toEqual(['load_pack']);
-      expect(named(options.systemPrompt)).toBe(true);
-    });
-
-    it('is offered again to a resumed conversation of an agent that can add tools to it', async () => {
-      const { adapter, choice } = setup(async () => fakeSession('s1'), true);
-
-      await new ChatSession(adapter, choice, { cwd: '/vault', resume: 's1' }).open();
-
-      const options = adapter.openSession.mock.calls[0]![0] as AgentSessionOptions;
-      expect(options.tools?.map((tool) => tool.name)).toEqual(['load_pack']);
-      expect(named(options.systemPrompt)).toBe(true);
-    });
-
-    it('is left out of a resumed conversation of an agent that cannot, whose prompt then lists every component', async () => {
-      const { adapter, choice } = setup(async () => fakeSession('s1'), false);
-
-      await new ChatSession(adapter, choice, { cwd: '/vault', resume: 's1' }).open();
-
-      const options = adapter.openSession.mock.calls[0]![0] as AgentSessionOptions;
-      expect(options.tools).toEqual([]);
-      expect(named(options.systemPrompt)).toBe(false);
-    });
   });
 });

@@ -10,13 +10,16 @@ import { crc32, deflateSync } from 'node:zlib';
 import '../setupWindow';
 
 import { createAgents } from '../../src/agents/providers';
-import type { AgentAdapter, AgentEvent, AgentSessionOptions } from '../../src/agents/types';
+import type { AgentAdapter, AgentEvent, AgentSessionOptions, AgentTool } from '../../src/agents/types';
 import { buildTurn } from '../../src/context/buildTurn';
 import { readTexts, turnFiles } from '../../src/context/ChatAttachment';
 import { findQuote } from '../../src/tour/locateQuote';
 import { runTurn } from '../../src/chat/runTurn';
 import { buildSystemPrompt } from '../../src/context/systemPrompt';
-import { loadPackTool } from '../../src/tools/LoadPackTool';
+import { splitReply } from '../../src/chat/splitReply';
+import { validateFigure } from '../../src/renderer/figure/validateFigure';
+import { buildFigureWorker } from '../../scripts/buildFigureWorker.js';
+import { runFigureWorker } from '../runFigureWorker';
 
 const SYSTEM_PROMPT = 'You are a live tutor. Reply with JSON Lines only: one {"type":"say","text":"..."} object per line, no prose, no code fences.';
 const adapters = createAgents(() => ({}));
@@ -27,6 +30,9 @@ const AGENTS: Array<{ agent: AgentAdapter; model: string }> = [
 const only = process.env.CLEW_LIVE_AGENT;
 // Per test: a suite-wide limit grows wrong as tests are added.
 const LIMIT = { timeout: 120_000 };
+
+// Clew supplies no tool today; the contract still carries them, so a stub checks the wiring.
+const stubTool: AgentTool = { name: 'load_pack', description: 'Loads a pack by name.', argument: { name: 'name', values: ['plot'] }, run: () => 'ok', title: (name) => `Loaded ${name}` };
 
 let cwd: string;
 
@@ -259,13 +265,35 @@ for (const { agent, model } of AGENTS.filter(({ agent }) => !only || agent.id ==
     });
 
     it('runs a Clew tool the agent calls and reports it done', LIMIT, async () => {
-      const session = await agent.openSession({ ...options(), tools: [loadPackTool] });
+      const session = await agent.openSession({ ...options(), tools: [stubTool] });
       try {
-        const events = await collect(session.send(`Call the ${loadPackTool.name} tool with the plot pack, then reply with one say line.`));
-        const tools = events.filter((e) => e.type === 'tool' && e.name === loadPackTool.name);
+        const events = await collect(session.send(`Call the ${stubTool.name} tool with the plot pack, then reply with one say line.`));
+        const tools = events.filter((e) => e.type === 'tool' && e.name === stubTool.name);
 
         assert.deepEqual(events.at(-1), { type: 'done', status: 'completed' });
         assert.ok(tools.some((e) => e.type === 'tool' && e.status === 'done'), JSON.stringify(tools));
+      } finally {
+        await session.close();
+      }
+    });
+
+    it('writes a figure that runs, and a Quiz whose answer is one of its options', LIMIT, async () => {
+      const session = await agent.openSession({ ...options(), systemPrompt: buildSystemPrompt() });
+      const worker = buildFigureWorker();
+      const figureOf = async (message: string) => {
+        const events = await collect(session.send(message));
+        const text = events.map((e) => (e.type === 'text' ? e.delta : '')).join('');
+        const fence = splitReply(text, true).find((segment) => segment.kind === 'figure');
+        assert.ok(fence, `no figure fence; reply: ${text}`);
+        const result = validateFigure(await runFigureWorker(worker, { kind: 'run', source: fence.text, params: {} }));
+        assert.ok(result.ok, `${result.ok ? '' : result.error}\n${fence.text}`);
+        return result.figure;
+      };
+      try {
+        const dijkstra = await figureOf('Show Dijkstra\'s algorithm on a weighted graph of five nodes as a figure, step by step.');
+        assert.ok(dijkstra.steps.length > 1);
+        const quiz = await figureOf('Check my understanding of derivatives with one Quiz figure, and nothing else.');
+        assert.ok(JSON.stringify(quiz.steps[0].root).includes('"type":"Quiz"'), JSON.stringify(quiz.steps[0].root));
       } finally {
         await session.close();
       }

@@ -652,20 +652,13 @@
   cursor: default;
 }
 
-.clew-reply-openui {
+.clew-reply-figure {
   position: relative;
   margin: var(--size-4-2) 0;
-  line-height: var(--line-height-normal);
-}
-
-/* A visual has no card of its own; figures that read better framed carry one. */
-.clew-reply-openui .clew-plot,
-.clew-reply-openui .clew-step-figure,
-.clew-reply-openui .clew-diagram-card {
-  box-sizing: border-box;
   padding: var(--size-4-4);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-l);
+  line-height: var(--line-height-normal);
   background: var(--background-primary);
 }
 
@@ -686,8 +679,7 @@
 }
 
 .clew-reply-mermaid,
-.clew-reply-openui .clew-diagram-card,
-.clew-network .clew-step-scroll,
+.clew-reply-figure .clew-diagram-card,
 .modal.clew-diagram-modal {
   background:
     radial-gradient(circle, color-mix(in srgb, var(--background-modifier-border) 55%, transparent) 0.9px, transparent 1.4px) 0 0 / 16px 16px,
@@ -705,7 +697,7 @@
 }
 
 .clew-reply-mermaid.is-drawing,
-.clew-reply-openui.is-drawing {
+.clew-reply-figure.is-drawing {
   min-height: 160px;
   overflow: hidden;
   isolation: isolate;
@@ -882,18 +874,14 @@
 
 /* The figure lays out at full width under the card, and shows once the card fades. */
 .clew-reply-mermaid.is-drawing .clew-diagram,
-.clew-reply-openui.is-drawing .clew-openui-body {
+.clew-reply-figure.is-drawing .clew-figure {
   position: absolute;
   inset-inline: var(--size-4-4);
   visibility: hidden;
 }
 
-.clew-reply-openui.is-drawing .clew-openui-body {
-  inset-inline: 0;
-}
-
 .clew-reply-mermaid:not(.is-drawing) .clew-diagram,
-.clew-reply-openui:not(.is-drawing) .clew-openui-body {
+.clew-reply-figure:not(.is-drawing) .clew-figure {
   animation: clew-fade-in 320ms ease 80ms both;
 }
 
@@ -917,143 +905,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.clew-stack {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--size-4-1) var(--size-4-2);
-}
-
-/* Every block takes a full row, except Stats: consecutive Stats share a row and wrap. */
-.clew-stack > * {
-  flex: 1 1 100%;
-  min-width: 0;
-}
-
-.clew-stack > .clew-stat {
-  flex: 1 1 220px;
-  max-width: 360px;
-}
-
-/* A slider shares its row with the Stats written right after it, which are usually what it drives. */
-.clew-stack > .clew-slider {
-  flex: 2 1 280px;
-}
-
-.clew-reply.markdown-rendered ol.clew-sequence {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: clew-sequence;
-}
-
-.clew-reply.markdown-rendered ol.clew-sequence > li {
-  position: relative;
-  min-inline-size: 0;
-  min-block-size: 1.75em;
-  margin: 0;
-  padding-inline-start: calc(1.75em + var(--size-4-3));
-  counter-increment: clew-sequence;
-}
-
-.clew-reply.markdown-rendered ol.clew-sequence > li:not(:last-child) {
-  padding-block-end: var(--size-4-5);
-}
-
-.clew-sequence > li::before {
-  content: counter(clew-sequence);
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  inline-size: 1.75em;
-  block-size: 1.75em;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 50%;
-  background: var(--background-secondary);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.clew-sequence > li:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0.875em;
-  inset-block-start: calc(1.75em + var(--size-4-1));
-  inset-block-end: var(--size-4-1);
-  border-inline-start: 1px solid var(--background-modifier-border);
-}
-
-/* Controls and figures in a reply visual. They use Obsidian's own tokens, so they follow the vault's theme and accent. */
-.clew-stat {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--size-4-3);
-  box-sizing: border-box;
-  padding: var(--size-4-3);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
-  background: var(--background-primary);
-  line-height: var(--line-height-tight);
-}
-
 .clew-control-row {
   color: var(--text-muted);
   font-size: var(--font-ui-small);
 }
 
-.clew-stat-label {
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-}
-
-.clew-stat-value {
-  color: var(--text-normal);
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-semibold);
-  text-align: right;
-}
-
-.clew-stat.is-text .clew-stat-value {
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-normal);
-}
-
-.clew-stat-mark {
-  margin-right: var(--size-2-2);
-}
-
-.clew-stat-mark:empty {
-  display: none;
-}
-
-.clew-reply-openui .clew-stack {
-  gap: var(--size-4-2) var(--size-4-4);
-}
-
-.clew-callout > .callout {
-  margin: 0;
-}
-
-/* Inline math overhangs its line box; Obsidian's scrolling callout content turns that into a scroll offset that clips the text. */
-.clew-callout .callout-content {
-  overflow: visible;
-}
-
-.clew-reply-openui .clew-text :is(h1, h2, h3, h4, h5, h6) {
-  margin-block: 0 var(--size-4-1);
-}
-
-.clew-reply-openui .clew-text :is(h1, h2, h3, h4, h5, h6) + * {
-  margin-block-start: 0;
-}
-
 /* The stack's gap alone spaces the blocks, so the paragraph margins at a text block's edges would double it. */
-.clew-text > :first-child,
-.clew-text > :first-child > :first-child,
 .clew-quiz-question > :first-child,
 .clew-quiz-question > :first-child > :first-child,
 .clew-quiz-feedback > :first-child,
@@ -1061,21 +918,11 @@
   margin-top: 0;
 }
 
-.clew-text > :last-child,
-.clew-text > :last-child > :last-child,
 .clew-quiz-question > :last-child,
 .clew-quiz-question > :last-child > :last-child,
 .clew-quiz-feedback > :last-child,
 .clew-quiz-feedback > :last-child > :last-child {
   margin-bottom: 0;
-}
-
-.clew-stat-mark.is-good {
-  color: var(--text-success);
-}
-
-.clew-stat-mark.is-bad {
-  color: var(--text-error);
 }
 
 .clew-slider,
@@ -1188,16 +1035,6 @@
   order: 1;
 }
 
-/* Inside a figure's card the player is divided off by a rule; on its own in a Stack it is a card like a Stat. */
-.clew-stack > .clew-player {
-  box-sizing: border-box;
-  margin-top: var(--size-4-1);
-  padding: var(--size-4-2) var(--size-4-3);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
-  background: var(--background-primary);
-}
-
 /* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
 .clew-player .clew-player-button {
   display: inline-flex;
@@ -1278,31 +1115,6 @@
   white-space: nowrap;
 }
 
-.clew-step-figure {
-  display: flex;
-  flex-direction: column;
-  gap: var(--size-4-2);
-  min-width: 0;
-  max-width: 100%;
-}
-
-.clew-step-scroll {
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.clew-step-surface {
-  position: relative;
-  flex: none;
-  isolation: isolate;
-  font-family: var(--font-monospace);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.clew-board-region,
-.clew-board-slot,
-.clew-board-block,
 .clew-network-node,
 .clew-network-edge-label {
   position: absolute;
@@ -1312,24 +1124,6 @@
   border-radius: var(--radius-s);
 }
 
-.clew-board-region {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.clew-board-region-label {
-  box-sizing: border-box;
-  padding: 8px 12px;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.clew-board-slot {
-  border: 1px dashed var(--background-modifier-border);
-}
-
-.clew-board-block,
 .clew-network-node,
 .clew-network-edge-label {
   display: flex;
@@ -1343,7 +1137,6 @@
   background: var(--background-primary);
 }
 
-.clew-board-block,
 .clew-network-node {
   border: 1px solid var(--text-muted);
   z-index: 2;
@@ -1361,14 +1154,6 @@
   background: var(--background-primary);
 }
 
-.clew-network .clew-step-scroll {
-  border-radius: var(--radius-m);
-}
-
-.clew-network .clew-step-surface {
-  margin-inline: auto;
-}
-
 .clew-network-edges {
   position: absolute;
   inset: 0;
@@ -1379,12 +1164,6 @@
   stroke-width: 2;
 }
 
-.clew-step-surface [data-tag='active'] {
-  color: var(--interactive-accent);
-  font-weight: var(--font-semibold);
-}
-
-.clew-board-block[data-tag='active'],
 .clew-network-node[data-tag='active'] {
   border: 2px solid var(--interactive-accent);
 }
@@ -1398,109 +1177,10 @@
   stroke-dasharray: 7 4;
 }
 
-.clew-step-surface [data-tag='dim'] {
-  opacity: 0.45;
-}
-
 /* Fade only the text, so the label still covers the dot grid. */
 .clew-network-edge-label[data-tag='dim'] {
   opacity: 1;
   color: var(--text-faint);
-}
-
-.clew-step-figure .clew-caption {
-  overflow-wrap: anywhere;
-  color: var(--text-normal);
-}
-
-.clew-visual-error {
-  color: var(--text-error);
-  overflow-wrap: anywhere;
-}
-
-.clew-step-figure [hidden] {
-  display: none;
-}
-
-.clew-step-figure .clew-player {
-  flex: none;
-}
-
-.clew-visual-source pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.clew-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--size-4-2);
-}
-
-.clew-grid-scroll {
-  overflow-x: auto;
-}
-
-.clew-grid-table {
-  display: grid;
-  gap: 1px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  background: var(--background-modifier-border);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--line-height-tight);
-  overflow: hidden;
-}
-
-.clew-grid-row {
-  display: contents;
-}
-
-.clew-grid-head,
-.clew-grid-cell {
-  display: grid;
-  align-content: center;
-  min-width: 2.75em;
-  padding: var(--size-4-2) var(--size-4-3);
-  background: var(--background-primary);
-  text-align: center;
-  transition: background-color 0.2s ease;
-}
-
-.clew-grid-head {
-  background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-  font-weight: var(--font-semibold);
-}
-
-/* A cell no step has reached yet is tinted, so an empty one reads as waiting, not missing. */
-.clew-grid-cell.is-pending {
-  background: color-mix(in srgb, var(--text-normal) 2.5%, var(--background-primary));
-}
-
-.clew-grid-cell.is-source {
-  background: color-mix(in srgb, var(--color-orange) 14%, var(--background-primary));
-}
-
-.clew-grid-cell.is-new {
-  background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary));
-  outline: 2px solid var(--interactive-accent);
-  outline-offset: -2px;
-  font-weight: var(--font-semibold);
-}
-
-/* Invisible finished values reserve cell size before a step reveals them. */
-.clew-grid-cell::before {
-  content: attr(data-value);
-  visibility: hidden;
-  font-weight: var(--font-semibold);
-}
-
-.clew-grid-cell::before,
-.clew-grid-cell > span {
-  grid-area: 1 / 1;
-  min-width: 0;
 }
 
 /* Stack all captions invisibly so wrapping and pane resizing preserve the tallest one's height. */
@@ -1528,10 +1208,6 @@
   margin: 0;
 }
 
-.clew-grid .clew-caption {
-  font-size: var(--font-ui-small);
-}
-
 /* Markdown tables share one presentation in prose and OpenUI text. */
 .clew-reply.markdown-rendered .table-wrapper {
   width: 100%;
@@ -1544,28 +1220,28 @@
   width: 100%;
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) table {
+.clew-reply.markdown-rendered .clew-reply-prose table {
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
   line-height: var(--line-height-tight);
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) th,
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) td {
+.clew-reply.markdown-rendered .clew-reply-prose th,
+.clew-reply.markdown-rendered .clew-reply-prose td {
   padding: var(--size-4-2) var(--size-4-3);
   vertical-align: middle;
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) th {
+.clew-reply.markdown-rendered .clew-reply-prose th {
   background: var(--background-secondary);
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) td {
+.clew-reply.markdown-rendered .clew-reply-prose td {
   background: var(--background-primary);
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) tbody tr:hover > td {
+.clew-reply.markdown-rendered .clew-reply-prose tbody tr:hover > td {
   background: var(--background-modifier-hover);
 }
 
@@ -1875,11 +1551,6 @@
 .clew-plot-dot {
   stroke: var(--background-primary);
   stroke-width: 2;
-}
-
-.clew-plot-marker {
-  stroke: var(--background-primary);
-  stroke-width: 1.5;
 }
 
 .clew-plot-cross {
@@ -3176,6 +2847,7 @@
   --clew-figure-fill-dim: var(--background-secondary);
   --clew-figure-fill-good: color-mix(in srgb, var(--color-green) 22%, var(--background-primary));
   --clew-figure-fill-bad: color-mix(in srgb, var(--color-red) 22%, var(--background-primary));
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--size-4-2);
@@ -3222,6 +2894,13 @@
   pointer-events: none;
 }
 
+/* A redraw lays out hidden over the drawing on screen until it can take its place. */
+.clew-figure-body.is-pending {
+  position: absolute;
+  inset-inline: 0;
+  visibility: hidden;
+}
+
 .clew-figure-body {
   display: flex;
   flex-direction: column;
@@ -3236,15 +2915,14 @@
 
 .clew-figure-stack {
   display: grid;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
 }
 
 .clew-figure-step {
   grid-area: 1 / 1;
   position: relative;
   visibility: hidden;
-  padding: 4px 4px 8px;
+  padding: 4px 0 8px;
 }
 
 .clew-figure-step.is-current {
@@ -3263,6 +2941,16 @@
 
 .clew-figure-row > .clew-figure-node {
   align-self: stretch;
+}
+
+/* A step's outer Row is centred, so what is left of the pane's width falls on both sides, not all on the right. */
+.clew-figure-step > .clew-figure-row {
+  justify-content: center;
+}
+
+/* A column of cards takes the widest card's width. */
+.clew-figure .clew-figure-column:not(:has(> :not(.clew-figure-node))) {
+  align-items: stretch;
 }
 
 .clew-figure .is-gap-sm { gap: 6px; }
@@ -3292,20 +2980,34 @@
   margin: 0;
 }
 
-.clew-figure-table table {
-  border-collapse: collapse;
+/* The frame is the table's own and the lines are the cells', by class: Obsidian and vault table rules on bare cells cannot reach them. */
+.clew-figure .clew-figure-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
   font-variant-numeric: tabular-nums;
   background: var(--background-primary);
 }
 
-.clew-figure-table :is(th, td) {
-  padding: 4px 10px;
-  border: 1px solid var(--background-modifier-border);
+/* A vault snippet may size every Markdown table cell with !important; a figure's table keeps the figure's size. */
+.clew-figure .clew-figure-table .clew-figure-cell {
+  padding: 4px 10px !important;
+  font-size: var(--font-ui-small) !important;
+  line-height: 1.5 !important;
+  border: 0 solid var(--background-modifier-border);
+  border-width: 1px 0 0 1px;
   text-align: center;
   white-space: nowrap;
 }
 
-.clew-figure-table th {
+.clew-figure .clew-figure-table .clew-figure-cell:first-child {
+  border-left-width: 0;
+}
+
+.clew-figure .clew-figure-table thead .clew-figure-cell {
+  border-top-width: 0;
   color: var(--text-muted);
   font-weight: var(--font-semibold);
   background: var(--background-secondary-alt, var(--background-secondary));
@@ -3376,6 +3078,7 @@
 
 .clew-figure-graph .clew-network-node {
   flex-direction: column;
+  padding: 4px 8px;
 }
 
 .clew-figure-plot {
@@ -3452,13 +3155,30 @@
 }
 
 .clew-figure-pointer {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-active);
   position: absolute;
-  color: var(--interactive-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
   font-size: 12px;
-  font-weight: var(--font-semibold);
-  line-height: 18px;
+  font-weight: var(--font-medium);
+  line-height: 20px;
   white-space: nowrap;
+  background: var(--background-secondary);
   transform: translateX(-50%);
+}
+
+.clew-figure-pointer-mark {
+  color: var(--clew-figure-pointer-ink);
+  font-weight: var(--font-semibold);
+}
+
+.clew-figure-pointer p,
+.clew-figure-link-label p {
+  display: inline;
 }
 
 .clew-figure-pointer.is-left {
@@ -3504,13 +3224,14 @@
   overflow-wrap: anywhere;
 }
 
-/* Tags, one rule per surface: boxes (nodes, cells, key marks), lines (edges, links) and text (edge labels, pointers). */
+/* Tags, one rule per surface: boxes (nodes, cells, key marks), lines (edges, links) and text (edge labels, pointers). A table cell's rule outranks Obsidian's striped columns. */
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='active'] {
   outline: 2px solid var(--clew-figure-tag-active);
   outline-offset: -2px;
   font-weight: var(--font-semibold);
 }
-.clew-figure-table tr[data-tag='active'] > td {
+.clew-figure-table tr[data-tag='active'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='active'] {
   font-weight: var(--font-semibold);
   background: var(--clew-figure-fill-active);
 }
@@ -3518,12 +3239,16 @@
   stroke: var(--clew-figure-tag-active);
   stroke-width: 3;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='active'] {
+.clew-network-edge-label[data-tag='active'] {
   color: var(--clew-figure-tag-active);
+}
+.clew-figure-pointer[data-tag='active'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-active);
 }
 
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='done'],
-.clew-figure-table tr[data-tag='done'] > td {
+.clew-figure-table tr[data-tag='done'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='done'] {
   color: var(--clew-figure-tag-done);
   background: var(--clew-figure-fill-done);
 }
@@ -3531,47 +3256,63 @@
   stroke: var(--clew-figure-tag-done);
   stroke-dasharray: 7 4;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='done'] {
+.clew-network-edge-label[data-tag='done'] {
   color: var(--clew-figure-tag-done);
+}
+.clew-figure-pointer[data-tag='done'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-done);
 }
 
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='match'],
-.clew-figure-table tr[data-tag='match'] > td {
+.clew-figure-table tr[data-tag='match'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='match'] {
   background: var(--clew-figure-fill-match);
 }
 :is(.clew-network-edge, .clew-figure-link)[data-tag='match'] {
   stroke: var(--clew-figure-tag-match);
   stroke-width: 3;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='match'] {
+.clew-network-edge-label[data-tag='match'] {
   color: var(--clew-figure-tag-match);
+}
+.clew-figure-pointer[data-tag='match'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-match);
 }
 
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='new'],
-.clew-figure-table tr[data-tag='new'] > td {
+.clew-figure-table tr[data-tag='new'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='new'] {
   background: var(--clew-figure-fill-new);
 }
 :is(.clew-network-edge, .clew-figure-link)[data-tag='new'] {
   stroke: var(--clew-figure-tag-new);
   stroke-width: 3;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='new'] {
+.clew-network-edge-label[data-tag='new'] {
   color: var(--text-normal);
+}
+.clew-figure-pointer[data-tag='new'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-new);
 }
 
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='dim'],
-.clew-figure-table tr[data-tag='dim'] > td {
+.clew-figure-table tr[data-tag='dim'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='dim'] {
   opacity: 0.45;
 }
 :is(.clew-network-edge, .clew-figure-link)[data-tag='dim'] {
   opacity: 0.35;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='dim'] {
+.clew-network-edge-label[data-tag='dim'] {
   color: var(--clew-figure-tag-dim);
+}
+.clew-figure-pointer[data-tag='dim'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-dim);
 }
 
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='good'],
-.clew-figure-table tr[data-tag='good'] > td {
+.clew-figure-table tr[data-tag='good'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='good'] {
   color: var(--clew-figure-tag-good);
   outline: 1.5px solid var(--clew-figure-tag-good);
   outline-offset: -2px;
@@ -3580,12 +3321,16 @@
   stroke: var(--clew-figure-tag-good);
   stroke-width: 3;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='good'] {
+.clew-network-edge-label[data-tag='good'] {
   color: var(--clew-figure-tag-good);
+}
+.clew-figure-pointer[data-tag='good'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-good);
 }
 
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='bad'],
-.clew-figure-table tr[data-tag='bad'] > td {
+.clew-figure-table tr[data-tag='bad'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='bad'] {
   color: var(--clew-figure-tag-bad);
   outline: 1.5px solid var(--clew-figure-tag-bad);
   outline-offset: -2px;
@@ -3594,6 +3339,9 @@
   stroke: var(--clew-figure-tag-bad);
   stroke-width: 3;
 }
-:is(.clew-network-edge-label, .clew-figure-pointer)[data-tag='bad'] {
+.clew-network-edge-label[data-tag='bad'] {
   color: var(--clew-figure-tag-bad);
+}
+.clew-figure-pointer[data-tag='bad'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-bad);
 }

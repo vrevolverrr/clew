@@ -14,8 +14,7 @@ describe('figure tag styles', () => {
   });
 
   it('never styles a bare [data-tag] for every surface', () => {
-    // shortcut: OpenUI's own .clew-step-surface rules go with OpenUI in the switch-over; drop this filter then.
-    const bare = selectors.flatMap((selector) => selector.split(',')).map((part) => part.trim()).filter((part) => /(^|\s|>)\[data-tag/.test(part) && !part.startsWith('.clew-step-surface'));
+    const bare = selectors.flatMap((selector) => selector.split(',')).map((part) => part.trim()).filter((part) => /(^|\s|>)\[data-tag/.test(part));
     expect(bare).toEqual([]);
   });
 });

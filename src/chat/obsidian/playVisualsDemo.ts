@@ -2,94 +2,171 @@ import { type App, Notice } from 'obsidian';
 
 import { type DemoChat, scriptedSession } from '@/chat/obsidian/playHighlightDemo';
 
-const fence = (program: string) => ['```openui-lang', program, '```'].join('\n');
+const fence = (program: string): string => ['```figure', program, '```'].join('\n');
 
-// What an agent would write: a fence for each kind of visual, two fences that fail, and two fences that share a
-// variable name.
-export const VISUALS_DEMO_REPLY = [
-  'Move the controls. Each one redraws the readouts and plots that use it, with no new message to me.',
-  fence(`$k = 3
-root = Stack([ctl, plot, degree, enough])
-ctl = Slider("Terms in the series", 1, 8, 1, $k)
-plot = Plot([-7, 7], [Line(@Curve("sin(x)", -7, 7), "sin x"), Line(@Curve("sum(j, 0, n - 1, (-1) ^ j * x ^ (2 * j + 1) / fact(2 * j + 1))", -7, 7, {n: $k}), "Taylor polynomial")], [-3, 3], "x")
-degree = Stat("Degree of the polynomial", 2 * $k - 1)
-enough = Stat("Close to sin x out to |x| = 3?", $k > 3 ? "yes" : "not yet", $k > 3 ? "good" : "bad")`),
-  'A bell curve with its worst days shaded. Value at risk is where the shading ends:',
-  fence(`$mu = 0.05
-$sigma = 1.2
-$conf = "95%"
-z = $conf == "99%" ? 2.3263 : $conf == "90%" ? 1.2816 : 1.6449
-cut = $mu - z * $sigma
-root = Stack([m, s, c, plot, Stat("One-day value at risk", @Round(0 - cut, 2) + "%")])
-m = Slider("Mean daily return", -0.5, 0.5, 0.05, $mu, "%")
-s = Slider("Daily volatility", 0.5, 3, 0.1, $sigma, "%")
-c = Choice("Confidence", ["90%", "95%", "99%"], $conf)
-plot = Plot([-10, 10], [Line(@Curve("normpdf(x, mu, sigma)", -10, 10, {mu: $mu, sigma: $sigma}), "Daily returns"), Area(@Curve("normpdf(x, mu, sigma)", -10, cut, {mu: $mu, sigma: $sigma}), "Worst days", 2), Rule(cut, "x", "VaR")], null, "Daily return, %")`),
-  'A waterfall from revenue to net income. The model gives the changes and the plot adds them up:',
-  fence(`$cogs = 55
-$opex = 300
-ebt = 1200 - 12 * $cogs - $opex - 60
-tax = ebt > 0 ? ebt * 0.25 : 0
-root = Stack([a, b, plot, Stat("Net income", @Round(ebt - tax))])
-a = Slider("Cost of goods, % of revenue", 30, 85, 1, $cogs, "%")
-b = Slider("Operating expenses", 100, 500, 10, $opex, "$k")
-plot = Plot(["Revenue", "Cost of goods", "Gross profit", "Operating expenses", "Operating income", "Interest", "Tax", "Net income"], [Bars([1200, 0 - 12 * $cogs, null, 0 - $opex, null, -60, 0 - tax, null], "waterfall")], null, null, "$k")`),
-  'A cash-flow curve shares its discount rate with the readout. The dot sits at the rate you chose:',
-  fence(`$r = 10
-npv = @Eval("-1000 + 300 / (1 + r / 100) + 400 / (1 + r / 100) ^ 2 + 400 / (1 + r / 100) ^ 3 + 300 / (1 + r / 100) ^ 4", {r: $r})
-root = Stack([ctl, plot, Stat("NPV at this rate", @Round(npv), npv > 0 ? "good" : "bad")])
-ctl = Slider("Discount rate", 0, 30, 0.5, $r, "%")
-plot = Plot([0, 30], [Line(@Curve("-1000 + 300 / (1 + x / 100) + 400 / (1 + x / 100) ^ 2 + 400 / (1 + x / 100) ^ 3 + 300 / (1 + x / 100) ^ 4", 0, 30), "NPV"), Dot($r, npv, "here"), Rule(0, "y")], null, "Discount rate, %", "NPV, $k")`),
-  'An edit-distance table fills one cell per step. The newest cell is outlined and the cells it was worked out from are shaded:',
-  fence(`$s = 0
-root = Stack([Grid(["", "c", "u", "t"], ["", "c", "a", "t"], [[0, 1, 2, 3], [1, 0, 1, 2], [2, 1, 1, 2], [3, 2, 2, 1]], $s, 4, ["Row and column 0 are the cost of turning a prefix into nothing.", "Turning c into nothing takes 1 deletions: 1.", "c against c: the letters match, so copy the diagonal, 0.", "**c** against **u**: the letters differ, so take the cheapest neighbour and add 1, $\\min(1, 2, 0) + 1 = 1$.", "c against t: the letters differ, so take the cheapest neighbour and add 1, 2.", "Turning ca into nothing takes 2 deletions: 2.", "a against c: the letters differ, so take the cheapest neighbour and add 1, 1.", "a against u: the letters differ, so take the cheapest neighbour and add 1, 1.", "a against t: the letters differ, so take the cheapest neighbour and add 1, 2.", "Turning cat into nothing takes 3 deletions: 3.", "t against c: the letters differ, so take the cheapest neighbour and add 1, 2.", "t against u: the letters differ, so take the cheapest neighbour and add 1, 2.", "t against t: the letters match, so copy the diagonal, 1."], [[[0, 0]], [[0, 0], [0, 1], [1, 0]], [[0, 1], [0, 2], [1, 1]], [[0, 2], [0, 3], [1, 2]], [[1, 0]], [[1, 0], [1, 1], [2, 0]], [[1, 1], [1, 2], [2, 1]], [[1, 2], [1, 3], [2, 2]], [[2, 0]], [[2, 0], [2, 1], [3, 0]], [[2, 1], [2, 2], [3, 1]], [[2, 2], [2, 3], [3, 2]]]), Player(12, $s, 700)])`),
-  'A quiz marks the answer on the spot and sends it to me as your next message, so I can carry on from it. Pick one and press Submit:',
-  fence(`root = Stack([Quiz("What is the derivative of $\\sin x$?", ["$\\cos x$", "$-\\cos x$", "$\\sin x$"], "$\\cos x$", "The slope of the sine curve at $x$ is $\\cos x$.")])`),
-  'A choice and a typed word share one figure:',
-  fence(`$body = "Earth"
-$word = "kitten"
-root = Stack([pick, name, out])
-pick = Choice("Gravity", ["Earth", "Moon", "Mars"], $body)
-name = TextInput("A word", $word, 12)
-out = TextContent("**" + $word + "** falls on the " + $body + ".")`),
-  'A player steps a variable. Press Play, Pause, Next or Back, or drag the bar:',
-  fence(`$s = 0
-root = Stack([p, Stat("Step", $s + " of 6"), Stat("Progress", @Round($s / 6 * 100) + "%")])
-p = Player(6, $s, 700)`),
-  'A control with no variable keeps its position but nothing reads it:',
-  fence('root = Stack([Slider("Volume", 0, 100, 5, 40, "%")])'),
-  'These two fences both name their variable `$k`, yet each has its own:',
-  fence(`$k = 1
-root = Stack([Slider("First figure", 0, 10, 1, $k), Stat("Reads", $k)])`),
-  fence(`$k = 1
-root = Stack([Slider("Second figure", 0, 10, 1, $k), Stat("Reads", $k)])`),
-  'A plot marks a point with a dot and shades the region between two curves:',
-  fence(`cost = @Curve("x ^ 2 / 4", 0, 4)
-rev = @Curve("0.75 * x", 0, 4)
-root = Stack([Plot([0, 4], [Area(rev, "Profit", 3, cost, 0, 3), Line(cost, "Cost"), Line(rev, "Revenue"), Dot(3, 2.25, "break-even"), Note(3.8, 2.9, "loss")], [0, 4], "Units (thousands)", "Amount ($ thousands)")])`),
-  'A callout boxes a definition, and a sequence numbers the steps of a method, all visible at once:',
-  fence(`root = Stack([def, steps])
-def = Callout("note", "Eigenvector", "A nonzero $v$ with $Av = \\lambda v$ for some scalar $\\lambda$.")
-steps = Sequence([TextContent("**Form the characteristic polynomial.** Compute $\\det(A - \\lambda I)$."), TextContent("**Find its roots.** Each root is an eigenvalue."), TextContent("**Solve for each eigenvector.** Find the null space of $A - \\lambda I$.")])`),
-  'A board moves blocks between named places, with its own Play, Back and Next:',
-  fence(`root = Stack([board])
-board = Board([{id: "ready", label: "Ready queue", slots: 3}, {id: "cpu", label: "CPU", slots: 1}, {id: "done", label: "Finished", slots: 3}], [Step("Three processes wait.", "P1 P2 P3 > ready"), Step("The scheduler runs P1.", "P1 > cpu; P1 ~ active"), Step("P1's time slice ends; it goes to the back.", "P1 > ready:0; P1 ~; P2 > cpu; P2 ~ active"), Step("P2 finishes.", "P2 > done; P2 ~ done; P3 > cpu; P3 ~ active")])`),
-  'A network keeps its layout fixed while edges and nodes change state:',
-  fence(`root = Stack([graph])
-graph = Network([{id: "A"}, {id: "B"}, {id: "C"}, {id: "D", hidden: true}], [{id: "ab", from: "A", to: "B", label: "4"}, {id: "ac", from: "A", to: "C", label: "1"}, {id: "cb", from: "C", to: "B", label: "2"}, {id: "bd", from: "B", to: "D", label: "5"}], [Step("Start at A.", [Tag("A", "active")]), Step("The cheapest edge from A reaches C.", [Tag("ac", "active"), Tag("C", "active"), Tag("A", "done")]), Step("Through C, B costs 3, less than 4.", [Tag("ac", "done"), Tag("cb", "active"), Tag("ab", "dim"), Label("B", "B (3)")]), Step("D appears once B is settled.", [Show("D"), Tag("cb", "done"), Tag("bd", "active")]), Step("Hide A, which is done, and its edges.", [Hide("A")])])`),
-  'A static diagram is Mermaid, not a visual:',
-  ['```mermaid', 'flowchart LR', '  Q[Question] --> M{Model} --> A[Answer]', '```'].join('\n'),
-  'A board that breaks its own rules shows why, and keeps its source to inspect:',
-  fence('root = Stack([Board([{id: "desk", label: "Desk", slots: 1}], [Step("One parcel.", "A > desk"), Step("A second parcel.", "B > desk")])])'),
-  'A fence with a component that does not exist still draws the rest:',
-  fence('root = Stack([TextContent("This part renders."), Chart("bar")])'),
-  'That is every kind of visual. Try them in a light and a dark theme.',
-].join('\n\n');
+const TAYLOR = String.raw`export const params = { n: { label: 'Terms in the series', min: 1, max: 8, step: 1, value: 3 } };
 
-/** Plays a scripted reply in a new chat, so the controls of a visual can be tried in the vault's theme without a model. */
+export default function ({ n }) {
+  const fact = k => (k <= 1 ? 1 : k * fact(k - 1));
+  const taylor = x => {
+    let sum = 0;
+    for (let j = 0; j < n; j++) sum += (-1) ** j * x ** (2 * j + 1) / fact(2 * j + 1);
+    return sum;
+  };
+  const error = Math.abs(Math.sin(3) - taylor(3));
+  return (
+    <Column gap="sm">
+      <Plot id="p" x={[-7, 7]} y={[-3, 3]} xLabel="x">
+        <Fn id="sin" f={Math.sin} label="sin x" />
+        <Fn id="t" f={taylor} label={'Taylor polynomial of degree ' + (2 * n - 1)} />
+      </Plot>
+      <Row gap="sm">
+        <Node id="deg" label={2 * n - 1} sub="degree" />
+        <Node id="err" label={error.toFixed(4)} sub="error at x = 3" tag={error < 0.01 ? 'good' : 'bad'} />
+      </Row>
+    </Column>
+  );
+}`;
+
+const QUIZ = String.raw`export default () => (
+  <Quiz question="What is the derivative of $\sin x$?" options={['$\\cos x$', '$-\\cos x$', '$\\sin x$']} correct={'$\\cos x$'}
+    explanation="The slope of $\sin x$ at each $x$ is $\cos x$." />
+);`;
+
+const DIJKSTRA = String.raw`const nodes = ['A', 'B', 'C', 'D', 'E'];
+const edges = [['A', 'B', 2], ['A', 'C', 3], ['B', 'D', 3], ['C', 'D', 4], ['D', 'E', 1]];
+
+export default function () {
+  const d = Object.fromEntries(nodes.map(n => [n, n === 'A' ? 0 : Infinity]));
+  const done = [];
+  const show = v => (v === Infinity ? '∞' : v);
+  const steps = [{ d: { ...d }, done: [], text: 'Start: **A** is 0 away, every other node ∞.' }];
+  while (done.length < nodes.length) {
+    const u = nodes.filter(n => !done.includes(n)).sort((a, b) => d[a] - d[b])[0];
+    done.push(u);
+    const changed = [];
+    for (const [a, b, w] of edges) for (const [x, y] of [[a, b], [b, a]]) {
+      if (x === u && !done.includes(y) && d[u] + w < d[y]) { d[y] = d[u] + w; changed.push(y + ' → ' + d[y]); }
+    }
+    steps.push({ d: { ...d }, done: [...done], u, text: 'Settle **' + u + '** at ' + show(d[u]) + '. ' + (changed.length ? 'Relaxed: ' + changed.join(', ') + '.' : 'No distance improves.') });
+  }
+  const tagOf = (step, n) => (n === step.u ? 'active' : step.done.includes(n) ? 'done' : null);
+  return <Figure steps={steps} caption={step => step.text} render={step => (
+    <Row gap="lg" align="center">
+      <Graph id="g" nodes={nodes.map(n => ({ id: 'g-' + n, label: n }))} edges={edges.map(([a, b, w], i) => ({ id: 'e' + i, from: 'g-' + a, to: 'g-' + b, label: w }))}
+        tags={Object.fromEntries(nodes.map(n => ['g-' + n, tagOf(step, n)]))} />
+      <Table id="dist" title="Distance" columns={['Node', 'Distance']} rows={nodes.map(n => [n, show(step.d[n])])} rowIds={nodes.map(n => 't-' + n)}
+        tags={Object.fromEntries(nodes.map(n => ['t-' + n, tagOf(step, n)]))} />
+    </Row>
+  )} />;
+}`;
+
+const INCLINE = String.raw`export const params = { angle: { label: 'Incline angle', min: 10, max: 60, step: 5, value: 30, unit: '°' } };
+
+export default function ({ angle }) {
+  const t = angle * Math.PI / 180, L = 6, m = 2, g = 9.8;
+  const A = [0, 0], B = [L * Math.cos(t), 0], C = [L * Math.cos(t), L * Math.sin(t)];
+  const P = along(A, C, 0.55);
+  const W = m * g, N = W * Math.cos(t), F = W * Math.sin(t);
+  const scale = 0.12;
+  const tip = (v, k) => [P[0] + v[0] * k * scale, P[1] + v[1] * k * scale];
+  return (
+    <Row gap="md" align="center">
+      <Diagram id="d" width={6} height={5.5}>
+        <Shape pts={[A, B, C]} closed />
+        <Angle at={A} from={B} to={C} label={'$' + angle + '^\\circ$'} />
+        <RightAngle at={B} from={A} to={C} />
+        <Vector from={P} to={tip([0, -1], W)} label="$mg$" />
+        <Vector from={P} to={tip([-Math.sin(t), Math.cos(t)], N)} label="$N$" tag="good" />
+        <Vector from={P} to={tip([-Math.cos(t), -Math.sin(t)], F)} label="$mg\sin\theta$" tag="active" />
+        <Dimension from={A} to={B} label={(L * Math.cos(t)).toFixed(2) + ' m'} />
+      </Diagram>
+      <Column gap="sm">
+        <Node id="n" label={N.toFixed(1) + ' N'} sub="normal force" />
+        <Node id="f" label={F.toFixed(1) + ' N'} sub="force down the slope" tag="active" />
+      </Column>
+    </Row>
+  );
+}`;
+
+const ELIMINATION = String.raw`export default function () {
+  let M = [[2, 1, -1, 8], [-3, -1, 2, -11], [-2, 1, 2, -3]];
+  const copy = m => m.map(r => r.slice());
+  const steps = [{ M: copy(M), text: 'The augmented matrix of three equations in $x$, $y$, $z$.' }];
+  const eliminate = (t, s, col) => {
+    const f = M[t][col] / M[s][col];
+    M = M.map((r, i) => (i === t ? r.map((v, j) => v - f * M[s][j]) : r));
+    const k = Math.abs(Number(f.toFixed(2)));
+    const op = '$R_' + (t + 1) + (f > 0 ? ' - ' : ' + ') + (k === 1 ? '' : k) + 'R_' + (s + 1) + '$';
+    steps.push({ M: copy(M), row: t, name: op, text: 'Clear the entry below the pivot in column ' + (col + 1) + ': replace row ' + (t + 1) + ' by ' + op + '.' });
+  };
+  eliminate(1, 0, 0);
+  eliminate(2, 0, 0);
+  eliminate(2, 1, 1);
+  const fmt = v => String(Number(v.toFixed(2)));
+  const tex = step => '\\left[\\begin{array}{ccc|c}' + step.M.map((r, i) => (i === step.row ? '\\rowcolor{new} ' : '') + r.map((v, j) => (i === step.row && j === 0 ? '\\cssId{pivot}{' + fmt(v) + '}' : fmt(v))).join(' & ')).join(' \\\\ ') + '\\end{array}\\right]';
+  return <Figure steps={steps} caption={step => step.text} render={step => (
+    <Column gap="sm">
+      <Tex id="m" tex={tex(step)} />
+      {step.row !== undefined && <Pointer to="pivot" name={step.name} />}
+    </Column>
+  )} />;
+}`;
+
+const EDIT_DISTANCE = String.raw`const a = 'kitten', b = 'sitting';
+
+export default function () {
+  const D = [];
+  for (let i = 0; i <= a.length; i++) {
+    D.push([]);
+    for (let j = 0; j <= b.length; j++) {
+      D[i].push(i === 0 ? j : j === 0 ? i : Math.min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)));
+    }
+  }
+  const steps = D.map((_, i) => ({ i, text: i === 0 ? 'Row 0: turning nothing into each prefix of **' + b + '** costs one insert per letter.' : 'Row ' + i + ': the prefixes of **' + a + '** up to **' + a[i - 1] + '**.' }));
+  steps.push({ i: a.length, done: true, text: 'The bottom-right cell is the edit distance: **' + D[a.length][b.length] + '**.' });
+  const last = 'r' + a.length + '.' + (b.length + 1);
+  return <Figure steps={steps} caption={step => step.text} render={step => (
+    <Table id="dp" columns={['', 'ε'].concat(b.split(''))} rowIds={D.map((_, i) => 'r' + i)}
+      rows={D.map((row, i) => [i === 0 ? 'ε' : a[i - 1]].concat(row.map(v => (i <= step.i ? v : null))))}
+      tags={step.done ? { [last]: 'good' } : { ['r' + step.i]: 'active' }} />
+  )} />;
+}`;
+
+/** What an agent would write, in two turns: a reply draws at most four figures. */
+export const VISUALS_DEMO_TURNS: readonly { message: string; reply: string }[] = [
+  {
+    message: 'Show me a plot, a quiz and a graph.',
+    reply: [
+      'Move the slider: the program runs again and redraws the plot and both cards.',
+      fence(TAYLOR),
+      'A quick check:',
+      fence(QUIZ),
+      'Dijkstra on a small graph, step by step, with its distance table:',
+      fence(DIJKSTRA),
+      'A static diagram is Mermaid, not a figure:',
+      ['```mermaid', 'flowchart LR', '  Q[Question] --> M{Model} --> A[Answer]', '```'].join('\n'),
+    ].join('\n\n'),
+  },
+  {
+    message: 'Show me geometry, a matrix and a table.',
+    reply: [
+      'A block on an incline. Change the angle and the forces follow:',
+      fence(INCLINE),
+      'Gaussian elimination, with the changed row coloured and its pivot pointed at:',
+      fence(ELIMINATION),
+      'Edit distance as a table that fills row by row:',
+      fence(EDIT_DISTANCE),
+      'That is every kind of figure. Try them in a light and a dark theme.',
+    ].join('\n\n'),
+  },
+];
+
+/** Plays scripted replies in a new chat, so figures can be tried in the vault's theme without a model. */
 export async function playVisualsDemo(app: App, openChat: () => Promise<DemoChat | null>): Promise<void> {
   const chat = await openChat();
   if (!chat) return;
-  new Notice('Visuals demo: move each control and hover each plot, then switch between a light and a dark theme.');
-  await chat.playTurn('Show me every control and plot.', scriptedSession(VISUALS_DEMO_REPLY), app.workspace.getActiveFile()?.path ?? '');
+  new Notice('Visuals demo: move each control and step through each figure, then switch between a light and a dark theme.');
+  const path = app.workspace.getActiveFile()?.path ?? '';
+  for (const turn of VISUALS_DEMO_TURNS) await chat.playTurn(turn.message, scriptedSession(turn.reply), path);
 }

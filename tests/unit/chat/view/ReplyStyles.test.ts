@@ -32,7 +32,7 @@ describe('reply Markdown styles', () => {
     expect(margins(note, 'ol > li')).toEqual(['3ch', '4ch']);
   });
 
-  it.each(['clew-reply-prose', 'clew-text'])('fills Markdown tables and distinguishes headers in %s', (className) => {
+  it.each(['clew-reply-prose'])('fills Markdown tables and distinguishes headers in %s', (className) => {
     const style = document.head.appendChild(document.createElement('style'));
     // jsdom does not resolve CSS variables; substitute a light theme's two surfaces.
     style.textContent = '.markdown-rendered table { width: fit-content; }'

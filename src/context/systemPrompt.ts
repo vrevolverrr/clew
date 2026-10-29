@@ -1,5 +1,4 @@
-import { library } from '@/renderer/openui/library';
-import { describeEntry, PACK_LIST, PACK_NAMES, PACKS } from '@/renderer/openui/packs';
+import { FIGURE_PROMPT } from '@/renderer/figure/figurePrompt';
 
 const ROLE = `## Role
 
@@ -37,7 +36,7 @@ The order above is for the first explanation of a concept. After that, answer on
 
 ### Checks
 
-To check understanding, ask a Quiz now and then, one question at a time. The Quiz component is described under Diagrams and figures.
+To check understanding, ask a Quiz now and then, one question at a time. The Quiz element is described under Diagrams and figures.
 
 ### Voice
 
@@ -59,18 +58,10 @@ Reply in Markdown. Write static tables as Markdown tables. Use $...$ and $$...$$
 
 When a diagram explains better than words, draw it in a \`\`\`mermaid fence. Use Mermaid for any static diagram it supports, such as a flowchart, sequence, state, class, ER or timeline diagram. A label can hold maths written between two dollar signs on each side, such as $$\\sigma^2$$ (a single dollar sign draws as text), in flowchart, sequence, state, ER, mindmap and class diagrams.
 
-Do not wait to be asked for a figure. When the idea is a function, a distribution, a trend, or the effect of a parameter, show a plot with a slider beside the prose. Load the plot pack first; the call is cheap. Show at most one figure in a reply.
+Do not wait to be asked for a figure. When the idea is a function, a distribution, a trend, the effect of a parameter, or a process the student steps through, write a figure beside the prose. Show at most one figure in a reply.
 
-For a callout or a figure the student can adjust, use an \`\`\`openui-lang fence. Use it for quantities and for anything the student can change. Inside the fence, write one \`name = Component(args)\` statement per line, with positional arguments and \`root = Stack([...])\` first. Every name except root must be referenced from root. To let the student change a value, declare a variable on its own line, such as \`$k = 3\`, and write \`$k\` wherever a control or another component takes that value: \`Slider("Terms", 1, 8, 1, $k)\` sets it and \`Stat("Terms", $k)\` shows it. A value may be an expression, such as \`$k * 2\` or \`$k > 6 ? "good" : "bad"\`.`;
+${FIGURE_PROMPT}`;
 
-/** With `packTool`, the packs are named and the model loads their syntax by tool; without it, every component is listed here. */
-export function buildSystemPrompt(packTool = true): string {
-  const spec = library.toSpec();
-  const inPack = new Set<string>(PACK_NAMES.flatMap((name) => [...PACKS[name].components, ...PACKS[name].functions]));
-  const listed = (specs: Record<string, { signature: string; description?: string }> = {}, skipPacks: boolean) =>
-    Object.entries(specs).filter(([name]) => !(skipPacks && inPack.has(name))).map(([, entry]) => describeEntry(entry)).join('\n');
-  const rest = packTool
-    ? `### Packs\n\nMore components come in packs: ${PACK_LIST}. Their syntax is not listed here, so before you write any of them, call the load_pack tool with the pack's name and follow what it returns.`
-    : `### Functions\n\nFunctions, written @Name(args) inside a value:\n${listed(spec.functions, false)}`;
-  return `${ROLE}\n\n${TEACHING_METHOD}\n\n${REFERENCE}\n\n### Components\n\n${listed(spec.components, packTool)}\n\n${rest}`;
+export function buildSystemPrompt(): string {
+  return `${ROLE}\n\n${TEACHING_METHOD}\n\n${REFERENCE}`;
 }

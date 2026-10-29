@@ -55,7 +55,7 @@ export class ToolGroup {
 
   set({ id, name, title, status }: ToolPart): void {
     const el = this.rows.get(id)?.el ?? this.listEl.createDiv({ cls: 'clew-tool' });
-    this.rows.set(id, { el, name: DISPLAY_NAMES[name] ?? name, status });
+    this.rows.set(id, { el, name, status });
     el.setText(title);
     el.setAttr('data-status', status);
     this.renderSummary();
@@ -103,8 +103,6 @@ export class ToolGroup {
     }
   }
 }
-
-const DISPLAY_NAMES: Record<string, string> = { load_pack: 'visual pack' };
 
 const PHRASE_MS = 4000;
 

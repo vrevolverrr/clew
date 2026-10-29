@@ -18,6 +18,7 @@ import { VaultFileIndex } from '@/attachments/obsidian/VaultFileIndex';
 import { vaultChatFiles } from '@/chat/obsidian/vaultChatFiles';
 import { VaultAttachments } from '@/attachments/obsidian/VaultAttachments';
 import { ChatView, VIEW_TYPE_CHAT } from '@/chat/obsidian/ChatView';
+import { figureSandbox } from '@/renderer/figure/FigureSandbox';
 
 const AUTH_LABELS: Record<AuthState, string> = {
   'logged-in': 'signed in',
@@ -91,6 +92,7 @@ export default class ClewPlugin extends Plugin {
 
   onunload(): void {
     this.stage.destroy();
+    figureSandbox.destroy();
   }
 
   /** Waits for the workspace so the CLI processes do not slow Obsidian's startup. */

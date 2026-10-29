@@ -35,7 +35,6 @@ const MIN_LEFT_MARGIN = 28;
 const TICK_CHAR_WIDTH = 7.5;
 const TICK_GAP = 8;
 const Y_TITLE_WIDTH = 20;
-const MARKED_POINTS = 12;
 /** How quickly a changed plot catches up with its new data, in milliseconds, and how close counts as arrived. */
 const CATCH_UP_MS = 70;
 const ARRIVED = 0.0015;
@@ -75,32 +74,26 @@ function runs(points: readonly Point[]): [number, number][][] {
   return out;
 }
 
-/** Draws a `PlotModel` as SVG at the width its element has, and again when that width changes. */
+/** Draws a `PlotModel` as SVG at the width its element has. */
 export class PlotChart {
   private readonly legend = div('clew-plot-legend');
   private readonly frame = div('clew-plot-frame');
   private readonly canvas = svg('svg', { role: 'img', class: 'clew-plot-svg' });
   private readonly tip = div('clew-plot-tip');
-  private readonly observer: ResizeObserver | null;
   /** What is on screen, and the plot it is moving toward. */
   private shown: ResolvedModel | null = null;
   private target: ResolvedModel | null = null;
   private raf: number | null = null;
   private last = 0;
-  private width = 0;
   /** The drawing's height for a width; a plot is 300 pixels tall unless its owner sizes it. */
   height: (width: number) => number = () => HEIGHT;
 
-  /** `observe` false leaves resizing to the owner, which calls `repaint`. */
-  constructor(readonly el: HTMLElement, observe = true) {
+  /** The owner calls `repaint` when the width changes. */
+  constructor(readonly el: HTMLElement) {
     el.classList.add('clew-plot');
     this.tip.hidden = true;
     this.frame.append(this.canvas, this.tip);
     el.append(this.legend, this.frame);
-    this.observer = !observe || typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
-      if (this.shown && this.measure() !== this.width) this.paint(this.shown, this.raf === null);
-    });
-    this.observer?.observe(this.frame);
   }
 
   /** Shows `model`. A plot of the same shape as the one on screen moves to it smoothly; any other replaces it at once. */
@@ -124,7 +117,6 @@ export class PlotChart {
   }
 
   destroy(): void {
-    this.observer?.disconnect();
     this.stop();
     this.shown = null;
     this.target = null;
@@ -163,7 +155,6 @@ export class PlotChart {
   /** Draws `model` as it is. Hover is added only for a plot at rest, since it is rebuilt with every frame. */
   private paint(model: ResolvedModel, interactive: boolean): void {
     const width = this.measure();
-    this.width = width;
     const height = Math.round(this.height(width));
     const narrow = width < 480;
     const cats = categoriesOf(model.x);
@@ -233,13 +224,7 @@ export class PlotChart {
           svg('path', { d: `${path(run)}L${path(back).slice(1)}Z`, fill: color, 'fill-opacity': 0.18, class: 'clew-plot-area' }, target);
         }
       } else if (layer.kind === 'line') {
-        const defined = runs(layer.points);
-        for (const run of defined) svg('path', { d: path(run), stroke: color, class: 'clew-plot-line' }, data);
-        // A short line is data, not a sampled curve, so each point is marked where the data actually is.
-        const points = defined.flat();
-        if (points.length <= MARKED_POINTS) {
-          for (const [x, y] of points) if (x >= x0 && x <= x1 && y >= y0 && y <= y1) svg('circle', { cx: sx(x), cy: sy(y), r: 3.5, fill: color, class: 'clew-plot-marker' }, root);
-        }
+        for (const run of runs(layer.points)) svg('path', { d: path(run), stroke: color, class: 'clew-plot-line' }, data);
       }
     });
 

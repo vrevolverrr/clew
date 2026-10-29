@@ -3,12 +3,25 @@
  */
 import type { ToolStatus } from '@/agents/types';
 import { ReplyView } from '@/chat/view/ReplyView';
-import { OpenUIRenderer } from '@/renderer/openui/OpenUIRenderer';
 import type { MarkdownTarget } from '@/chat/view/TextBlock';
+import { figureSandbox } from '@/renderer/figure/FigureSandbox';
 import type { TourEvent } from '@/tour/HighlightTour';
 import type { WalkthroughHost } from '@/tour/view/Walkthrough';
 
 jest.mock('obsidian', () => ({ setIcon: jest.fn() }), { virtual: true });
+// A figure's fence here holds the payload a program would return, as JSON; `!` starts one that fails.
+jest.mock('@/renderer/figure/FigureSandbox', () => ({
+  figureSandbox: {
+    warm: jest.fn(),
+    run: jest.fn((source: string) => Promise.resolve(source.startsWith('!') ? { ok: false, error: source.slice(1), repairable: true } : { ok: true, payload: JSON.parse(source) as unknown })),
+  },
+}));
+
+const figure = (root: unknown, caption = ''): string => JSON.stringify({ params: {}, frames: [{ caption, root }] });
+const node = (label: string): unknown => ({ type: 'Node', props: { id: 'n', label }, children: [] });
+const settle = async (): Promise<void> => {
+  for (let i = 0; i < 4; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+};
 
 const markdown = {
   render: async (el: HTMLElement, text: string) => {
@@ -34,13 +47,15 @@ function blocks(el: HTMLElement): string[] {
 }
 
 describe('ReplyView', () => {
-  it('releases playing visuals and pending renders when its chat closes', () => {
+  it('releases playing figures and pending renders when its chat closes', async () => {
+    const el = document.body.createDiv();
+    const reply = new ReplyView(el, markdown, hostOf());
+    const stepped = JSON.stringify({ params: {}, frames: [{ caption: 'One', root: node('1') }, { caption: 'Two', root: node('2') }] });
+    reply.appendText('```figure\n' + stepped + '\n```');
+    reply.finish();
+    await settle();
     jest.useFakeTimers();
     try {
-      const el = document.body.createDiv();
-      const reply = new ReplyView(el, markdown, hostOf());
-      reply.appendText('```openui-lang\n$s = 0\nroot = Stack([Player(100, $s, 500), Stat("Step", $s)])\n```');
-      reply.finish();
       const idle = jest.getTimerCount();
       el.querySelector<HTMLButtonElement>('[aria-label="Play"]')!.click();
       expect(jest.getTimerCount()).toBeGreaterThan(idle);
@@ -104,18 +119,6 @@ describe('ReplyView', () => {
     reply.finish();
     expect(blocks(el)).toEqual(['clew-tools: Used 2 Reads and 1 Bash']);
     expect(el.querySelector('.clew-tools')!.classList.contains('is-running')).toBe(false);
-  });
-
-  it('words load_pack as a visual pack in the summary and keeps the call title in its row', () => {
-    tool('a', 'load_pack', 'running', 'Loaded the plot visuals');
-    expect(blocks(el)).toEqual(['clew-tools: Using visual pack']);
-
-    tool('a', 'load_pack', 'done', 'Loaded the plot visuals');
-    tool('b', 'load_pack', 'done', 'Loaded the quiz visuals');
-    reply.finish();
-
-    expect(blocks(el)).toEqual(['clew-tools: Used 2 visual packs']);
-    expect([...el.querySelectorAll('.clew-tool')].map((row) => row.textContent)).toEqual(['Loaded the plot visuals', 'Loaded the quiz visuals']);
   });
 
   it('names the two most-used kinds and counts the rest as other', () => {
@@ -241,7 +244,7 @@ describe('ReplyView', () => {
     expect(el.querySelector('.clew-diagram')!.textContent).toBe('```mermaid\nflowchart LR\n  A --> B\n```');
   });
 
-  it.each(['mermaid', 'openui-lang'])('keeps the %s loading effect at its original height while the completed figure grows', async (kind) => {
+  it.each(['mermaid', 'figure'])('keeps the %s loading effect at its original height while the completed figure grows', async (kind) => {
     const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
     const media = Object.getOwnPropertyDescriptor(window, 'matchMedia');
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: false }) });
@@ -249,7 +252,7 @@ describe('ReplyView', () => {
     const finished = new Promise<Animation>((resolve) => { finish = () => resolve({} as Animation); });
     Object.defineProperty(HTMLElement.prototype, 'animate', { configurable: true, value: jest.fn(() => ({ finished })) });
     try {
-      const source = kind === 'mermaid' ? 'flowchart LR\nA --> B' : 'root = Stack([Stat("Total", 4)])';
+      const source = kind === 'mermaid' ? 'flowchart LR\nA --> B' : figure(node('Total'));
       reply.appendText(`\`\`\`${kind}\n${source}\n`);
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       const card = el.querySelector<HTMLElement>('.clew-diagram-card')!;
@@ -260,12 +263,12 @@ describe('ReplyView', () => {
 
       reply.appendText('```');
       reply.finish();
-      await Promise.resolve(); await Promise.resolve();
+      await settle();
 
       expect(frame.classList.contains('is-drawing')).toBe(false);
       expect(card.offsetHeight).toBe(160);
       expect(card.parentElement).toBe(frame);
-      finish(); await Promise.resolve();
+      finish(); await settle();
       expect(frame.querySelector('.clew-diagram-card')).toBeNull();
     } finally {
       finish?.();
@@ -276,32 +279,52 @@ describe('ReplyView', () => {
     }
   });
 
-  it('keeps invalid figure source inspectable as text while other figures still work', () => {
-    const source = 'root = Stack([Board([{id:"r",label:"R",slots:1}], [Step("One","A > r"), Step("Two","B > r")]), Stat("Safe", 7)])';
-    reply.appendText('```openui-lang\n' + source + '\n```');
+  it('shows a saved reply\'s failed figure as its error card, with the source collapsed, while other figures still draw', async () => {
+    reply.appendText('```figure\n!Step 2: TypeError: x (line 7)\n```\n\n```figure\n' + figure(node('Safe')) + '\n```');
     reply.finish();
-    expect([...el.querySelectorAll('.clew-visual-error')].map((error) => error.textContent)).toEqual(['Board: Step 2: full region r']);
-    expect(el.querySelector('details summary')?.textContent).toBe('Visual source');
+    await settle();
+    expect([...el.querySelectorAll('.clew-figure-error-message')].map((error) => error.textContent)).toEqual(['Step 2: TypeError: x (line 7)']);
+    expect(el.querySelector('details summary')?.textContent).toBe('Figure source');
     expect(el.querySelector('details')?.open).toBe(false);
-    expect(el.querySelector('details pre')?.textContent).toBe(source);
-    expect(el.querySelector('.clew-stat')?.textContent).toContain('7');
+    expect(el.querySelector('details code')?.textContent).toBe('!Step 2: TypeError: x (line 7)');
+    expect(el.querySelector('.clew-figure-node')?.textContent).toContain('Safe');
   });
 
-  it('shows a drawing card while a visual streams, and draws it once the fence closes', async () => {
-    const draws = jest.spyOn(OpenUIRenderer.prototype, 'set');
-    const frame = () => el.querySelector('.clew-reply-openui')!;
-    reply.appendText('```openui-lang\nroot = Stack([Stat("Total", 4)])\n');
+  it('shows a drawing card while a figure streams, and draws it once the fence closes', async () => {
+    const run = jest.mocked(figureSandbox.run);
+    run.mockClear();
+    const frame = () => el.querySelector('.clew-reply-figure')!;
+    reply.appendText('```figure\n' + figure(node('Total')) + '\n');
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     expect(el.querySelector('.clew-diagram-card')?.textContent).toBe('Drawing visual');
     expect(frame().classList.contains('is-drawing')).toBe(true);
-    expect(draws).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
 
     reply.appendText('```\nDone.');
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    expect(draws).toHaveBeenCalledTimes(1);
+    await settle();
+    expect(run).toHaveBeenCalledTimes(1);
     expect(frame().classList.contains('is-drawing')).toBe(false);
-    expect(frame().querySelector('.clew-stat')).not.toBeNull();
-    draws.mockRestore();
+    expect(frame().querySelector('.clew-figure-node')).not.toBeNull();
+  });
+
+  it('shows a figure past the fourth in a reply as code, with a note', async () => {
+    reply.appendText([1, 2, 3, 4, 5].map((n) => '```figure\n' + figure(node(String(n))) + '\n```').join('\n\n'));
+    reply.finish();
+    await settle();
+    expect(el.querySelectorAll('.clew-figure-node')).toHaveLength(4);
+    expect(el.querySelector('.clew-figure-note')?.textContent).toBe('Only four figures are drawn per reply');
+  });
+
+  it('holds a live reply\'s repairable failure behind its drawing card until the reply ends', async () => {
+    const live = new ReplyView(el = document.createElement('div'), markdown, hostOf(), undefined, true);
+    live.appendText('```figure\n!Step 1: broken\n```\nMore ');
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    await settle();
+    expect(el.querySelector('.clew-figure-error')).toBeNull();
+    expect(el.querySelector('.clew-reply-figure')!.classList.contains('is-drawing')).toBe(true);
+    live.finish();
+    expect(el.querySelector('.clew-figure-error-message')?.textContent).toBe('Step 1: broken');
   });
 
   it('draws a diagram whose source holds a fence line inside a longer fence, so the line stays source', async () => {
@@ -311,7 +334,7 @@ describe('ReplyView', () => {
     expect(el.querySelector('.clew-diagram')!.textContent).toBe('````mermaid\nflowchart LR\n  A["```"] --> B\n````');
   });
 
-  it('asks for diagrams in a Mermaid fence and a visual, never in prose', async () => {
+  it('asks for diagrams in a Mermaid fence, never in prose or a figure', async () => {
     const asked: Array<[string, boolean | undefined]> = [];
     reply = new ReplyView(el = document.createElement('div'), {
       render: async (_target: HTMLElement, text: string, options?: { diagrams?: boolean }) => {
@@ -319,10 +342,10 @@ describe('ReplyView', () => {
       },
       release: () => undefined,
     }, hostOf());
-    reply.appendText('Prose.\n\n```mermaid\nflowchart LR\n```\n\n```openui-lang\nroot = TextContent("Inside")\n```\n');
+    reply.appendText('Prose.\n\n```mermaid\nflowchart LR\n```\n\n```figure\n' + figure({ type: 'Text', props: { text: 'Inside $x$' }, children: [] }) + '\n```\n');
     reply.finish();
-    await Promise.resolve();
-    expect(asked).toEqual([['Prose.', undefined], ['```mermaid', true], ['Inside', true]]);
+    await settle();
+    expect(asked).toEqual([['Prose.', undefined], ['```mermaid', true], ['Inside $x$', false]]);
   });
 
   it('renders each finished paragraph once while the next one streams', async () => {
@@ -557,7 +580,7 @@ describe('ReplyView', () => {
   });
 
   describe('a quiz in the reply', () => {
-    const QUIZ = '```openui-lang\nroot = Stack([Quiz("Pick the even number", ["3", "4"], "4")])\n```\n';
+    const QUIZ = '```figure\n' + figure({ type: 'Quiz', props: { question: 'Pick the even number', options: ['3', '4'], correct: '4' }, children: [] }) + '\n```\n';
 
     function answer(accept: (message: string) => boolean) {
       const quizEl = document.createElement('div');
@@ -570,7 +593,7 @@ describe('ReplyView', () => {
     it('sends the answer to the chat as the student\'s next message', async () => {
       const sent: string[] = [];
       const quizEl = answer((message) => (sent.push(message), true));
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await settle();
 
       quizEl.querySelectorAll<HTMLElement>('.clew-quiz-option')[1]!.click();
       quizEl.querySelector<HTMLElement>('.clew-quiz-submit')!.click();
@@ -581,7 +604,7 @@ describe('ReplyView', () => {
 
     it('stays open while the chat is busy', async () => {
       const quizEl = answer(() => false);
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await settle();
 
       quizEl.querySelectorAll<HTMLElement>('.clew-quiz-option')[0]!.click();
       quizEl.querySelector<HTMLElement>('.clew-quiz-submit')!.click();
@@ -592,16 +615,16 @@ describe('ReplyView', () => {
   });
 
   it('does not draw a finished figure again while later text streams in', async () => {
-    const draws = jest.spyOn(OpenUIRenderer.prototype, 'set');
+    const run = jest.mocked(figureSandbox.run);
+    run.mockClear();
     const streamEl = document.createElement('div');
     const streaming = new ReplyView(streamEl, markdown, hostOf());
 
-    streaming.appendText('```openui-lang\nroot = Stack([Stat("Total", 4)])\n```\nFirst ');
+    streaming.appendText('```figure\n' + figure(node('Total')) + '\n```\nFirst ');
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     streaming.appendText('and second');
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
 
-    expect(draws).toHaveBeenCalledTimes(1);
-    draws.mockRestore();
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });

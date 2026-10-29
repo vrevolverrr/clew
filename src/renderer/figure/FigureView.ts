@@ -580,7 +580,7 @@ export class FigureView {
         for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
         const el = mark(child('clew-figure-plot'), node.id);
         el.style.width = `${this.width}px`;
-        const chart = new PlotChart(el, false);
+        const chart = new PlotChart(el);
         chart.height = (width) => Math.min(360, (width * 2) / 3);
         chart.render(plotModel(node));
         view.plots.push(chart);

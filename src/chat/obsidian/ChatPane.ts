@@ -211,7 +211,7 @@ export class ChatPane extends Component {
 
   /** Keeps live replies and scripted demos on the same display lifecycle. */
   private async displayTurn(context: ChatContext, send: (view: TurnView) => Promise<unknown>, sent = (): void => undefined): Promise<void> {
-    const { turnEl, replyEl, reply } = this.addTurn(context.message, quoteOf(context.selection), context.attachments);
+    const { turnEl, replyEl, reply } = this.addTurn(context.message, quoteOf(context.selection), context.attachments, true);
     this.messagesEl.scrollTo({ top: turnEl.offsetTop, behavior: 'smooth' });
     const view = this.turnView(replyEl, reply, this.chat.record.turns.length, sent);
     this.composer.setStreaming(true);
@@ -264,7 +264,8 @@ export class ChatPane extends Component {
     });
   }
 
-  private addTurn(message: string, quote?: NoteQuote, attachments: readonly ChatAttachment[] = []): { turnEl: HTMLElement; replyEl: HTMLElement; reply: ReplyView } {
+  /** `live` is true for a turn being run, false for a saved one drawn again. */
+  private addTurn(message: string, quote?: NoteQuote, attachments: readonly ChatAttachment[] = [], live = false): { turnEl: HTMLElement; replyEl: HTMLElement; reply: ReplyView } {
     const turnEl = this.messagesEl.createDiv({ cls: 'clew-turn' });
     const chipped = attachments.filter((attachment) => !isMention(attachment));
     if (chipped.length) {
@@ -292,7 +293,7 @@ export class ChatPane extends Component {
       if (bubble.querySelector('.math, mjx-container')) finishRenderMath().catch(() => undefined);
     }
     const replyEl = turnEl.createDiv({ cls: 'clew-reply markdown-rendered' });
-    const reply = new ReplyView(replyEl, this.replyMarkdown, this.walkthrough, (message) => this.ask(message));
+    const reply = new ReplyView(replyEl, this.replyMarkdown, this.walkthrough, (message) => this.ask(message), live);
     this.replies.add(reply);
     return { turnEl, replyEl, reply };
   }
