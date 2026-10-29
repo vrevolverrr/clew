@@ -1627,6 +1627,17 @@
   margin-bottom: 0;
 }
 
+/* A heading sits closer to its section than to the one before. Each block renders in its own div, so app.css's wider
+   gap above a heading after a paragraph never matches here, and a vault snippet may widen the gap below with !important. */
+.clew-reply.markdown-rendered .clew-reply-prose :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.25em !important;
+  margin-bottom: var(--size-4-2) !important;
+}
+
+.clew-reply.markdown-rendered .clew-reply-text > .clew-reply-prose:first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0 !important;
+}
+
 /* As tall as a line of reply text, so a line that replaces another lands in the same spot. */
 .clew-tools .clew-tools-header {
   display: flex;
