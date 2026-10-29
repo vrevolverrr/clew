@@ -1,0 +1,69 @@
+import { TAGS, type Tag } from '@/renderer/figure/FigureData';
+
+export type Rgb = readonly [number, number, number];
+
+const MATH = /(?<!\\)\$\$[\s\S]+?\$\$|(?<!\\)\$(?:[^$\n\\]|\\.)+?\$/g;
+const COLOUR = /\\(rowcolor|cellcolor|colorbox|color)\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g;
+const BBOX = /\\bbox\s*\[([^\]]*)\]/g;
+const ANCHOR = /\\cssId\s*\{([^}]*)\}/g;
+const DIMENSION = /^\s*-?[\d.]+\s*(?:px|em|ex|pt|mu|cm|mm|in|pc)?\s*$/;
+const TAG_LIST = TAGS.join(', ');
+
+const isTag = (name: string): name is Tag => (TAGS as readonly string[]).includes(name);
+
+/** Applies `inMath` to each `$…$` and `$$…$$` of Markdown, delimiters included, and `outside` to the text between. */
+export function mapMath(markdown: string, inMath: (math: string) => string, outside: (text: string) => string = (text) => text): string {
+  let out = '';
+  let at = 0;
+  for (const match of markdown.matchAll(MATH)) {
+    out += outside(markdown.slice(at, match.index)) + inMath(match[0]);
+    at = match.index + match[0].length;
+  }
+  return out + outside(markdown.slice(at));
+}
+
+/** The TeX inside a Markdown string's maths. */
+export function texIn(markdown: string): string[] {
+  return [...markdown.matchAll(MATH)].map((match) => match[0]);
+}
+
+/** The anchor names `\cssId{name}{…}` marks. */
+export function texAnchors(tex: string): string[] {
+  return [...tex.matchAll(ANCHOR)].map((match) => match[1].trim());
+}
+
+/** Why the host cannot draw this TeX, or undefined: a colour that is not a tag, or a command the host keeps for itself. */
+export function texProblems(tex: string): string | undefined {
+  if (/\\definecolor\b/.test(tex)) return `TeX \\definecolor is not allowed; a colour is one of the tags ${TAG_LIST}`;
+  const reserved = /\\(class|data)\b/.exec(tex);
+  if (reserved) return `TeX \\${reserved[1]} is the host's; mark an anchor with \\cssId{name}{…}`;
+  for (const [, , model, name] of tex.matchAll(COLOUR)) {
+    if (model || !isTag(name.trim())) return colourProblem(model ? `${model}{${name}}` : name);
+  }
+  for (const [, args] of tex.matchAll(BBOX)) {
+    const colour = args.split(',').find((part) => !DIMENSION.test(part) && !part.includes(':') && !isTag(part.trim()));
+    if (colour !== undefined) return colourProblem(colour);
+  }
+  return undefined;
+}
+
+function colourProblem(colour: string): string {
+  return `TeX colour "${colour.trim()}" is not a tag; use one of ${TAG_LIST}`;
+}
+
+/** TeX ready for MathJax: each tag colour written as the theme's colour, each anchor as a data attribute looked up in its step. */
+export function drawTex(tex: string, colour: (tag: Tag) => Rgb): string {
+  return tex
+    .replace(COLOUR, (whole, command: string, model: string | undefined, name: string) => {
+      const tag = name.trim();
+      return !model && isTag(tag) ? `\\${command}[RGB]{${colour(tag).join(',')}}` : whole;
+    })
+    // \bbox splits on commas and # is TeX's parameter character, so its colour is a style with neither.
+    .replace(BBOX, (_, args: string) => `\\bbox[${args.split(',').map((part) => (isTag(part.trim()) ? `background-color:rgb(${colour(part.trim() as Tag).join(' ')})` : part)).join(',')}]`)
+    .replace(ANCHOR, (_, name: string) => `\\data{figure-id=${name.trim()}}`);
+}
+
+/** `drawTex` on each piece of maths in a Markdown string. */
+export function drawTexIn(markdown: string, colour: (tag: Tag) => Rgb): string {
+  return mapMath(markdown, (math) => drawTex(math, colour));
+}
