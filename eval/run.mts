@@ -8,7 +8,11 @@ import { type Assertion, evaluate, type TestCase } from 'promptfoo';
 import { isAgentId } from '@/agents/providers';
 import type { TourStep } from '@/chat/ChatRecord';
 import { splitReply } from '@/chat/splitReply';
+import { validateFigure } from '@/renderer/figure/validateFigure';
+import { messageOf } from '@/shared/messageOf';
 import { findQuote } from '@/tour/locateQuote';
+import { buildFigureWorker } from '../scripts/buildFigureWorker.js';
+import { runFigureWorker } from '../tests/runFigureWorker';
 import { clewProvider, type TurnVars } from './ClewProvider';
 
 // Obsidian is never launched from a Claude Code session; drop that session's markers, as test:live does.
@@ -31,11 +35,11 @@ if (!Number.isInteger(repeat) || repeat < 1) throw new Error(`--repeat takes a w
 
 // ---------------------------------------------------------------- checks
 
-const code = (metric: string, check: (output: string, highlights: TourStep[]) => true | string): Assertion => ({
+const code = (metric: string, check: (output: string, highlights: TourStep[]) => true | string | Promise<true | string>): Assertion => ({
   type: 'javascript',
   metric,
-  value: (output, { metadata }) => {
-    const result = check(output, (metadata?.highlights as TourStep[] | undefined) ?? []);
+  value: async (output, { metadata }) => {
+    const result = await check(output, (metadata?.highlights as TourStep[] | undefined) ?? []);
     return result === true ? { pass: true, score: 1, reason: metric } : { pass: false, score: 0, reason: result };
   },
 });
@@ -53,11 +57,24 @@ const atMost = (limit: number) => code('length', (output) => {
   const count = words(output);
   return count <= limit || `${count} words, over ${limit}`;
 });
-// shortcut: main's figures are `openui` segments; check the figure kind, validated with validateFigure, once this
-// branch is rebased onto the figure renderer.
-const figures = (count: number) => code('figure', (output) => {
-  const found = splitReply(output, true).filter(({ kind }) => kind === 'openui').length;
-  return found === count || `${found} figure fences, expected ${count}`;
+const worker = buildFigureWorker();
+/** `count` figure fences, each a program that runs in the figure worker and returns a figure the app can draw. */
+const figures = (count: number) => code('figure', async (output) => {
+  const fences = splitReply(output, true).filter(({ kind }) => kind === 'figure');
+  if (fences.length !== count) return `${fences.length} figure fences, expected ${count}`;
+  for (const { text } of fences) {
+    let raw: unknown;
+    try {
+      raw = await runFigureWorker(worker, { kind: 'run', source: text, params: {} });
+    } catch (error) {
+      return `figure does not run: ${messageOf(error)}`;
+    }
+    const thrown = (raw as { error?: { message: string } } | undefined)?.error;
+    if (thrown) return `figure throws: ${thrown.message}`;
+    const result = validateFigure(raw);
+    if (!result.ok) return `figure is invalid: ${result.error}`;
+  }
+  return true;
 });
 const voice = code('voice', (output) => {
   if (/[—–]/.test(output)) return 'uses an em or en dash';
@@ -172,6 +189,8 @@ const CASES: TestCase[] = [
 
 // ---------------------------------------------------------------- run
 
+const print = (line: string): void => { process.stdout.write(`${line}\n`); };
+
 const providers = (['claude', 'codex'] as const)
   .filter((agent) => !args.agent || agent === args.agent)
   .map((agent) => clewProvider(agent, args[`${agent}-model`]));
@@ -187,10 +206,10 @@ try {
   const { results } = await result.toEvaluateSummary();
   for (const row of results) {
     const failed = row.gradingResult?.componentResults?.filter(({ pass }) => !pass).map(({ assertion, reason }) => `${assertion?.metric}: ${reason}`) ?? [];
-    console.log(`${row.success ? 'PASS' : 'FAIL'}  ${row.provider.id}  ${row.testCase.description}${row.error ? `  error: ${row.error}` : ''}`);
-    for (const reason of failed) console.log(`      ${reason}`);
+    print(`${row.success ? 'PASS' : 'FAIL'}  ${row.provider.id}  ${row.testCase.description}${row.error ? `  error: ${row.error}` : ''}`);
+    for (const reason of failed) print(`      ${reason}`);
   }
-  console.log(`\n${results.filter(({ success }) => success).length}/${results.length} passed. npx promptfoo view opens the replies.`);
+  print(`\n${results.filter(({ success }) => success).length}/${results.length} passed. npx promptfoo view opens the replies.`);
 } finally {
   for (const provider of providers) await provider.cleanup?.();
 }
