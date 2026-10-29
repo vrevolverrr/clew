@@ -1,6 +1,6 @@
-import { CaptionStack } from '../CaptionStack';
+import { CaptionStack } from '@/renderer/figure/CaptionStack';
 import type { MountedComponent, RenderContext } from '../OpenUIRenderer';
-import { Playback } from '../Playback';
+import { Playback } from '@/renderer/figure/Playback';
 import { figureKey } from './validation';
 
 export interface FigureDrawing {

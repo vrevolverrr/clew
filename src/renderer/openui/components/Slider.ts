@@ -2,7 +2,7 @@ import { defineComponent } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
 import { Controlled, reactive } from '../Controlled';
-import { formatFigure } from '../formatFigure';
+import { formatFigure } from '@/renderer/figure/formatFigure';
 import type { ComponentFactory } from '../OpenUIRenderer';
 
 export const Slider = defineComponent({

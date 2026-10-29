@@ -1,5 +1,5 @@
-import type { Point, Size } from '../steps/geometry';
-import { fittedSize, labelSize } from '../steps/geometry';
+import type { Point, Size } from '@/renderer/figure/geometry';
+import { fittedSize, labelSize } from '@/renderer/figure/geometry';
 import type { BoardReplay } from './replayBoard';
 
 interface RegionGeometry extends Point, Size {

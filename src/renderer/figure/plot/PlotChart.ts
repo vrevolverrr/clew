@@ -1,17 +1,22 @@
-import { div, reducedMotion, svg } from '../dom';
-import { categoriesOf, mixModel, modelDistance, type ResolvedModel, sameShape } from './mixModel';
-import { barSteps, niceDomain, niceTicks, wrapLabel } from './plotMath';
+import { div, reducedMotion, svg } from '@/renderer/figure/dom';
+import { categoriesOf, mixModel, modelDistance, type ResolvedModel, sameShape } from '@/renderer/figure/plot/mixModel';
+import { barSteps, niceDomain, niceTicks, wrapLabel } from '@/renderer/figure/plot/plotMath';
+import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
 
 export type Point = [number, number | null];
 
-export type Layer =
+/** `tag`, a figure tag, colours a layer with that tag's theme colour. */
+export type Layer = (
   | { kind: 'line'; points: Point[]; label?: string; series?: number }
   /** `lower`, when set, replaces the flat `base` as the edge shaded against; `from` and `to` limit the shading to an x range. */
   | { kind: 'area'; points: Point[]; base: number; lower?: Point[]; from?: number; to?: number; label?: string; series?: number }
   | { kind: 'bars'; values: (number | null)[]; mode: 'bars' | 'waterfall'; label?: string; series?: number }
   | { kind: 'dot'; x: number; y: number; label?: string; series?: number }
   | { kind: 'rule'; at: number; axis: 'x' | 'y'; label?: string; series?: number }
-  | { kind: 'note'; x: number; y: number; text: string };
+  | { kind: 'note'; x: number; y: number; text: string; series?: number }
+  /** A line with an arrowhead at `to` and no point marks. */
+  | { kind: 'arrow'; from: [number, number]; to: [number, number]; label?: string; series?: number }
+) & { tag?: string };
 
 export interface PlotModel {
   /** A range, or the names of the categories a `Bars` layer stands on. */
@@ -83,13 +88,16 @@ export class PlotChart {
   private raf: number | null = null;
   private last = 0;
   private width = 0;
+  /** The drawing's height for a width; a plot is 300 pixels tall unless its owner sizes it. */
+  height: (width: number) => number = () => HEIGHT;
 
-  constructor(readonly el: HTMLElement) {
+  /** `observe` false leaves resizing to the owner, which calls `repaint`. */
+  constructor(readonly el: HTMLElement, observe = true) {
     el.classList.add('clew-plot');
     this.tip.hidden = true;
     this.frame.append(this.canvas, this.tip);
     el.append(this.legend, this.frame);
-    this.observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+    this.observer = !observe || typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       if (this.shown && this.measure() !== this.width) this.paint(this.shown, this.raf === null);
     });
     this.observer?.observe(this.frame);
@@ -108,6 +116,11 @@ export class PlotChart {
       this.last = window.performance.now();
       this.raf = window.requestAnimationFrame(this.step);
     }
+  }
+
+  /** Paints the plot on screen again at the width its frame has now. */
+  repaint(): void {
+    if (this.shown) this.paint(this.shown, this.raf === null);
   }
 
   destroy(): void {
@@ -151,6 +164,7 @@ export class PlotChart {
   private paint(model: ResolvedModel, interactive: boolean): void {
     const width = this.measure();
     this.width = width;
+    const height = Math.round(this.height(width));
     const narrow = width < 480;
     const cats = categoriesOf(model.x);
     const range = cats ? ([0, cats.length] as [number, number]) : (model.x as [number, number]);
@@ -159,13 +173,13 @@ export class PlotChart {
     const margin = { top: 14, right: narrow ? 12 : 20, bottom: model.xLabel ? 46 : 32, left: 0 };
     // Only visible tick labels need room; interpolated range endpoints can have extra decimal places.
     const yTicks = (ph: number) => niceTicks(y0, y1, Math.max(3, Math.round(ph / 50)));
-    const widest = Math.max(...yTicks(HEIGHT - margin.top - margin.bottom).map((v) => tickText(v).length));
+    const widest = Math.max(...yTicks(height - margin.top - margin.bottom).map((v) => tickText(v).length));
     margin.left = Math.max(MIN_LEFT_MARGIN, Math.ceil(widest * TICK_CHAR_WIDTH) + TICK_GAP + 4) + (model.yLabel ? Y_TITLE_WIDTH : 0);
     const pw = width - margin.left - margin.right;
     // Category names wrap to their slot, or tilt when a word will not fit, so neighbours never run together.
     const labels = cats ? this.categoryLabels(cats, pw / cats.length) : null;
     if (labels) margin.bottom = labels.tilted ? 62 : 20 + 13 * Math.max(...labels.lines.map((l) => l.length));
-    const ph = HEIGHT - margin.top - margin.bottom;
+    const ph = height - margin.top - margin.bottom;
     const sx = (x: number) => margin.left + ((x - x0) / (x1 - x0)) * pw;
     const sy = (y: number) => margin.top + (1 - (y - y0) / (y1 - y0)) * ph;
 
@@ -173,7 +187,7 @@ export class PlotChart {
     root.replaceChildren();
     this.tip.hidden = true;
     svg('title', {}, root, model.yLabel ? `Plot of ${model.yLabel}` : 'Plot');
-    for (const [name, value] of Object.entries({ viewBox: `0 0 ${width} ${HEIGHT}`, width, height: HEIGHT })) root.setAttribute(name, String(value));
+    for (const [name, value] of Object.entries({ viewBox: `0 0 ${width} ${height}`, width, height })) root.setAttribute(name, String(value));
 
     const colors = this.assignColors(model.layers);
     this.drawLegend(model, colors);
@@ -187,13 +201,15 @@ export class PlotChart {
       for (const v of niceTicks(x0, x1, narrow ? 4 : 7)) svg('text', { x: sx(v), y: margin.top + ph + 17, 'text-anchor': 'middle', class: 'clew-plot-tick' }, root, tickText(v));
     }
     if (model.yLabel) svg('text', { x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(12 ${margin.top + ph / 2}) rotate(-90)`, class: 'clew-plot-tick clew-plot-title' }, root, model.yLabel);
-    if (model.xLabel) svg('text', { x: margin.left + pw / 2, y: HEIGHT - 6, 'text-anchor': 'middle', class: 'clew-plot-tick clew-plot-title' }, root, model.xLabel);
+    if (model.xLabel) svg('text', { x: margin.left + pw / 2, y: height - 6, 'text-anchor': 'middle', class: 'clew-plot-tick clew-plot-title' }, root, model.xLabel);
 
     const clipId = `clew-plot-clip-${++sequence}`;
     // The clip leaves room for half a stroke, so a line running along an edge is not cut in half.
     svg('rect', { x: margin.left - 2, y: margin.top - 2, width: pw + 4, height: ph + 4 }, svg('clipPath', { id: clipId }, svg('defs', {}, root)));
     const data = svg('g', { 'clip-path': `url(#${clipId})` }, root);
     const path = (points: readonly [number, number][]) => 'M' + points.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join('L');
+    const pending: (LabelBox & { text: string; strong: boolean })[] = [];
+    const label = (x: number, y: number, text: string, strong: boolean, center = false) => pending.push({ x, y, width: text.length * TICK_CHAR_WIDTH, height: 14, text, strong, center });
 
     model.layers.forEach((layer, index) => {
       const color = colors[index]!;
@@ -237,13 +253,25 @@ export class PlotChart {
         const vertical = layer.axis === 'x';
         const at = vertical ? sx(layer.at) : sy(layer.at);
         svg('line', vertical ? { x1: at, x2: at, y1: margin.top, y2: margin.top + ph, stroke: color, class: 'clew-plot-rule' } : { x1: margin.left, x2: margin.left + pw, y1: at, y2: at, stroke: color, class: 'clew-plot-rule' }, root);
-        if (layer.label) this.text(root, vertical ? at + 6 : margin.left + pw - 4, vertical ? margin.top + 12 : at - 6, layer.label, vertical ? 'start' : 'end', true);
+        if (layer.label) label(vertical ? at : margin.left + pw, vertical ? margin.top : at, layer.label, true);
       } else if (layer.kind === 'dot') {
         svg('circle', { cx: sx(layer.x), cy: sy(layer.y), r: 5, fill: color, class: 'clew-plot-dot' }, root);
-        if (layer.label) this.dotLabel(root, model.layers, sx, sy, sx(layer.x), sy(layer.y), layer.label, layer.x > (x0 + x1) / 2);
+        if (layer.label) label(sx(layer.x), sy(layer.y), layer.label, true);
       } else if (layer.kind === 'note') {
-        this.text(root, sx(layer.x), sy(layer.y) - 8, layer.text, 'middle', false);
+        label(sx(layer.x), sy(layer.y), layer.text, false, true);
+      } else if (layer.kind === 'arrow') {
+        const marker = `${clipId}-arrow-${index}`;
+        const head = svg('marker', { id: marker, viewBox: '0 0 10 10', refX: 9, refY: 5, markerUnits: 'userSpaceOnUse', markerWidth: 12, markerHeight: 12, orient: 'auto-start-reverse' }, svg('defs', {}, root));
+        svg('path', { d: 'M0 0L10 5L0 10z', fill: color }, head);
+        svg('path', { d: path([layer.from, layer.to]), stroke: color, 'marker-end': `url(#${marker})`, class: 'clew-plot-line clew-plot-arrow' }, data);
+        if (layer.label) label(sx((layer.from[0] + layer.to[0]) / 2), sy((layer.from[1] + layer.to[1]) / 2), layer.label, true);
       }
+    });
+
+    const avoid = model.layers.flatMap((l) => (l.kind === 'line' || l.kind === 'area' ? runs(l.points).map((run) => run.map(([x, y]) => [sx(x), sy(y)] as const)) : []));
+    placeLabels(pending, { x0: margin.left, y0: margin.top, x1: margin.left + pw, y1: margin.top + ph }, avoid).forEach((at, i) => {
+      const { text, strong, height } = pending[i];
+      this.text(root, at.x, at.y + height - 3, text, 'start', strong);
     });
 
     if (!cats && interactive) this.addHover(model, colors, { x0, x1, y0, y1, margin, pw, ph, sx, sy });
@@ -253,9 +281,10 @@ export class PlotChart {
   private assignColors(layers: readonly Layer[]): string[] {
     let next = 1;
     return layers.map((layer) => {
+      if (layer.tag) return `var(--clew-figure-tag-${layer.tag})`;
       if (layer.kind === 'note') return 'var(--text-normal)';
       if (layer.series !== undefined) return seriesColor(layer.series);
-      if (layer.kind === 'dot') return 'var(--text-normal)';
+      if (layer.kind === 'dot' || layer.kind === 'arrow') return 'var(--text-normal)';
       if (layer.kind === 'rule') return 'var(--text-muted)';
       return seriesColor(next++);
     });
@@ -266,7 +295,7 @@ export class PlotChart {
     const seen = new Set<string>();
     layers.forEach((layer, index) => {
       // A dot or a rule writes its label on the plot, so only layers with a swatch to explain are listed.
-      if (layer.kind === 'note' || layer.kind === 'dot' || layer.kind === 'rule' || !layer.label || seen.has(layer.label)) return;
+      if (layer.kind === 'note' || layer.kind === 'dot' || layer.kind === 'rule' || layer.kind === 'arrow' || !layer.label || seen.has(layer.label)) return;
       if (layer.kind === 'bars' && layer.mode === 'waterfall') return;
       seen.add(layer.label);
       this.legend.append(key(layer.label, colors[index]!, layer.kind));
@@ -279,25 +308,6 @@ export class PlotChart {
     // A single entry the y-axis title already names only repeats it.
     const only = this.legend.childElementCount === 1 ? this.legend.textContent!.toLowerCase() : null;
     if (only && yLabel?.toLowerCase().includes(only)) this.legend.replaceChildren();
-  }
-
-  /** Labels a dot in the first corner around it that no line crosses, starting on the side with more room. */
-  private dotLabel(root: Element, layers: readonly Layer[], sx: (x: number) => number, sy: (y: number) => number, cx: number, cy: number, label: string, pastMiddle: boolean): void {
-    const width = label.length * TICK_CHAR_WIDTH;
-    const lines = layers.flatMap((l) => (l.kind === 'line' || l.kind === 'area' ? runs(l.points).map((run) => run.map(([x, y]) => [sx(x), sy(y)] as const)) : []));
-    const crossed = (left: number, top: number) => lines.some((run) => run.some(([x, y], i) => {
-      const [px, py] = run[i - 1] ?? [x, y];
-      // Samples along each segment, so a steep stretch between two points still counts.
-      for (let t = 0; t <= 1; t += 0.25) {
-        const qx = px + (x - px) * t;
-        const qy = py + (y - py) * t;
-        if (qx >= left - 2 && qx <= left + width + 2 && qy >= top - 2 && qy <= top + 16) return true;
-      }
-      return false;
-    }));
-    const corners = ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([h, v]) => [pastMiddle ? h : -h, v] as const);
-    const [h, v] = corners.find(([h, v]) => !crossed(h < 0 ? cx - 10 - width : cx + 10, v < 0 ? cy - 21 : cy + 6)) ?? corners[0];
-    this.text(root, cx + h * 10, v < 0 ? cy - 9 : cy + 18, label, h < 0 ? 'end' : 'start', true);
   }
 
   private text(parent: Element, x: number, y: number, text: string, anchor: 'start' | 'middle' | 'end', strong: boolean): void {
@@ -320,6 +330,7 @@ export class PlotChart {
       else if (layer.kind === 'dot') see(layer.y);
       else if (layer.kind === 'rule' && layer.axis === 'y') see(layer.at);
       else if (layer.kind === 'note' && !categories) see(layer.y);
+      else if (layer.kind === 'arrow') { see(layer.from[1]); see(layer.to[1]); }
     }
     if (!Number.isFinite(low)) return [0, 1];
     const pad = (high - low) * 0.08;
@@ -429,7 +440,7 @@ export class PlotChart {
     let left = clientX - frame.left + 14;
     let top = clientY - frame.top + 14;
     if (left + tip.offsetWidth > this.frame.clientWidth) left = clientX - frame.left - tip.offsetWidth - 14;
-    if (top + tip.offsetHeight > HEIGHT) top = clientY - frame.top - tip.offsetHeight - 14;
+    if (top + tip.offsetHeight > this.frame.clientHeight) top = clientY - frame.top - tip.offsetHeight - 14;
     tip.style.left = `${Math.max(0, left)}px`;
     tip.style.top = `${Math.max(0, top)}px`;
   }

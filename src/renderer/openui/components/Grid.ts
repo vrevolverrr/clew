@@ -1,10 +1,10 @@
 import { defineComponent } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
-import { CaptionStack } from '../CaptionStack';
+import { CaptionStack } from '@/renderer/figure/CaptionStack';
 import { reactive } from '../Controlled';
-import { div } from '../dom';
-import { formatFigure } from '../formatFigure';
+import { div } from '@/renderer/figure/dom';
+import { formatFigure } from '@/renderer/figure/formatFigure';
 import type { ComponentFactory } from '../OpenUIRenderer';
 
 function head(role: 'columnheader' | 'rowheader', text: string): HTMLElement {

@@ -1,0 +1,81 @@
+import type { FigureNode } from '@/renderer/figure/FigureData';
+import { formatFigure } from '@/renderer/figure/formatFigure';
+
+type Quiz = Extract<FigureNode, { type: 'Quiz' }>;
+
+const SENT_LIMIT = 200;
+
+/** Text as the student reads it, for a message sent in their name: no markup, comment or hidden character the Markdown view would not show. */
+function plain(text: string): string {
+  return text
+    .replace(/<!--[\s\S]*?(?:-->|$)|<\?[\s\S]*?(?:\?>|$)|<!\[CDATA\[[\s\S]*?(?:\]\]>|$)|<![A-Za-z][^>]*>|<\/?[a-zA-Z][^<>]*>/g, '')
+    .replace(/[\p{Cc}\p{Cf}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SENT_LIMIT);
+}
+
+/** A multiple-choice check: Submit marks the answer and sends it as the student's next message through `send`. */
+export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLElement, text: string | number) => void, send?: (message: string) => boolean): void {
+  const el = parent.appendChild(document.createElement('div'));
+  el.className = 'clew-quiz';
+  markdown(el.appendChild(Object.assign(document.createElement('div'), { className: 'clew-quiz-question' })), quiz.question);
+  const group = el.appendChild(document.createElement('div'));
+  group.className = 'clew-quiz-options';
+  group.setAttribute('role', 'radiogroup');
+  const bar = el.appendChild(document.createElement('div'));
+  bar.className = 'clew-quiz-bar';
+  const note = bar.appendChild(document.createElement('span'));
+  note.className = 'clew-quiz-note';
+  const submit = bar.appendChild(document.createElement('button'));
+  submit.type = 'button';
+  submit.className = 'clew-quiz-submit mod-cta';
+  submit.textContent = 'Submit';
+
+  const right = quiz.options.indexOf(quiz.correct);
+  let chosen: number | null = null;
+  let locked = false;
+  const buttons = quiz.options.map((option, index) => {
+    const button = group.appendChild(document.createElement('button'));
+    button.type = 'button';
+    button.className = 'clew-quiz-option';
+    button.setAttribute('role', 'radio');
+    markdown(button.appendChild(document.createElement('span')), option);
+    button.addEventListener('click', () => {
+      chosen = index;
+      note.textContent = '';
+      show();
+    });
+    return button;
+  });
+
+  const show = (): void => {
+    buttons.forEach((button, index) => {
+      button.setAttribute('aria-checked', String(chosen === index));
+      button.disabled = locked;
+      button.classList.toggle('is-correct', locked && right === index);
+      button.classList.toggle('is-wrong', locked && chosen === index && right !== index);
+    });
+    submit.disabled = chosen === null;
+    if (!locked) return;
+    bar.remove();
+    if (!quiz.explanation || chosen !== right) return;
+    const feedback = el.appendChild(document.createElement('div'));
+    feedback.className = 'clew-quiz-feedback';
+    feedback.setAttribute('aria-live', 'polite');
+    markdown(feedback, quiz.explanation);
+  };
+
+  submit.addEventListener('click', () => {
+    if (chosen === null || locked) return;
+    const verdict = chosen === right ? ' (correct)' : ' (not correct)';
+    const message = `My answer: ${plain(formatFigure(quiz.options[chosen]))}${verdict}. Question: ${plain(quiz.question)}`;
+    if (send && !send(message)) {
+      note.textContent = 'Wait for the reply to finish, then submit.';
+      return;
+    }
+    locked = true;
+    show();
+  });
+  show();
+}

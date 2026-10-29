@@ -1,6 +1,6 @@
 import { drawTex, drawTexIn, texAnchors, texProblems } from '@/renderer/figure/figureTex';
 
-const colour = (): readonly [number, number, number] => [10, 20, 30];
+const colour = (_tag: string, fill: boolean): readonly [number, number, number] => (fill ? [1, 2, 3] : [10, 20, 30]);
 
 describe('texProblems', () => {
   it.each([
@@ -31,7 +31,7 @@ describe('drawTex', () => {
   it('writes tag colours in the forms MathJax renders and anchors as data attributes', () => {
     expect(texAnchors('\\cssId{r2}{0} + \\cssId{ r3 }{1}')).toEqual(['r2', 'r3']);
     expect(drawTex('\\rowcolor{new} \\cssId{r2}{0} & \\color{good}{x} & \\bbox[4px,bad]{y}', colour)).toBe(
-      '\\rowcolor[RGB]{10,20,30} \\data{figure-id=r2}{0} & \\color[RGB]{10,20,30}{x} & \\bbox[4px,background-color:rgb(10 20 30)]{y}',
+      '\\rowcolor[RGB]{1,2,3} \\data{figure-id=r2}{0} & \\color[RGB]{10,20,30}{x} & \\bbox[4px,background-color:rgb(1 2 3)]{y}',
     );
   });
 

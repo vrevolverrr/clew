@@ -1,5 +1,6 @@
 import { replayNetwork } from '@/renderer/openui/network/replayNetwork';
-import { layoutNetwork } from '@/renderer/openui/network/layoutNetwork';
+import { layoutNetwork } from '@/renderer/figure/network/layoutNetwork';
+import { networkInput } from '@/renderer/openui/network/Network';
 
 const op = (typeName: string, props: Record<string, unknown>) => ({ typeName, props });
 const step = (changes: unknown, caption = 'A step') => op('Step', { caption, changes });
@@ -63,7 +64,7 @@ describe('Network replay and geometry', () => {
 
   it('uses an ordered tree layout only for a connected, single-rooted tree', () => {
     const tree = replayNetwork({ nodes: [{ id: 'root' }, { id: 'right', hidden: true }, { id: 'left' }], edges: [{ id: 'leftEdge', from: 'root', to: 'left' }, { id: 'rightEdge', from: 'root', to: 'right' }], steps: [step([])] });
-    const layout = layoutNetwork(tree);
+    const layout = layoutNetwork(networkInput(tree));
     expect(layout.kind).toBe('tree');
     expect(layout.nodes.get('left')!.x).toBeLessThan(layout.nodes.get('right')!.x);
     expect(layout.nodes.get('root')!.y).toBeLessThan(layout.nodes.get('left')!.y);
@@ -73,13 +74,13 @@ describe('Network replay and geometry', () => {
       { nodes: [{ id: 'A' }], edges: [edges[3]] },
       { nodes: [{ id: 'A' }, { id: 'B' }], edges: [edges[0], edges[2]] },
       { nodes: [{ id: 'A' }, { id: 'B' }, { id: 'C' }], edges: [edges[0], { id: 'cb', from: 'C', to: 'B' }] },
-    ]) expect(layoutNetwork(replayNetwork({ ...graph, steps: [step([])] })).kind).toBe('graph');
+    ]) expect(layoutNetwork(networkInput(replayNetwork({ ...graph, steps: [step([])] }))).kind).toBe('graph');
   });
 
   it('reserves hidden nodes and future labels, and produces distinct bounded lanes and loops deterministically', () => {
     const result = replay([[], [op('Show', { ids: 'C' }), op('Label', { target: 'A', text: 'Long label '.repeat(50) })]]);
-    const layout = layoutNetwork(result);
-    expect(layoutNetwork(result)).toEqual(layout);
+    const layout = layoutNetwork(networkInput(result));
+    expect(layoutNetwork(networkInput(result))).toEqual(layout);
     expect(layout.nodes.size).toBe(3);
     expect(new Set(layout.edges.map(e => e.path)).size).toBe(edges.length);
     expect(new Set(layout.edges.slice(0, 3).map(e => JSON.stringify(e.label))).size).toBe(3);
@@ -94,7 +95,7 @@ describe('Network replay and geometry', () => {
   });
 
   it('fits short labels and keeps a small graph within a chat pane', () => {
-    const layout = layoutNetwork(replayNetwork({ nodes: [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D', hidden: true }], edges: [{ id: 'ab', from: 'A', to: 'B', label: '4' }, { id: 'ac', from: 'A', to: 'C', label: '1' }, { id: 'cb', from: 'C', to: 'B', label: '2' }, { id: 'bd', from: 'B', to: 'D', label: '5' }], steps: [step([])] }));
+    const layout = layoutNetwork(networkInput(replayNetwork({ nodes: [{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D', hidden: true }], edges: [{ id: 'ab', from: 'A', to: 'B', label: '4' }, { id: 'ac', from: 'A', to: 'C', label: '1' }, { id: 'cb', from: 'C', to: 'B', label: '2' }, { id: 'bd', from: 'B', to: 'D', label: '5' }], steps: [step([])] })));
     expect(layout.nodes.get('A')!.width).toBeLessThan(100);
     expect(Math.max(layout.width, layout.height)).toBeLessThan(500);
   });

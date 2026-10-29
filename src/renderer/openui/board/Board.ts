@@ -2,8 +2,8 @@ import { defineComponent } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
 import { strictComponent } from '../OpenUIRenderer';
-import { reducedMotion } from '../dom';
-import { position, status, type Point } from '../steps/geometry';
+import { reducedMotion } from '@/renderer/figure/dom';
+import { position, status, type Point } from '@/renderer/figure/geometry';
 import { Step } from '../steps/operations';
 import { stepFigure, type FigureDrawing } from '../steps/StepFigure';
 import { layoutBoard } from './layoutBoard';

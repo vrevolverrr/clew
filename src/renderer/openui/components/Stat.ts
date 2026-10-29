@@ -1,7 +1,7 @@
 import { defineComponent } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
-import { formatFigure } from '../formatFigure';
+import { formatFigure } from '@/renderer/figure/formatFigure';
 import type { ComponentFactory } from '../OpenUIRenderer';
 
 /** A longer string is a sentence or a set, not a figure, so it is not drawn as a headline. */

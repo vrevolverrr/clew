@@ -2,7 +2,7 @@ import { defineComponent } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
 import { dataComponent, type ComponentFactory } from '../OpenUIRenderer';
-import { type Layer, PlotChart, type PlotModel, type Point } from '../plot/PlotChart';
+import { type Layer, PlotChart, type PlotModel, type Point } from '@/renderer/figure/plot/PlotChart';
 
 const pointList = z.array(z.array(z.number().nullable()));
 const seriesProp = z.number().optional();

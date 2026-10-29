@@ -1,6 +1,5 @@
-import type { Point, Size } from '../steps/geometry';
-import { fittedSize } from '../steps/geometry';
-import type { NetworkReplay } from './replayNetwork';
+import type { Point, Size } from '@/renderer/figure/geometry';
+import { fittedSize } from '@/renderer/figure/geometry';
 
 interface NodeGeometry extends Point, Size {}
 interface EdgeGeometry {
@@ -8,18 +7,23 @@ interface EdgeGeometry {
   readonly path: string;
   readonly label: Point & Size;
 }
-interface NetworkLayout extends Size {
+export interface NetworkLayout extends Size {
   readonly kind: 'tree' | 'graph';
   readonly nodes: ReadonlyMap<string, NodeGeometry>;
   readonly edges: readonly EdgeGeometry[];
 }
 
-export function layoutNetwork(replay: NetworkReplay): NetworkLayout {
-  const initial = replay.snapshots[0];
-  const nodes = initial.nodes;
-  const edges = initial.edges;
-  const nodeSize = fittedSize(replay.snapshots.flatMap(s => s.nodes.map(n => n.label)), 48, 192);
-  const edgeSize = fittedSize(replay.snapshots.flatMap(s => s.edges.map(e => e.label)), 32, 160);
+export interface NetworkInput {
+  readonly nodes: readonly { readonly id: string }[];
+  readonly edges: readonly { readonly id: string; readonly from: string; readonly to: string }[];
+  /** Every node label and every edge label shown in any step, which size the boxes. */
+  readonly nodeLabels: readonly string[];
+  readonly edgeLabels: readonly string[];
+}
+
+export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkInput): NetworkLayout {
+  const nodeSize = fittedSize(nodeLabels, 48, 192);
+  const edgeSize = fittedSize(edgeLabels, 32, 160);
   const children = new Map(nodes.map(n => [n.id, [] as string[]]));
   const parents = new Map<string, number>();
   const pairs = new Map<string, typeof edges[number][]>();

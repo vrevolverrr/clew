@@ -51,19 +51,29 @@ function colourProblem(colour: string): string {
   return `TeX colour "${colour.trim()}" is not a tag; use one of ${TAG_LIST}`;
 }
 
+/** How a tag colours TeX: `fill` is a background (a row, a cell, a box), else ink. */
+export type TagColour = (tag: Tag, fill: boolean) => Rgb;
+
 /** TeX ready for MathJax: each tag colour written as the theme's colour, each anchor as a data attribute looked up in its step. */
-export function drawTex(tex: string, colour: (tag: Tag) => Rgb): string {
+export function drawTex(tex: string, colour: TagColour): string {
   return tex
     .replace(COLOUR, (whole, command: string, model: string | undefined, name: string) => {
       const tag = name.trim();
-      return !model && isTag(tag) ? `\\${command}[RGB]{${colour(tag).join(',')}}` : whole;
+      return !model && isTag(tag) ? `\\${command}[RGB]{${colour(tag, command !== 'color').join(',')}}` : whole;
     })
     // \bbox splits on commas and # is TeX's parameter character, so its colour is a style with neither.
-    .replace(BBOX, (_, args: string) => `\\bbox[${args.split(',').map((part) => (isTag(part.trim()) ? `background-color:rgb(${colour(part.trim() as Tag).join(' ')})` : part)).join(',')}]`)
+    .replace(BBOX, (_, args: string) => `\\bbox[${args.split(',').map((part) => (isTag(part.trim()) ? `background-color:rgb(${colour(part.trim() as Tag, true).join(' ')})` : part)).join(',')}]`)
     .replace(ANCHOR, (_, name: string) => `\\data{figure-id=${name.trim()}}`);
 }
 
 /** `drawTex` on each piece of maths in a Markdown string. */
-export function drawTexIn(markdown: string, colour: (tag: Tag) => Rgb): string {
+export function drawTexIn(markdown: string, colour: TagColour): string {
   return mapMath(markdown, (math) => drawTex(math, colour));
+}
+
+/** The tags TeX colours name, for the figure's key. */
+export function texTags(tex: string): Tag[] {
+  const named = [...tex.matchAll(COLOUR)].filter((match) => !match[2]).map((match) => match[3].trim());
+  for (const [, args] of tex.matchAll(BBOX)) named.push(...args.split(',').map((part) => part.trim()));
+  return named.filter(isTag);
 }

@@ -268,8 +268,9 @@ describe('Plot', () => {
     const rising = render('root = Stack([Plot([0, 1], [Line(@Curve("x", 0, 1)), Dot(0.4, 0.4, "here")], [0, 1])])').host;
     const flat = render('root = Stack([Plot([0, 1], [Line(@Curve("0", 0, 1)), Dot(0.4, 0.5, "here")], [0, 1])])').host;
 
-    expect(rising.querySelector('.clew-plot-label')!.getAttribute('text-anchor')).toBe('end');
-    expect(flat.querySelector('.clew-plot-label')!.getAttribute('text-anchor')).toBe('start');
+    const side = (host: HTMLElement) => Number(host.querySelector('.clew-plot-label')!.getAttribute('x')) - Number(host.querySelector('.clew-plot-dot')!.getAttribute('cx'));
+    expect(side(rising)).toBeLessThan(0);
+    expect(side(flat)).toBeGreaterThan(0);
   });
 
   it('drops a single legend entry that the y-axis title already names', () => {

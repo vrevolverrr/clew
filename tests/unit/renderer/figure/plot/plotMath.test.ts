@@ -1,4 +1,4 @@
-import { barSteps, niceDomain, niceTicks, wrapLabel } from '@/renderer/openui/plot/plotMath';
+import { barSteps, niceDomain, niceTicks, wrapLabel } from '@/renderer/figure/plot/plotMath';
 
 describe('niceTicks', () => {
   it('steps by round numbers that stay inside the range', () => {

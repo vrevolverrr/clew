@@ -2,19 +2,28 @@ import { defineComponent } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
 import { strictComponent } from '../OpenUIRenderer';
-import { svg } from '../dom';
-import { position, status } from '../steps/geometry';
+import { svg } from '@/renderer/figure/dom';
+import { position, status } from '@/renderer/figure/geometry';
 import { Step } from '../steps/operations';
 import { stepFigure, type FigureDrawing } from '../steps/StepFigure';
-import { layoutNetwork } from './layoutNetwork';
+import { layoutNetwork, type NetworkInput } from '@/renderer/figure/network/layoutNetwork';
 import { replayNetwork, type NetworkReplay } from './replayNetwork';
 
 let markerId = 0;
 
 const NETWORK_DOCUMENT = "Network(nodes, edges, steps) shows a fixed graph with its own Back, Next, scrubber and Play. Do not add a Player or step variable. Nodes are {id, label?, hidden?}; edges are {id, from, to, label?, directed?}. IDs match [A-Za-z_][A-Za-z0-9_]*, are case-sensitive, and are unique across nodes and edges. Labels are plain text; unlabeled nodes display their ID and unlabeled edges display no text. directed defaults to false. Every endpoint names a declared node.\n\nEdges have explicit IDs. Use those IDs in operations, never endpoint shorthand such as \"A-B\". Opposite edges, parallel edges and self-loops are allowed and independently addressable. Write tree edges from parent to child in intended sibling order. The renderer places all nodes once, including hidden nodes, and keeps positions fixed during playback. A single rooted tree uses a tree layout; other graphs use a deterministic graph layout.\n\nStep(caption, changes) supplies one visible snapshot; changes is a list of operations. Replay steps 0 through k in order to get snapshot k. Only each step's final state is shown.\n\n- Tag(targets, tag?) sets or clears node or edge tags. targets is one ID or a list. Tags are active, done, dim; omitted tag clears to plain.\n- Label(target, text) changes a node or edge label.\n- Show(ids) and Hide(ids) change node visibility; ids is one node ID or a list. Hiding preserves labels and tags, and hides incident edges. Showing restores them. Show on a visible node and Hide on a hidden node are no-ops. An edge is visible exactly while both endpoints are visible. Edges cannot be shown or hidden independently; use dim for an inactive edge.\n\nUnknown IDs, unsupported tags and edge IDs passed to Show/Hide are errors. Topology stays fixed: declare future nodes hidden and reveal them later. Labels, tags and visibility persist until changed. Nodes default to visible and plain; edges default to plain.";
 
+export function networkInput(replay: NetworkReplay): NetworkInput {
+  return {
+    nodes: replay.snapshots[0].nodes,
+    edges: replay.snapshots[0].edges,
+    nodeLabels: replay.snapshots.flatMap(s => s.nodes.map(n => n.label)),
+    edgeLabels: replay.snapshots.flatMap(s => s.edges.map(e => e.label)),
+  };
+}
+
 function drawNetwork(surface: HTMLElement, replay: NetworkReplay): FigureDrawing {
-  const layout = layoutNetwork(replay);
+  const layout = layoutNetwork(networkInput(replay));
   surface.style.width = `${layout.width}px`;
   surface.style.height = `${layout.height}px`;
   const drawing = svg('svg', { width: layout.width, height: layout.height, 'aria-hidden': 'true' }, surface);

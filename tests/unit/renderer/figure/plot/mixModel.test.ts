@@ -1,5 +1,5 @@
-import { mixModel, modelDistance } from '@/renderer/openui/plot/mixModel';
-import type { Layer, PlotModel } from '@/renderer/openui/plot/PlotChart';
+import { mixModel, modelDistance } from '@/renderer/figure/plot/mixModel';
+import type { Layer, PlotModel } from '@/renderer/figure/plot/PlotChart';
 
 const model = (layers: Layer[], x: PlotModel['x'] = [0, 10], y: [number, number] = [0, 10]): PlotModel & { y: [number, number] } => ({ x, y, layers });
 

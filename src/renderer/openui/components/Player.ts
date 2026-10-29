@@ -3,7 +3,7 @@ import { z } from 'zod/v4';
 
 import { Controlled, reactive } from '../Controlled';
 import type { ComponentFactory } from '../OpenUIRenderer';
-import { Playback } from '../Playback';
+import { Playback } from '@/renderer/figure/Playback';
 
 export const Player = defineComponent({
   name: 'Player',
