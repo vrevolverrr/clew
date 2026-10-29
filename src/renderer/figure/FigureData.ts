@@ -9,6 +9,36 @@ export const LIMITS = {
   figuresPerReply: 4, repairError: 500, fnSamples: 161, cloneVisits: 2_000_000, startMs: 5000,
 } as const;
 
+/** Every element a figure program can write, with the props it takes; `Figure` itself is unwrapped by the worker. */
+export const ELEMENT_PROPS: Readonly<Record<string, readonly string[]>> = {
+  Row: ['id', 'gap', 'align'],
+  Column: ['id', 'gap', 'align'],
+  Panel: ['id', 'title', 'tag'],
+  Table: ['id', 'title', 'columns', 'rows', 'rowIds', 'tags'],
+  Seq: ['id', 'title', 'items', 'index', 'tags'],
+  Node: ['id', 'label', 'sub', 'shape', 'tag'],
+  Text: ['id', 'text'],
+  Tex: ['id', 'tex'],
+  Graph: ['id', 'nodes', 'edges', 'tags'],
+  Quiz: ['id', 'question', 'options', 'correct', 'explanation'],
+  Arrow: ['from', 'to', 'label', 'tag'],
+  Pointer: ['to', 'name', 'tag'],
+  Plot: ['id', 'x', 'y', 'xLabel', 'yLabel'],
+  Diagram: ['id', 'width', 'height'],
+  Shape: ['id', 'pts', 'closed', 'label', 'tag'],
+  Circle: ['id', 'at', 'r', 'label', 'tag'],
+  Vector: ['id', 'from', 'to', 'label', 'tag'],
+  Segment: ['id', 'from', 'to', 'label', 'tag'],
+  Points: ['id', 'pts', 'label', 'tag'],
+  Label: ['id', 'at', 'text', 'tag'],
+  Fn: ['id', 'pts', 'from', 'to', 'label', 'tag'],
+  Region: ['id', 'top', 'base', 'from', 'to', 'label', 'tag'],
+  Angle: ['id', 'at', 'from', 'to', 'label', 'tag'],
+  RightAngle: ['id', 'at', 'from', 'to', 'tag'],
+  Tick: ['id', 'on', 'n', 'tag'],
+  Dimension: ['id', 'from', 'to', 'label', 'tag'],
+};
+
 export type Point = readonly [number, number];
 export type Tags = ReadonlyMap<string, Tag>;
 /** A table cell, a Seq label or any other shown value: Markdown, or a number the host formats. */

@@ -1,5 +1,5 @@
 import {
-  ID, LIMITS, TAGS,
+  ELEMENT_PROPS, ID, LIMITS, TAGS,
   type DiagramLayer, type FigureData, type FigureNode, type GraphEdge, type GraphNode, type Param, type PlotLayer, type Point, type Step, type Tag, type Tags, type Text,
 } from '@/renderer/figure/FigureData';
 import { texAnchors, texIn, texProblems } from '@/renderer/figure/figureTex';
@@ -27,7 +27,7 @@ export function validateFigure(raw: unknown): { ok: true; figure: FigureData } |
   }
 }
 
-/** Accepts only null, booleans, finite numbers, strings, dense arrays and plain objects, acyclic and within the limits. */
+/** Accepts only null, undefined (read as absent), booleans, finite numbers, strings, dense arrays and plain objects, acyclic and within the limits. */
 function checkPlain(raw: unknown): void {
   let visits = 0;
   let text = 0;
@@ -45,7 +45,7 @@ function checkPlain(raw: unknown): void {
   const visit = (value: unknown, depth: number): number => {
     if (typeof value !== 'object' || value === null) {
       if (typeof value === 'number' && !Number.isFinite(value)) fail('Figure', `a number is ${value}; numbers must be finite`);
-      if (value !== null && typeof value !== 'boolean' && typeof value !== 'number' && typeof value !== 'string') fail('Figure', `a ${typeof value} cannot be drawn`);
+      if (value !== null && value !== undefined && typeof value !== 'boolean' && typeof value !== 'number' && typeof value !== 'string') fail('Figure', `a ${typeof value} cannot be drawn`);
       add(1, typeof value === 'string' ? value.length : 0);
       return 0;
     }
@@ -163,34 +163,6 @@ const SHARED = ['Shape', 'Circle', 'Vector', 'Segment', 'Points', 'Label'] as co
 const PLOT_ONLY = ['Fn', 'Region'] as const;
 const DIAGRAM_ONLY = ['Angle', 'RightAngle', 'Tick', 'Dimension'] as const;
 
-const PROPS: Record<string, readonly string[]> = {
-  Row: ['id', 'gap', 'align'],
-  Column: ['id', 'gap', 'align'],
-  Panel: ['id', 'title', 'tag'],
-  Table: ['id', 'title', 'columns', 'rows', 'rowIds', 'tags'],
-  Seq: ['id', 'title', 'items', 'index', 'tags'],
-  Node: ['id', 'label', 'sub', 'shape', 'tag'],
-  Text: ['id', 'text'],
-  Tex: ['id', 'tex'],
-  Graph: ['id', 'nodes', 'edges', 'tags'],
-  Quiz: ['id', 'question', 'options', 'correct', 'explanation'],
-  Arrow: ['from', 'to', 'label', 'tag'],
-  Pointer: ['to', 'name', 'tag'],
-  Plot: ['id', 'x', 'y', 'xLabel', 'yLabel'],
-  Diagram: ['id', 'width', 'height'],
-  Shape: ['id', 'pts', 'closed', 'label', 'tag'],
-  Circle: ['id', 'at', 'r', 'label', 'tag'],
-  Vector: ['id', 'from', 'to', 'label', 'tag'],
-  Segment: ['id', 'from', 'to', 'label', 'tag'],
-  Points: ['id', 'pts', 'label', 'tag'],
-  Label: ['id', 'at', 'text', 'tag'],
-  Fn: ['id', 'pts', 'from', 'to', 'label', 'tag'],
-  Region: ['id', 'top', 'base', 'from', 'to', 'label', 'tag'],
-  Angle: ['id', 'at', 'from', 'to', 'label', 'tag'],
-  RightAngle: ['id', 'at', 'from', 'to', 'tag'],
-  Tick: ['id', 'on', 'n', 'tag'],
-  Dimension: ['id', 'from', 'to', 'label', 'tag'],
-};
 
 /** What one step's walk collects. */
 interface StepScope {
@@ -263,13 +235,13 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
   if (!isObject(props)) fail(parent, `<${type}> has props that are not an object`);
   if (!Array.isArray(children)) fail(parent, `<${type}> has children that are not a list`);
   if (type === 'Figure') fail(parent, 'Figure is returned once, outermost');
-  if (!Object.hasOwn(PROPS, type)) fail(parent, `unknown element <${type}>`);
+  if (!Object.hasOwn(ELEMENT_PROPS, type)) fail(parent, `unknown element <${type}>`);
   const rawId = own(props, 'id');
   const path = `${parent} > ${type}${typeof rawId === 'string' ? `#${rawId}` : ''}`;
   if (depth > LIMITS.depth) fail(path, `nesting depth ${depth}; the limit is ${LIMITS.depth}`);
   scope.elements += 1;
   if (scope.elements > LIMITS.elementsPerStep) fail(path, `more than ${n(LIMITS.elementsPerStep)} elements in a step; the limit is ${n(LIMITS.elementsPerStep)}`);
-  onlyKeys(props, PROPS[type], path, type);
+  onlyKeys(props, ELEMENT_PROPS[type], path, type);
 
   const isShared = (SHARED as readonly string[]).includes(type);
   const isLayer = isShared || (PLOT_ONLY as readonly string[]).includes(type) || (DIAGRAM_ONLY as readonly string[]).includes(type);
