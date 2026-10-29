@@ -123,12 +123,9 @@ export function clewProvider(agent: AgentId, model?: string): ApiProvider {
         return { error: 'The test needs a `chat.messages` array and a `chat.turn` within it.' };
       }
       try {
-        const repeat = context?.repeatIndex ?? 0;
-        const reply = await turn(vars, repeat, vars.turn);
-        // Already sent: the turn before this one resolved first.
-        const previous = vars.turn > 1 ? replyText(await turn(vars, repeat, vars.turn - 1)) : undefined;
+        const reply = await turn(vars, context?.repeatIndex ?? 0, vars.turn);
         const highlights = reply.parts.flatMap((part) => (part.type === 'highlight' ? [part.step] : []));
-        return { output: replyText(reply), metadata: { prompt: reply.prompt, highlights, previous } };
+        return { output: replyText(reply), metadata: { prompt: reply.prompt, highlights } };
       } catch (error) {
         return { error: messageOf(error) };
       }
