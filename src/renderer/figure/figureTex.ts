@@ -37,10 +37,15 @@ export function texProblems(tex: string): string | undefined {
   if (/\\definecolor\b/.test(tex)) return `TeX \\definecolor is not allowed; a colour is one of the tags ${TAG_LIST}`;
   const reserved = /\\(class|data)\b/.exec(tex);
   if (reserved) return `TeX \\${reserved[1]} is the host's; mark an anchor with \\cssId{name}{…}`;
+  const banned = /\\(style|require)\b/.exec(tex);
+  if (banned) return `TeX \\${banned[1]} is not allowed; colour with a tag`;
   for (const [, , model, name] of tex.matchAll(COLOUR)) {
     if (model || !isTag(name.trim())) return colourProblem(model ? `${model}{${name}}` : name);
   }
   for (const [, args] of tex.matchAll(BBOX)) {
+    // The host renders this CSS, so a function or escape could fetch (`url(…)`) past the sandbox.
+    const style = args.split(',').find((part) => part.includes(':') && /[\\(]/.test(part));
+    if (style !== undefined) return `TeX \\bbox style "${style.trim()}" is not allowed; use a size or a tag`;
     const colour = args.split(',').find((part) => !DIMENSION.test(part) && !part.includes(':') && !isTag(part.trim()));
     if (colour !== undefined) return colourProblem(colour);
   }

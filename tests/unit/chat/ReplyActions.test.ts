@@ -52,6 +52,12 @@ describe('parseActionLine', () => {
     });
   });
 
+  it('reads null as a left-out argument, any number form, and a trailing comma', () => {
+    expect(parseActionLine('@Highlight("the slope", null, "notes/optics.md")')).toEqual({ name: 'Highlight', params: { quote: 'the slope', path: 'notes/optics.md' } });
+    expect(parseActionLine('@Highlight("the slope", null, null, 1e1,)')).toEqual({ name: 'Highlight', params: { quote: 'the slope', line: 10 } });
+    expect(parseActionLine('@Highlight("the slope", null, null, .5)')).toEqual({ name: 'Highlight', params: { quote: 'the slope' } });
+  });
+
   it('reads a blank comment as none, and cuts one that is too long', () => {
     expect(parseActionLine('@Highlight("the slope", "  ")')).toEqual({ name: 'Highlight', params: { quote: 'the slope' } });
     const long = parseActionLine(`@Highlight("the slope", "${'a'.repeat(200)}")`);

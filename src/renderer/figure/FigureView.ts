@@ -50,8 +50,8 @@ interface StepView {
 
 /** What drawing one figure needs, shared by its steps. */
 interface Drawing {
-  markdown(el: HTMLElement, text: string | number): void;
-  tex(el: HTMLElement, tex: string): void;
+  markdown: (el: HTMLElement, text: string | number) => void;
+  tex: (el: HTMLElement, tex: string) => void;
   graphs: Map<string, NetworkLayout>;
   extents: Map<string, Extent>;
   lanes: Map<string, { count: number; name: number }>;
@@ -84,7 +84,8 @@ function parseColour(text: string): Rgb {
   return rgb ? ([1, 2, 3].map((i) => Math.round(Number(rgb[i]))) as unknown as Rgb) : [128, 128, 128];
 }
 
-const graphKey = (graph: Extract<FigureNode, { type: 'Graph' }>, ordinal: number): string => graph.id ?? `#${ordinal}`;
+/** A Graph's or Diagram's key across steps: its id, else its place among the step's elements of its type. */
+const nodeKey = (node: { id?: string }, ordinal: number): string => node.id ?? `#${ordinal}`;
 
 /** Every element of a step's tree in drawing order; layers are not visited. */
 function walk(node: FigureNode, visit: (node: FigureNode) => void): void {
@@ -116,6 +117,10 @@ export class FigureView {
   private readonly rendered = new Map<string, DocumentFragment>();
   /** Each Diagram's extent, kept across redraws so it stays anchored as params change. */
   private readonly extents = new Map<string, Extent>();
+  /** Each sent Quiz answer, so a redraw keeps the Quiz answered. */
+  private readonly answers = new Map<string, number>();
+  /** The shown drawing's Markdown, for links redrawn after a resize. */
+  private markdown?: Drawing['markdown'];
 
   constructor(parent: HTMLElement, private readonly host: FigureHost, private readonly sandbox: FigureSandbox = figureSandbox) {
     this.el = parent.appendChild(div('clew-figure'));
@@ -155,6 +160,11 @@ export class FigureView {
     this.controller.abort();
     this.observer?.disconnect();
     live.delete(this);
+    // The last figure going (a closed chat, the plugin unloading) stops the watch, so a reload does not leave one behind.
+    if (!live.size) {
+      themeObserver?.disconnect();
+      themeObserver = undefined;
+    }
     this.clear();
   }
 
@@ -334,6 +344,7 @@ export class FigureView {
       this.captions = captions;
       this.playback = playback;
       this.body = body;
+      this.markdown = drawing.markdown;
       this.show(keepStep ? Math.min(this.current, figure.steps.length - 1) : 0);
     };
     if (!shown) commit();
@@ -383,10 +394,7 @@ export class FigureView {
       plot.repaint();
     }
     for (const diagram of step.diagrams) diagram();
-    if (this.figure) drawLinks(step.el, step.links, (el, text) => {
-      if (typeof text === 'number') el.textContent = formatFigure(text);
-      else void this.host.renderMarkdown(el, figureText(drawTexIn(text, (tag, fill) => this.colour(tag, fill))));
-    });
+    if (this.markdown) drawLinks(step.el, step.links, this.markdown);
   }
 
   /** A Graph wider than the pane shrinks to fit, down to 9 px text; past that it scrolls. */
@@ -421,7 +429,7 @@ export class FigureView {
       let ordinal = 0;
       walk(step.root, (node) => {
         if (node.type !== 'Graph') return;
-        const key = graphKey(node, ordinal++);
+        const key = nodeKey(node, ordinal++);
         uses.set(key, [...(uses.get(key) ?? []), node]);
       });
     }
@@ -434,7 +442,7 @@ export class FigureView {
       let ordinal = 0;
       walk(step.root, (node) => {
         if (node.type !== 'Diagram') return;
-        const key = node.id ?? `#${ordinal++}`;
+        const key = nodeKey(node, ordinal++);
         this.extents.set(key, diagramExtent(node, this.extents.get(key)));
       });
     }
@@ -569,12 +577,12 @@ export class FigureView {
         return;
       }
       case 'Graph': {
-        const layout = drawing.graphs.get(graphKey(node, ordinal()));
+        const layout = drawing.graphs.get(nodeKey(node, ordinal()));
         if (layout) drawGraph(parent, node, layout, tagOf, drawing.markdown);
         return;
       }
       case 'Quiz':
-        drawQuiz(mark(child('clew-figure-quiz'), node.id), node, drawing.markdown, this.host.send?.bind(this.host));
+        drawQuiz(mark(child('clew-figure-quiz'), node.id), node, drawing.markdown, this.answers, this.host.send?.bind(this.host));
         return;
       case 'Plot': {
         for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
@@ -589,8 +597,7 @@ export class FigureView {
       case 'Diagram': {
         for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
         const el = mark(child('clew-figure-diagram'), node.id);
-        const n = ordinal();
-        const extent = drawing.extents.get(node.id ?? `#${n}`) ?? diagramExtent(node);
+        const extent = drawing.extents.get(nodeKey(node, ordinal())) ?? diagramExtent(node);
         const paint = (): void => drawDiagram(el, node, extent, this.width, drawing.markdown);
         paint();
         view.diagrams.push(paint);

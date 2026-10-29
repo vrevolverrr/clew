@@ -37,15 +37,15 @@ export function parseActionLine(line: string): ReplyAction | 'invalid' | null {
 }
 
 const CALL_START = /^@([A-Za-z][A-Za-z0-9]*)\s*\(\s*/y;
-const ARG = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|(-?\d+(?:\.\d+)?)(?![\w.])|(true|false)\b/y;
+const ARG = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(?![\w.])|(true|false|null)\b/y;
 const ESCAPES: Record<string, string> = { n: '\n', t: '\t' };
 
-/** `@Name(arg, ...)` filling the whole line, each argument a quoted string, a number or a boolean; null otherwise. */
-export function parseCall(source: string): { name: string; args: (string | number | boolean)[] } | null {
+/** `@Name(arg, ...)` filling the whole line, each argument a quoted string, a number, a boolean or `null` (left out); null otherwise. */
+export function parseCall(source: string): { name: string; args: (string | number | boolean | undefined)[] } | null {
   CALL_START.lastIndex = 0;
   const start = CALL_START.exec(source);
   if (!start) return null;
-  const args: (string | number | boolean)[] = [];
+  const args: (string | number | boolean | undefined)[] = [];
   let at = CALL_START.lastIndex;
   const skip = (): void => {
     while (/\s/.test(source[at] ?? '')) at += 1;
@@ -58,12 +58,13 @@ export function parseCall(source: string): { name: string; args: (string | numbe
       const quoted = arg[1] ?? arg[2];
       if (quoted !== undefined) args.push(quoted.replace(/\\(.)/g, (_, char: string) => ESCAPES[char] ?? char));
       else if (arg[3] !== undefined) args.push(Number(arg[3]));
-      else args.push(arg[4] === 'true');
+      else args.push(arg[4] === 'null' ? undefined : arg[4] === 'true');
       at = ARG.lastIndex;
       skip();
       if (source[at] !== ',') break;
       at += 1;
       skip();
+      if (source[at] === ')') break;
     }
   }
   return source[at] === ')' && at === source.length - 1 ? { name: start[1], args } : null;

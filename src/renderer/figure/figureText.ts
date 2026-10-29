@@ -10,7 +10,9 @@ export function figureText(markdown: string): string {
     (text) => text
       .replace(/!\[\[[^\]]*\]\]/g, '')
       .replace(/\[\[([^\]|]*)\|?([^\]]*)\]\]/g, (_, target: string, shown: string) => shown || target)
-      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/!\[/g, '[')
+      .replace(/^[ \t>*+\-\d.)]*\[[^\]]+\]:\s*\S+(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?[ \t]*$/gm, '')
+      .replace(/\[([^\]]*)\](?:\([^)]*\)|\[[^\]]*\])/g, '$1')
       .replace(/<((?:https?|mailto):[^>\s]+)>/g, '$1')
       .replace(/<\/?[A-Za-z][^>]*>/g, '')
       .replace(HREF, '$1'),

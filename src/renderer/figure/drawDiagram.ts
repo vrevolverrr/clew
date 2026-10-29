@@ -45,7 +45,8 @@ export function diagramExtent(diagram: Diagram, keep?: Extent): Extent {
     : anchored
       ? [0, 0, Math.max(...xs), Math.max(...ys)]
       : [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-  const pad = anchored ? 0 : Math.max(x1 - x0, y1 - y0) * 0.05 || 1;
+  // A single point has no size to scale to, so it gets a unit around it.
+  const pad = anchored && (x1 > x0 || y1 > y0) ? 0 : Math.max(x1 - x0, y1 - y0) * 0.05 || 1;
   const own: Extent = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
   return keep ? [Math.min(own[0], keep[0]), Math.min(own[1], keep[1]), Math.max(own[2], keep[2]), Math.max(own[3], keep[3])] : own;
 }

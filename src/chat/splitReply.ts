@@ -8,6 +8,9 @@ export type ReplySegment =
 
 const OWN_FENCE = new RegExp(`^ {0,3}(\`{3,}|~{3,})[ \\t]*(${Object.keys(KINDS).join('|')})[ \\t]*$`);
 export const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+
+/** A fence longer than any backtick run in `source`, so no line of it closes the fence early. */
+export const fenceFor = (source: string): string => '`'.repeat(Math.max(3, ...(source.match(/`+/g) ?? []).map((run) => run.length + 1)));
 const MAYBE_FENCE = /^ {0,3}(``|~~)/;
 
 /**
@@ -38,7 +41,7 @@ export function replaceFigures(text: string, fixes: ReadonlyMap<number, string>,
     const fix = fixes.get(ordinal);
     ordinal += 1;
     if (fix === undefined) continue;
-    const fence = '`'.repeat(Math.max(3, ...(fix.match(/`+/g) ?? []).map((run) => run.length + 1)));
+    const fence = fenceFor(fix);
     out = [...out, ...lines.slice(at, start), `${fence}figure`, fix, fence];
     at = end;
   }

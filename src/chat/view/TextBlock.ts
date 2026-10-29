@@ -1,7 +1,7 @@
 import { parser } from '@lezer/markdown';
 
 import type { ReplySegment } from '@/chat/splitReply';
-import { splitReply } from '@/chat/splitReply';
+import { fenceFor, splitReply } from '@/chat/splitReply';
 import { LIMITS } from '@/renderer/figure/FigureData';
 import { figureSandbox } from '@/renderer/figure/FigureSandbox';
 import { type FigureHost, FigureView } from '@/renderer/figure/FigureView';
@@ -192,7 +192,7 @@ export class TextBlock {
 
   private drawAsCode(part: Extract<Part, { kind: 'figure' }>, source: string): void {
     const target = part.el.createDiv({ cls: 'clew-figure-code' });
-    const fence = '`'.repeat(Math.max(3, ...(source.match(/`+/g) ?? []).map((run) => run.length + 1)));
+    const fence = fenceFor(source);
     const shown = this.markdown.render(target, `${fence}js\n${source}\n${fence}`);
     target.createDiv({ cls: 'clew-figure-note', text: 'Only four figures are drawn per reply' });
     void shown.finally(() => reveal(part.el));
@@ -203,8 +203,7 @@ export class TextBlock {
     if (part.drawn || !closed) return;
     part.drawn = true;
     const target = part.el.createDiv({ cls: 'clew-diagram' });
-    // A fence longer than any backtick run in the source, so no line of it closes the fence early.
-    const fence = '`'.repeat(Math.max(3, ...(source.match(/`+/g) ?? []).map((run) => run.length + 1)));
+    const fence = fenceFor(source);
     void this.markdown.render(target, `${fence}mermaid\n${source}\n${fence}`, { diagrams: true }).finally(() => reveal(part.el));
   }
 

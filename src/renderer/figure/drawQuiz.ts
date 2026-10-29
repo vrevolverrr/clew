@@ -15,8 +15,11 @@ function plain(text: string): string {
     .slice(0, SENT_LIMIT);
 }
 
-/** A multiple-choice check: Submit marks the answer and sends it as the student's next message through `send`. */
-export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLElement, text: string | number) => void, send?: (message: string) => boolean): void {
+/**
+ * A multiple-choice check: Submit marks the answer and sends it as the student's next message through `send`.
+ * `answers` holds what was sent, by id or question, so a redraw shows the Quiz still answered.
+ */
+export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLElement, text: string | number) => void, answers: Map<string, number>, send?: (message: string) => boolean): void {
   const el = parent.appendChild(document.createElement('div'));
   el.className = 'clew-quiz';
   markdown(el.appendChild(Object.assign(document.createElement('div'), { className: 'clew-quiz-question' })), quiz.question);
@@ -33,8 +36,9 @@ export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLEle
   submit.textContent = 'Submit';
 
   const right = quiz.options.indexOf(quiz.correct);
-  let chosen: number | null = null;
-  let locked = false;
+  const key = quiz.id ?? quiz.question;
+  let chosen: number | null = answers.get(key) ?? null;
+  let locked = chosen !== null;
   const buttons = quiz.options.map((option, index) => {
     const button = group.appendChild(document.createElement('button'));
     button.type = 'button';
@@ -75,6 +79,7 @@ export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLEle
       return;
     }
     locked = true;
+    answers.set(key, chosen);
     show();
   });
   show();

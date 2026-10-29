@@ -3,6 +3,7 @@ import {
   type DiagramLayer, type FigureData, type FigureNode, type GraphEdge, type GraphNode, type Param, type PlotLayer, type Point, type Step, type Tag, type Tags, type Text,
 } from '@/renderer/figure/FigureData';
 import { texAnchors, texIn, texProblems } from '@/renderer/figure/figureTex';
+import { formatFigure } from '@/renderer/figure/formatFigure';
 
 class Invalid extends Error {}
 
@@ -178,7 +179,7 @@ function readStep(frame: unknown, index: number, count: number, figure: { elemen
   onlyKeys(frame, ['caption', 'root'], path, 'a step');
   const caption = own(frame, 'caption') ?? '';
   if (typeof caption !== 'string' && typeof caption !== 'number') fail(path, 'the caption must be text');
-  const shown = typeof caption === 'number' ? formatNumber(caption) : caption;
+  const shown = typeof caption === 'number' ? formatFigure(caption) : caption;
   if (count > 1 && !shown.trim()) fail(path, 'a caption is required when a figure has two or more steps');
   const scope: StepScope = { ids: new Map(), targets: [], anchors: 0, elements: 0 };
   checkString(shown, path, 'the caption', scope, false);
@@ -189,10 +190,6 @@ function readStep(frame: unknown, index: number, count: number, figure: { elemen
   figure.elements += scope.elements;
   if (figure.elements > LIMITS.elementsPerFigure) fail('Figure', `more than ${n(LIMITS.elementsPerFigure)} elements; the limit is ${n(LIMITS.elementsPerFigure)}`);
   return { caption: shown, root, ids: new Set(scope.ids.keys()) };
-}
-
-function formatNumber(value: number): string {
-  return String(+value.toPrecision(6));
 }
 
 /** Checks the maths in a string; anchors join the step's ids when they can be pointed at. */
@@ -286,8 +283,8 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
     case 'Text': {
       const fromProp = own(props, 'text');
       const value = fromProp === undefined
-        ? children.map((child) => (typeof child === 'number' ? formatNumber(child) : typeof child === 'string' ? child : fail(path, 'Text holds only text'))).join('')
-        : typeof fromProp === 'number' ? formatNumber(fromProp) : read.string(fromProp, 'text');
+        ? children.map((child) => (typeof child === 'number' ? formatFigure(child) : typeof child === 'string' ? child : fail(path, 'Text holds only text'))).join('')
+        : typeof fromProp === 'number' ? formatFigure(fromProp) : read.string(fromProp, 'text');
       if (fromProp !== undefined && children.length) fail(path, 'give Text its text as a prop or as children, not both');
       if (!value.trim()) fail(path, 'Text is empty');
       checkString(value, path, 'text', scope);

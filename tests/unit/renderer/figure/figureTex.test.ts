@@ -25,6 +25,19 @@ describe('texProblems', () => {
     expect(texProblems('\\class{x}{y}')).toContain('\\class is the host');
     expect(texProblems('\\data{x=1}{y}')).toContain('\\data is the host');
   });
+
+  it.each([
+    '\\bbox[background-image:url(https://x.test/p.png)]{x}',
+    '\\bbox[5px,background:\\75rl(x)]{x}',
+    '\\style{background:url(https://x.test/p.png)}{x}',
+    '\\require{x}',
+  ])('rejects TeX that could fetch: %s', (tex) => {
+    expect(texProblems(tex)).toContain('is not allowed');
+  });
+
+  it('accepts a plain bbox style', () => {
+    expect(texProblems('\\bbox[border:1px solid]{x}')).toBeUndefined();
+  });
 });
 
 describe('drawTex', () => {

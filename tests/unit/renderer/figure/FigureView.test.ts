@@ -188,6 +188,36 @@ describe('FigureView', () => {
     expect(view.el.querySelector('.clew-quiz-bar')).toBeNull();
   });
 
+  it('keeps a sent Quiz answered when the figure redraws', async () => {
+    const markdown = host();
+    const view = new FigureView(document.body, markdown, sandbox(() => payload([{ caption: '', root: el('Quiz', { question: 'Which?', options: ['x', 'y'], correct: 'y' }) }])));
+    void view.run('src');
+    await flush();
+    view.el.querySelectorAll<HTMLButtonElement>('.clew-quiz-option')[0].click();
+    view.el.querySelector<HTMLButtonElement>('.clew-quiz-submit')!.click();
+    view.retheme();
+    markdown.finish();
+    await flush();
+    expect(view.el.querySelectorAll('.clew-quiz')).toHaveLength(1);
+    expect(view.el.querySelector('.clew-quiz-bar')).toBeNull();
+    expect(view.el.querySelector('.clew-quiz-option.is-wrong')).not.toBeNull();
+    expect(markdown.sent).toHaveLength(1);
+  });
+
+  it('keeps an unnamed Diagram one size over the steps when a named one comes before it', async () => {
+    const diagrams = (pt: number[]): El => el('Row', {}, el('Diagram', { id: 'a', width: 1, height: 1 }, el('Points', { pts: [[1, 1]] })), el('Diagram', { width: 1, height: 1 }, el('Points', { pts: [pt] })));
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: 'One', root: diagrams([20, 10]) }, { caption: 'Two', root: diagrams([5, 10]) }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    const widths = [...view.el.querySelectorAll('.clew-figure-step')].map((step) => step.querySelectorAll('svg')[1].getAttribute('width'));
+    expect(widths[0]).toBe(widths[1]);
+  });
+
+  it('draws a Diagram whose only point is the origin', async () => {
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root: el('Diagram', { width: 1, height: 1 }, el('Points', { pts: [[0, 0]] })) }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    expect(Number(view.el.querySelector('svg')!.getAttribute('width'))).toBeGreaterThan(0);
+  });
+
   it('reports a failed run without drawing, and shows the error card on request', async () => {
     const failing = { run: () => Promise.resolve({ ok: false, error: 'Step 2: TypeError: x', line: 7, repairable: true }) } as unknown as FigureSandbox;
     const view = new FigureView(document.body, host(), failing);
