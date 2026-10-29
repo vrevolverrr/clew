@@ -97,7 +97,7 @@ ${PROOF_LINE}
 
 const DIAGONAL_NOTE = `# Diagonalization
 
-Theorem. An n × n matrix is diagonalizable if and only if, for every eigenvalue, its geometric multiplicity equals its algebraic multiplicity.
+Theorem. An n × n complex matrix is diagonalizable if and only if, for every eigenvalue, its geometric multiplicity equals its algebraic multiplicity.
 
 Exercise 1. Is A = [[2, 1], [0, 2]] diagonalizable? Justify.
 
@@ -141,10 +141,10 @@ const CASES: TestCase[] = [
   },
   {
     description: 'concept with no formula',
-    vars: turnOf('memoization', ['What is memoization?']),
+    vars: turnOf('primary-key', ['What is a primary key in a database?']),
     assert: [
       atMost(250),
-      code('formula', (output) => !output.includes('$$') || 'has display math for a process concept'),
+      code('formula', (output) => !output.includes('$$') || 'has display math for a concept with no formula'),
       voice,
       figures(0),
     ],
@@ -175,7 +175,7 @@ const CASES: TestCase[] = [
     description: "I don't follow",
     vars: turnOf('sigma', SIGMA, 3),
     assert: [
-      judge('re-explain', 'The conversation is about σ in the normal distribution; the tutor last answered why the deviation from the mean is squared, and the student then said they did not follow the example in that answer. Pass only if the reply (1) explains that same idea again through a worked example with concrete numbers and (2) adds nothing else: no new concepts, no definitions repeated, no quiz.'),
+      judge('re-explain', 'The conversation is about σ in the normal distribution; the tutor last answered why the deviation from the mean is squared, and the student then said they did not follow the example in that answer. Pass only if the reply (1) explains that same idea again through a worked example with concrete numbers and (2) adds no new topic, repeats no definition and asks no quiz; a closing sentence that ties the example back to the formula is fine.'),
     ],
   },
   {
