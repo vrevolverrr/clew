@@ -210,7 +210,7 @@ export class ChatPane extends Component {
   }
 
   /** Keeps live replies and scripted demos on the same display lifecycle. */
-  private async displayTurn(context: ChatContext, send: (view: TurnView) => Promise<void>, sent = (): void => undefined): Promise<void> {
+  private async displayTurn(context: ChatContext, send: (view: TurnView) => Promise<unknown>, sent = (): void => undefined): Promise<void> {
     const { turnEl, replyEl, reply } = this.addTurn(context.message, quoteOf(context.selection), context.attachments);
     this.messagesEl.scrollTo({ top: turnEl.offsetTop, behavior: 'smooth' });
     const view = this.turnView(replyEl, reply, this.chat.record.turns.length, sent);
