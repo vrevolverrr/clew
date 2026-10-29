@@ -3,6 +3,16 @@ type Options = { cls?: string; text?: string; attr?: Record<string, string> };
 type Made = HTMLElement & { createEl: (tag: string, options?: Options) => HTMLElement };
 
 if (typeof HTMLElement !== 'undefined') {
+  // Obsidian's global createEl makes a detached element.
+  Object.assign(globalThis, {
+    createEl(tag: string, options: Options = {}) {
+      const el = document.createElement(tag);
+      el.className = options.cls ?? '';
+      el.textContent = options.text ?? '';
+      for (const [name, value] of Object.entries(options.attr ?? {})) el.setAttribute(name, value);
+      return el;
+    },
+  });
   Object.assign(HTMLElement.prototype, {
     createEl(this: HTMLElement, tag: string, options: Options = {}) {
       const el = this.appendChild(document.createElement(tag));
