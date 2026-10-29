@@ -97,6 +97,19 @@
   white-space: nowrap;
 }
 
+/* MathJax 4 breaks inline math at operators through these elements, which set their own `white-space: normal`. */
+.clew-reply mjx-container:not([display='true']) mjx-break {
+  white-space: nowrap;
+}
+
+/* A wide formula scrolls in its own row; MathJax's default lets it widen, and so pan, the whole chat. */
+.clew-reply mjx-container[display='true'] {
+  overflow: auto clip;
+  min-width: initial !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg) transparent;
+}
+
 .clew-reply-error {
   color: var(--text-error);
 }
