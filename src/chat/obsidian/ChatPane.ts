@@ -193,14 +193,14 @@ export class ChatPane extends Component {
   private ask(message: string): boolean {
     if (this.chat.busy || this.closed) return false;
     const { note } = this.composer.document.read();
-    this.start(this.run({ message, attachments: [], ...(note ? { note } : {}) }));
+    void this.start(this.run({ message, attachments: [], ...(note ? { note } : {}) }));
     return true;
   }
 
   private send(): void {
     if ((!this.composer.message && !this.composer.hasAttachments) || this.chat.busy || this.closed) return;
     const message = this.composer.message;
-    this.start(this.run({ message, attachments: this.composer.take(), ...this.composer.document.read() }));
+    void this.start(this.run({ message, attachments: this.composer.take(), ...this.composer.document.read() }));
   }
 
   /** Runs one turn on `context`, drawn as it streams. */

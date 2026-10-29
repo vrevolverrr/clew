@@ -51,7 +51,7 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
     stacked.set(link.to, k + 1);
     const pointer = layer.appendChild(div('clew-figure-pointer'));
     pointer.dataset.tag = link.tag ?? 'active';
-    const name = document.createElement('span');
+    const name = createSpan();
     markdown(name, link.name);
     const arrow = (glyph: string): HTMLElement => Object.assign(div('clew-figure-pointer-mark'), { textContent: glyph });
     const table = target.el.closest('table');

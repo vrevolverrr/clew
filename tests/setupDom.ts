@@ -12,6 +12,20 @@ if (typeof HTMLElement !== 'undefined') {
       for (const [name, value] of Object.entries(options.attr ?? {})) el.setAttribute(name, value);
       return el;
     },
+    createDiv(options?: Options) {
+      return (globalThis as unknown as Made).createEl('div', options);
+    },
+    createSpan(options?: Options) {
+      return (globalThis as unknown as Made).createEl('span', options);
+    },
+    createFragment() {
+      return document.createDocumentFragment();
+    },
+  });
+  Object.assign(Node.prototype, {
+    instanceOf(this: Node, type: new () => unknown) {
+      return this instanceof type;
+    },
   });
   Object.assign(HTMLElement.prototype, {
     createEl(this: HTMLElement, tag: string, options: Options = {}) {

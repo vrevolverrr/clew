@@ -32,7 +32,7 @@ export function wrapLabel(name: string, maxChars: number): { lines: string[]; fi
   const lines: string[] = [];
   for (const word of name.split(' ')) {
     const last = lines.length - 1;
-    if (last >= 0 && lines[last]!.length + 1 + word.length <= maxChars) lines[last] += ` ${word}`;
+    if (last >= 0 && lines[last].length + 1 + word.length <= maxChars) lines[last] += ` ${word}`;
     else lines.push(word);
   }
   return { lines, fits: lines.length <= MAX_LINES && lines.every((line) => line.length <= maxChars) };

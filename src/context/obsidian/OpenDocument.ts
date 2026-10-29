@@ -139,7 +139,7 @@ export class OpenDocument {
     const selection = view.containerEl.ownerDocument.getSelection();
     const text = selection?.toString() ?? '';
     if (!text.trim() || !selection?.anchorNode || !view.contentEl.contains(selection.anchorNode)) return null;
-    const anchor = selection.anchorNode instanceof Element ? selection.anchorNode : selection.anchorNode.parentElement;
+    const anchor = selection.anchorNode.instanceOf(Element) ? selection.anchorNode : selection.anchorNode.parentElement;
     const page = Number(anchor?.closest<HTMLElement>('.page[data-page-number]')?.dataset.pageNumber) || undefined;
     return { path, text, page, key: text };
   }

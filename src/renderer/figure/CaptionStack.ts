@@ -1,8 +1,8 @@
 /** The current caption over an invisible stack of every caption, so wrapping and resizing keep the tallest one's height. */
 export class CaptionStack {
-  readonly el = document.createElement('div');
-  private readonly live = document.createElement('div');
-  private readonly sizes = document.createElement('div');
+  readonly el = createDiv();
+  private readonly live = createDiv();
+  private readonly sizes = createDiv();
   private captions: readonly string[] = [];
   private shown = '';
 
@@ -21,7 +21,7 @@ export class CaptionStack {
     if (captions.length === this.captions.length && captions.every((text, i) => text === this.captions[i])) return;
     this.captions = captions;
     this.sizes.replaceChildren(...captions.filter(Boolean).map((text) => {
-      const size = document.createElement('div');
+      const size = createDiv();
       size.className = 'clew-caption';
       this.render(size, text);
       return size;

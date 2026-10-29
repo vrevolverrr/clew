@@ -58,7 +58,7 @@ class Prose {
   set(text: string): void {
     const end = lastBlockStart(text, this.settled);
     if (end > this.settled) {
-      const block = this.el.insertBefore(document.createElement('div'), this.tail);
+      const block = this.el.insertBefore(createDiv(), this.tail);
       void this.markdown.render(block, text.slice(this.settled, end));
       this.settled = end;
     }

@@ -10,7 +10,7 @@ export function svg(tag: string, attrs: Record<string, string | number | undefin
 }
 
 export function div(className: string, role?: string): HTMLElement {
-  const el = document.createElement('div');
+  const el = createDiv();
   el.className = className;
   if (role) el.setAttribute('role', role);
   return el;

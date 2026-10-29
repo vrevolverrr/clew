@@ -86,7 +86,7 @@ export class CodexPermissionAdapter implements AgentPermissionAdapter<CodexPermi
   }
 
   async request({ id, method, params: request }: CodexPermissionInput, turn: AgentApprovalContext): Promise<boolean> {
-    const { description } = METHODS[method]!;
+    const { description } = METHODS[method];
     if (method === COMMAND && request.availableDecisions && !request.availableDecisions.includes('accept')) return false;
     const { threadId, turnId, itemId, reason, ...input } = request;
     const network = request.networkApprovalContext;
@@ -100,7 +100,7 @@ export class CodexPermissionAdapter implements AgentPermissionAdapter<CodexPermi
 
   /** The native reply to an approval request; one with no running turn is declined. */
   async reply(id: string | number, method: string, params: CodexApprovalRequest, turn: AgentApprovalContext | undefined): Promise<unknown> {
-    const { denied, accepted } = METHODS[method]!;
+    const { denied, accepted } = METHODS[method];
     return turn && await this.request({ id, method, params }, turn) ? accepted(params) : denied;
   }
 
@@ -112,7 +112,7 @@ export class CodexPermissionAdapter implements AgentPermissionAdapter<CodexPermi
       multiSelect: false, other: question.isOther || !question.options?.length, secret: question.isSecret,
     }));
     const answers = await this.withdrawable(threadId, id, turn, undefined, (signal) => askQuestions(turn.push, asked, signal));
-    return { answers: answers ? Object.fromEntries(questions.map((question, index) => [question.id, { answers: [...answers[index]!] }])) : {} };
+    return { answers: answers ? Object.fromEntries(questions.map((question, index) => [question.id, { answers: [...answers[index]] }])) : {} };
   }
 
   /** Runs `ask` under a signal that also ends when Codex withdraws the request; a repeated id gets `declined`. */

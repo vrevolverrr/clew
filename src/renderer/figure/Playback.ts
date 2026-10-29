@@ -6,7 +6,7 @@ const PAUSE = 'M4.5 3.5h2v9h-2zM9.5 3.5h2v9h-2z';
 
 /** DOM and timer shared by Player and figures with local snapshot state. */
 export class Playback {
-  readonly el = document.createElement('div');
+  readonly el = createDiv();
   private readonly play: HTMLButtonElement;
   private readonly playIcon: SVGElement;
   private readonly back: HTMLButtonElement;
@@ -23,7 +23,7 @@ export class Playback {
   constructor(private readonly change: (value: number, forward: boolean) => void) {
     this.el.className = 'clew-player';
     const button = (label: string, shape: string, fill = 'currentColor') => {
-      const b = this.el.appendChild(document.createElement('button'));
+      const b = this.el.appendChild(createEl('button'));
       b.type = 'button';
       b.className = 'clew-player-button';
       b.title = label;
@@ -34,11 +34,11 @@ export class Playback {
     ({ b: this.back } = button('Back', 'M10 3.5L5.5 8l4.5 4.5', 'none'));
     ({ b: this.play, icon: this.playIcon } = button('Play', PLAY));
     ({ b: this.next } = button('Next', 'M6 3.5L10.5 8 6 12.5', 'none'));
-    this.range = this.el.appendChild(document.createElement('input'));
+    this.range = this.el.appendChild(createEl('input'));
     this.range.type = 'range';
     this.range.min = '0';
     this.range.setAttribute('aria-label', 'Position');
-    this.count = this.el.appendChild(document.createElement('output'));
+    this.count = this.el.appendChild(createEl('output'));
     this.count.className = 'clew-player-count';
     this.back.addEventListener('click', () => { this.stop(); this.move(this.current - this.step, false); });
     this.next.addEventListener('click', () => { this.stop(); this.move(this.current + this.step, true); });

@@ -93,9 +93,9 @@ export type AgentEvent =
   | { type: 'usage'; used: number; window: number }
   | { type: 'done'; status: TurnStatus; error?: string; detail?: string }
   /** The agent waits on `answer`; `signal` aborts when the request no longer stands, and a later answer is ignored. */
-  | { type: 'approval'; request: ToolApprovalRequest; signal: AbortSignal; answer(approved: boolean): void }
+  | { type: 'approval'; request: ToolApprovalRequest; signal: AbortSignal; answer: (approved: boolean) => void }
   /** The agent waits on `answer`: one list of answers per question, or undefined when the student declines. */
-  | { type: 'question'; questions: readonly AgentQuestion[]; signal: AbortSignal; answer(answers: QuestionAnswers | undefined): void };
+  | { type: 'question'; questions: readonly AgentQuestion[]; signal: AbortSignal; answer: (answers: QuestionAnswers | undefined) => void };
 
 /** One list per question, in the order asked. */
 export type QuestionAnswers = readonly (readonly string[])[];

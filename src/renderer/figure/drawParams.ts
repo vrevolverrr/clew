@@ -6,13 +6,13 @@ export function drawParams(parent: HTMLElement, params: readonly Param[], values
   for (const param of params) {
     const value = values.has(param.key) ? values.get(param.key) : param.value;
     if (param.kind === 'slider') {
-      const el = parent.appendChild(document.createElement('label'));
+      const el = parent.appendChild(createEl('label'));
       el.className = 'clew-slider';
-      const row = el.appendChild(document.createElement('span'));
+      const row = el.appendChild(createSpan());
       row.className = 'clew-control-row';
-      row.appendChild(document.createElement('span')).textContent = param.label;
-      const out = row.appendChild(document.createElement('output'));
-      const input = el.appendChild(document.createElement('input'));
+      row.appendChild(createSpan()).textContent = param.label;
+      const out = row.appendChild(createEl('output'));
+      const input = el.appendChild(createEl('input'));
       input.type = 'range';
       input.min = String(param.min);
       input.max = String(param.max);
@@ -28,17 +28,17 @@ export function drawParams(parent: HTMLElement, params: readonly Param[], values
         change(param.key, Number(input.value));
       });
     } else if (param.kind === 'choice') {
-      const el = parent.appendChild(document.createElement('div'));
+      const el = parent.appendChild(createDiv());
       el.className = 'clew-choice';
-      const name = el.appendChild(document.createElement('span'));
+      const name = el.appendChild(createSpan());
       name.className = 'clew-control-row';
       name.textContent = param.label;
-      const group = el.appendChild(document.createElement('div'));
+      const group = el.appendChild(createDiv());
       group.className = 'clew-choice-options';
       group.setAttribute('role', 'group');
       group.setAttribute('aria-label', param.label);
       const buttons = param.options.map((option) => {
-        const button = group.appendChild(document.createElement('button'));
+        const button = group.appendChild(createEl('button'));
         button.type = 'button';
         button.className = 'clew-choice-option';
         button.textContent = formatFigure(option);
@@ -51,12 +51,12 @@ export function drawParams(parent: HTMLElement, params: readonly Param[], values
       const press = (chosen: unknown): void => buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(param.options[i] === chosen)));
       press(value);
     } else {
-      const el = parent.appendChild(document.createElement('label'));
+      const el = parent.appendChild(createEl('label'));
       el.className = 'clew-text-input';
-      const name = el.appendChild(document.createElement('span'));
+      const name = el.appendChild(createSpan());
       name.className = 'clew-control-row';
       name.textContent = param.label;
-      const input = el.appendChild(document.createElement('input'));
+      const input = el.appendChild(createEl('input'));
       input.type = 'text';
       input.spellcheck = false;
       input.autocomplete = 'off';

@@ -180,9 +180,9 @@ export class FigureView {
     const card = this.el.appendChild(div('clew-figure-error'));
     card.setAttribute('role', 'note');
     card.appendChild(div('clew-figure-error-message')).textContent = error;
-    const details = card.appendChild(document.createElement('details'));
-    details.appendChild(document.createElement('summary')).textContent = 'Figure source';
-    details.appendChild(document.createElement('pre')).appendChild(document.createElement('code')).textContent = source;
+    const details = card.appendChild(createEl('details'));
+    details.appendChild(createEl('summary')).textContent = 'Figure source';
+    details.appendChild(createEl('pre')).appendChild(createEl('code')).textContent = source;
   }
 
   destroy(): void {
@@ -242,7 +242,7 @@ export class FigureView {
     }
     const remember = (): void => {
       if (this.rendered.size >= RENDERED_LIMIT) this.rendered.clear();
-      const copy = document.createDocumentFragment();
+      const copy = createFragment();
       for (const node of el.childNodes) copy.append(node.cloneNode(true));
       this.rendered.set(markdown, copy);
     };
@@ -351,7 +351,7 @@ export class FigureView {
     if (shown) body.classList.add('is-pending');
     if (figure.title) drawing.markdown(body.appendChild(div('clew-figure-title')), figure.title);
     const stack = body.appendChild(div('clew-figure-scroll')).appendChild(div('clew-figure-stack'));
-    this.width = this.paneWidth();
+    this.width = this.canvasWidth();
     const steps = figure.steps.map((step) => {
       const view: StepView = { el: stack.appendChild(div('clew-figure-step')), links: [], plots: [], diagrams: [], dirty: false };
       const tags = new Map<string, Tag>();
@@ -378,7 +378,7 @@ export class FigureView {
       const key = body.appendChild(div('clew-figure-key'));
       for (const tag of explained) {
         const item = key.appendChild(div('clew-figure-key-item'));
-        const mark = item.appendChild(document.createElement('span'));
+        const mark = item.appendChild(createSpan());
         mark.className = 'clew-figure-key-mark';
         mark.dataset.tag = tag;
         mark.textContent = ' ';
@@ -450,7 +450,7 @@ export class FigureView {
   }
 
   private resized(): void {
-    const width = this.paneWidth();
+    const width = this.canvasWidth();
     if (!this.steps.length || width === this.width) return;
     this.width = width;
     if (this.body) this.fitGraphs(this.body);
@@ -477,8 +477,13 @@ export class FigureView {
     }
   }
 
-  private paneWidth(): number {
-    return Math.floor(this.el.clientWidth) || FALLBACK_WIDTH;
+  /** The width a Plot, Graph or Diagram draws at: the pane's, less the padding and border of the card around it. */
+  private canvasWidth(): number {
+    const probe = this.el.appendChild(div('clew-figure-canvas'));
+    const style = getComputedStyle(probe);
+    const inset = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+    probe.remove();
+    return (Math.floor(this.el.clientWidth) || FALLBACK_WIDTH) - (inset || 0);
   }
 
   /** A tag's theme colour, ink or fill, read from a probe element: the custom property's own text is not a colour. */
@@ -556,7 +561,7 @@ export class FigureView {
     const boxes: [string, HTMLElement][] = [];
     for (const step of this.steps) {
       for (const el of step.el.querySelectorAll<HTMLElement>('[data-figure-id]')) {
-        if (!(el instanceof HTMLElement) || el.tagName === 'TR' || el.closest('.clew-figure-graph, .clew-figure-plot, .clew-figure-diagram, mjx-container')) continue;
+        if (!(el.instanceOf(HTMLElement)) || el.tagName === 'TR' || el.closest('.clew-figure-graph, .clew-figure-plot, .clew-figure-diagram, mjx-container')) continue;
         const id = el.dataset.figureId!;
         const width = el.getBoundingClientRect().width;
         if (!width) continue;
@@ -602,10 +607,10 @@ export class FigureView {
         const wrap = mark(child('clew-figure-table'), node.id);
         if (node.title !== undefined) drawing.markdown(child('clew-figure-title', wrap), node.title);
         const lane = drawing.lanes.get(laneKey(node, ordinal()));
-        const table = wrap.appendChild(document.createElement('table'));
+        const table = wrap.appendChild(createEl('table'));
         if (lane) wrap.style.paddingLeft = `${lane.name + 3}ch`;
         const head = table.createTHead().insertRow();
-        for (const column of node.columns) drawing.markdown(head.appendChild(Object.assign(document.createElement('th'), { className: 'clew-figure-cell' })), column);
+        for (const column of node.columns) drawing.markdown(head.appendChild(Object.assign(createEl('th'), { className: 'clew-figure-cell' })), column);
         const rows = table.createTBody();
         node.rows.forEach((cells, r) => {
           const rowId = node.rowIds[r];
@@ -651,7 +656,7 @@ export class FigureView {
       }
       case 'Graph': {
         const layout = drawing.graphs.get(nodeKey(node, ordinal()));
-        if (layout) drawGraph(parent, node, layout, tagOf, drawing.markdown);
+        if (layout) drawGraph(child('clew-figure-canvas is-graph'), node, layout, tagOf, drawing.markdown);
         return;
       }
       case 'Quiz':
@@ -659,7 +664,7 @@ export class FigureView {
         return;
       case 'Plot': {
         for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
-        const el = mark(child('clew-figure-plot'), node.id);
+        const el = mark(child('clew-figure-plot', child('clew-figure-canvas')), node.id);
         el.style.width = `${this.width}px`;
         const chart = new PlotChart(el);
         chart.height = (width) => Math.min(360, (width * 2) / 3);
@@ -669,7 +674,7 @@ export class FigureView {
       }
       case 'Diagram': {
         for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
-        const el = mark(child('clew-figure-diagram'), node.id);
+        const el = mark(child('clew-figure-diagram', child('clew-figure-canvas')), node.id);
         const extent = drawing.extents.get(nodeKey(node, ordinal())) ?? diagramExtent(node);
         const paint = (): void => drawDiagram(el, node, extent, this.width, drawing.markdown);
         paint();

@@ -42,13 +42,13 @@ export class Walkthrough {
   /** Draws the stop just added to the reply's list, which is the last of `steps`. */
   add(): void {
     const index = this.steps.length - 1;
-    const step = this.steps[index]!;
+    const step = this.steps[index];
     const row = this.el.createEl('button', { cls: 'clew-walk-step', attr: { type: 'button', 'aria-label': `Show stop ${index + 1}` } });
     row.createSpan({ cls: 'clew-walk-num', text: String(index + 1) });
     const body = row.createSpan({ cls: 'clew-walk-body' });
     body.createSpan({ cls: 'clew-walk-comment', text: step.comment ?? snippet(step.quote) });
     if (step.comment) body.createSpan({ cls: 'clew-walk-quote', text: snippet(step.quote) });
-    if (step.path !== this.steps[0]!.path) body.createSpan({ cls: 'clew-walk-note', text: noteName(step.path) });
+    if (step.path !== this.steps[0].path) body.createSpan({ cls: 'clew-walk-note', text: noteName(step.path) });
     row.addEventListener('click', () => this.host.pick(this.steps, index));
     this.rows.push({ index, row });
   }

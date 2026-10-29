@@ -79,7 +79,7 @@ export class ToolGroup {
     if (empty) {
       const turn = Math.floor((Date.now() - this.startedAt) / PHRASE_MS);
       this.summaryEl.setText(active
-        ? WORKING_PHRASES[(this.phraseOffset + turn) % WORKING_PHRASES.length]!
+        ? WORKING_PHRASES[(this.phraseOffset + turn) % WORKING_PHRASES.length]
         : `Thought for ${formatElapsed(seconds)}`);
       return;
     }

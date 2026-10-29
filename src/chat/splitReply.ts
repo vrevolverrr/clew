@@ -89,7 +89,7 @@ function scan(text: string, complete: boolean): Scanned[] {
     if (partial && MAYBE_FENCE.test(line)) continue;
     const ownMatch = OWN_FENCE.exec(line);
     if (ownMatch) {
-      own = { kind: KINDS[ownMatch[2] as keyof typeof KINDS], lines: [], marker: ownMatch[1]!, start: index };
+      own = { kind: KINDS[ownMatch[2] as keyof typeof KINDS], lines: [], marker: ownMatch[1], start: index };
       continue;
     }
     const fence = FENCE.exec(line);
@@ -103,5 +103,5 @@ function scan(text: string, complete: boolean): Scanned[] {
 
 export function isClosingFence(line: string, marker: string): boolean {
   const trimmed = line.trim();
-  return trimmed.length >= marker.length && trimmed === marker[0]!.repeat(trimmed.length);
+  return trimmed.length >= marker.length && trimmed === marker[0].repeat(trimmed.length);
 }

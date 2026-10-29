@@ -66,9 +66,9 @@ export class FileSearch {
       const score = rank(entry, needle);
       if (score < 0) continue;
       const candidate = { entry, rank: score };
-      if (best.length === limit && compare(candidate, best[limit - 1]!) >= 0) continue;
+      if (best.length === limit && compare(candidate, best[limit - 1]) >= 0) continue;
       let at = best.length === limit ? limit - 1 : best.length;
-      while (at > 0 && compare(candidate, best[at - 1]!) < 0) {
+      while (at > 0 && compare(candidate, best[at - 1]) < 0) {
         best[at] = best[at - 1]!;
         at--;
       }

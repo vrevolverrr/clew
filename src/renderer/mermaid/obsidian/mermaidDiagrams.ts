@@ -18,7 +18,7 @@ function loadPele(): Promise<typeof Pele | undefined> {
   pele ??= new Promise((resolve) => {
     const existing = (window as PeleWindow).pele;
     if (existing) return resolve(existing);
-    const script = document.createElement('script');
+    const script = createEl('script');
     script.src = '/lib/pele.min.js';
     script.onload = () => resolve((window as PeleWindow).pele);
     script.onerror = () => {

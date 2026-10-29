@@ -28,10 +28,10 @@ export function renderedQuote(root: HTMLElement, quote: string): Range[] {
     let high = starts.length - 1;
     while (low < high) {
       const middle = (low + high + 1) >> 1;
-      if (starts[middle]!.at <= index) low = middle;
+      if (starts[middle].at <= index) low = middle;
       else high = middle - 1;
     }
-    return { node: starts[low]!.node, offset: index - starts[low]!.at };
+    return { node: starts[low].node, offset: index - starts[low].at };
   };
   return quoteMatches(text, quote, true).map(({ start, end }) => {
     const range = document.createRange();

@@ -307,6 +307,10 @@
   object-fit: cover;
 }
 
+.clew-folding {
+  overflow: hidden;
+}
+
 .clew-input-wrap {
   position: relative;
   margin: 8px 4px 0;
@@ -332,6 +336,7 @@
 .clew-input {
   position: relative;
   display: block;
+  height: auto;
   background: transparent;
   color: transparent;
   caret-color: var(--text-normal);
@@ -655,11 +660,20 @@
 .clew-reply-figure {
   position: relative;
   margin: var(--size-4-2) 0;
-  padding: var(--size-4-4);
+  line-height: var(--line-height-normal);
+}
+
+.clew-reply-figure .clew-diagram-card,
+.clew-figure-canvas {
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-l);
-  line-height: var(--line-height-normal);
   background: var(--background-primary);
+}
+
+/* FigureView reads this padding and border to size what it draws inside. */
+.clew-figure-canvas {
+  width: fit-content;
+  padding: var(--size-4-4);
 }
 
 .clew-mermaid {
@@ -680,6 +694,7 @@
 
 .clew-reply-mermaid,
 .clew-reply-figure .clew-diagram-card,
+.clew-figure-canvas.is-graph,
 .modal.clew-diagram-modal {
   background:
     radial-gradient(circle, color-mix(in srgb, var(--background-modifier-border) 55%, transparent) 0.9px, transparent 1.4px) 0 0 / 16px 16px,
@@ -710,6 +725,7 @@
 .clew-diagram-card {
   position: absolute;
   inset: 0;
+  box-sizing: border-box;
   overflow: hidden;
   z-index: 1;
   display: flex;
@@ -878,6 +894,10 @@
   position: absolute;
   inset-inline: var(--size-4-4);
   visibility: hidden;
+}
+
+.clew-reply-figure.is-drawing .clew-figure {
+  inset-inline: 0;
 }
 
 .clew-reply-mermaid:not(.is-drawing) .clew-diagram,

@@ -248,6 +248,16 @@ describe('FigureView', () => {
     expect(widths[0]).toBe(widths[1]);
   });
 
+  it('draws a Plot inside its card at the pane width less the card padding and border', async () => {
+    const style = document.head.appendChild(document.createElement('style'));
+    style.textContent = '.clew-figure-canvas { padding: 16px; border: 1px solid; }';
+    const plot = el('Plot', { x: [0, 1] }, el('Points', { pts: [[0.5, 0.5]] }));
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root: plot }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    style.remove();
+    expect(view.el.querySelector<HTMLElement>('.clew-figure-canvas > .clew-figure-plot')!.style.width).toBe('446px');
+  });
+
   it('draws a Diagram whose only point is the origin', async () => {
     const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root: el('Diagram', { width: 1, height: 1 }, el('Points', { pts: [[0, 0]] })) }])));
     await expect(view.run('src')).resolves.toEqual({ drawn: true });

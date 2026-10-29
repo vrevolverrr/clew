@@ -20,17 +20,17 @@ function plain(text: string): string {
  * `answers` holds what was sent, by id or question, so a redraw shows the Quiz still answered.
  */
 export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLElement, text: string | number) => void, answers: Map<string, number>, send?: (message: string) => boolean): void {
-  const el = parent.appendChild(document.createElement('div'));
+  const el = parent.appendChild(createDiv());
   el.className = 'clew-quiz';
-  markdown(el.appendChild(Object.assign(document.createElement('div'), { className: 'clew-quiz-question' })), quiz.question);
-  const group = el.appendChild(document.createElement('div'));
+  markdown(el.appendChild(Object.assign(createDiv(), { className: 'clew-quiz-question' })), quiz.question);
+  const group = el.appendChild(createDiv());
   group.className = 'clew-quiz-options';
   group.setAttribute('role', 'radiogroup');
-  const bar = el.appendChild(document.createElement('div'));
+  const bar = el.appendChild(createDiv());
   bar.className = 'clew-quiz-bar';
-  const note = bar.appendChild(document.createElement('span'));
+  const note = bar.appendChild(createSpan());
   note.className = 'clew-quiz-note';
-  const submit = bar.appendChild(document.createElement('button'));
+  const submit = bar.appendChild(createEl('button'));
   submit.type = 'button';
   submit.className = 'clew-quiz-submit mod-cta';
   submit.textContent = 'Submit';
@@ -40,11 +40,11 @@ export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLEle
   let chosen: number | null = answers.get(key) ?? null;
   let locked = chosen !== null;
   const buttons = quiz.options.map((option, index) => {
-    const button = group.appendChild(document.createElement('button'));
+    const button = group.appendChild(createEl('button'));
     button.type = 'button';
     button.className = 'clew-quiz-option';
     button.setAttribute('role', 'radio');
-    markdown(button.appendChild(document.createElement('span')), option);
+    markdown(button.appendChild(createSpan()), option);
     button.addEventListener('click', () => {
       chosen = index;
       note.textContent = '';
@@ -64,7 +64,7 @@ export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLEle
     if (!locked) return;
     bar.remove();
     if (!quiz.explanation || chosen !== right) return;
-    const feedback = el.appendChild(document.createElement('div'));
+    const feedback = el.appendChild(createDiv());
     feedback.className = 'clew-quiz-feedback';
     feedback.setAttribute('aria-live', 'polite');
     markdown(feedback, quiz.explanation);

@@ -91,7 +91,7 @@ export class MarkdownContentRenderer {
       if (!isCurrent()) return;
       for (const table of el.querySelectorAll('table')) {
         if (table.parentElement?.classList.contains('table-wrapper')) continue;
-        const scroll = document.createElement('div');
+        const scroll = createDiv();
         scroll.className = 'table-wrapper';
         table.before(scroll);
         scroll.appendChild(table);

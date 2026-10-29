@@ -1,7 +1,7 @@
 /** The file name being typed after an `@` that starts the input or follows whitespace. */
 export function mentionTrigger(text: string, cursor: number): { start: number; query: string } | null {
   const match = /(?<=^|\s)@([^\s@]*)$/.exec(text.slice(0, cursor));
-  return match ? { start: match.index, query: match[1]! } : null;
+  return match ? { start: match.index, query: match[1] } : null;
 }
 
 /**

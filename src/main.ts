@@ -166,6 +166,6 @@ export default class ClewPlugin extends Plugin {
   private async reportAuthState(): Promise<void> {
     const agents = Object.values(this.agents);
     const states = await Promise.all(agents.map((agent) => agent.authState()));
-    new Notice(agents.map((agent, i) => `${PROVIDERS[agent.id].name}: ${AUTH_LABELS[states[i]!]}`).join('\n'));
+    new Notice(agents.map((agent, i) => `${PROVIDERS[agent.id].name}: ${AUTH_LABELS[states[i]]}`).join('\n'));
   }
 }

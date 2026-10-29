@@ -71,7 +71,7 @@ export function drawGraph(parent: HTMLElement, graph: Graph, layout: NetworkLayo
     position(label, geometry.label);
     label.style.width = `${geometry.label.width}px`;
     label.style.height = `${geometry.label.height}px`;
-    markdown(label.appendChild(document.createElement('span')), `${status(tag ?? '')}${formatFigure(edge.label)}`);
+    markdown(label.appendChild(createSpan()), `${status(tag ?? '')}${formatFigure(edge.label)}`);
   }
 
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]));

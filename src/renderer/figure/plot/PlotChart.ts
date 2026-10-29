@@ -40,14 +40,14 @@ const CATCH_UP_MS = 70;
 const ARRIVED = 0.0015;
 
 function swatch(kind: string, color: string): HTMLElement {
-  const el = document.createElement('i');
+  const el = createEl('i');
   el.className = `clew-plot-swatch is-${kind}`;
   el.style.setProperty('--clew-swatch', color);
   return el;
 }
 
 function key(label: string, color: string, kind: string): HTMLElement {
-  const item = document.createElement('span');
+  const item = createSpan();
   item.className = 'clew-plot-key';
   item.append(swatch(kind === 'line' ? 'dot' : kind, color), label);
   return item;
@@ -203,7 +203,7 @@ export class PlotChart {
     const label = (x: number, y: number, text: string, strong: boolean, center = false) => pending.push({ x, y, width: text.length * TICK_CHAR_WIDTH, height: 14, text, strong, center });
 
     model.layers.forEach((layer, index) => {
-      const color = colors[index]!;
+      const color = colors[index];
       if (layer.kind === 'area') {
         let target = data;
         if (layer.from !== undefined || layer.to !== undefined) {
@@ -215,8 +215,8 @@ export class PlotChart {
         }
         const lower = layer.lower ? runs(layer.lower).flat() : null;
         for (const run of runs(layer.points)) {
-          const first = run[0]!;
-          const last = run[run.length - 1]!;
+          const first = run[0];
+          const last = run[run.length - 1];
           const back = lower
             ? lower.filter(([x]) => x >= first[0] && x <= last[0]).reverse()
             : [[last[0], layer.base], [first[0], layer.base]] as [number, number][];
@@ -229,11 +229,11 @@ export class PlotChart {
     });
 
     model.layers.forEach((layer, index) => {
-      if (layer.kind === 'bars' && cats) this.drawBars(layer, colors[index]!, cats, labels!, { margin, pw, ph, sy });
+      if (layer.kind === 'bars' && cats) this.drawBars(layer, colors[index], cats, labels!, { margin, pw, ph, sy });
     });
 
     model.layers.forEach((layer, index) => {
-      const color = colors[index]!;
+      const color = colors[index];
       if (layer.kind === 'rule') {
         const vertical = layer.axis === 'x';
         const at = vertical ? sx(layer.at) : sy(layer.at);
@@ -283,7 +283,7 @@ export class PlotChart {
       if (layer.kind === 'note' || layer.kind === 'dot' || layer.kind === 'rule' || layer.kind === 'arrow' || !layer.label || seen.has(layer.label)) return;
       if (layer.kind === 'bars' && layer.mode === 'waterfall') return;
       seen.add(layer.label);
-      this.legend.append(key(layer.label, colors[index]!, layer.kind));
+      this.legend.append(key(layer.label, colors[index], layer.kind));
     });
     if (layers.some((layer) => layer.kind === 'bars' && layer.mode === 'waterfall')) {
       for (const [label, color] of [['Total', 'var(--clew-series-1)'], ['Increase', 'var(--color-green)'], ['Decrease', 'var(--color-red)']] as const) {
@@ -291,7 +291,7 @@ export class PlotChart {
       }
     }
     // A single entry the y-axis title already names only repeats it.
-    const only = this.legend.childElementCount === 1 ? this.legend.textContent!.toLowerCase() : null;
+    const only = this.legend.childElementCount === 1 ? this.legend.textContent.toLowerCase() : null;
     if (only && yLabel?.toLowerCase().includes(only)) this.legend.replaceChildren();
   }
 
@@ -351,8 +351,8 @@ export class PlotChart {
       const shown = step.kind === 'up' ? `+${readout(step.value)}` : readout(step.value);
       const above = step.to >= step.from;
       this.text(root, centre(i), above ? top - 6 : bottom + 15, shown, 'middle', true);
-      const name = cats[i]!;
-      labels.lines[i]!.forEach((line, k) => {
+      const name = cats[i];
+      labels.lines[i].forEach((line, k) => {
         const y = g.margin.top + g.ph + 16 + k * 13;
         svg('text', labels.tilted
           ? { x: centre(i) + 4, y: y - 4, 'text-anchor': 'end', transform: `rotate(-35 ${centre(i) + 4} ${y - 4})`, class: 'clew-plot-tick' }
@@ -372,7 +372,7 @@ export class PlotChart {
     colors: readonly string[],
     g: { x0: number; x1: number; y0: number; y1: number; margin: { top: number; left: number }; pw: number; ph: number; sx: (x: number) => number; sy: (y: number) => number },
   ): void {
-    const lines = model.layers.flatMap((layer, index) => (layer.kind === 'line' && layer.label ? [{ layer, color: colors[index]! }] : []));
+    const lines = model.layers.flatMap((layer, index) => (layer.kind === 'line' && layer.label ? [{ layer, color: colors[index] }] : []));
     if (!lines.length) return;
     const root = this.canvas;
     const cross = svg('line', { y1: g.margin.top, y2: g.margin.top + g.ph, class: 'clew-plot-cross', visibility: 'hidden' }, root);
@@ -384,17 +384,17 @@ export class PlotChart {
       this.tip.hidden = true;
     };
     overlay.addEventListener('pointermove', (event) => {
-      const e = event as PointerEvent;
+      const e = event;
       const at = g.x0 + ((e.clientX - this.canvas.getBoundingClientRect().left - g.margin.left) / g.pw) * (g.x1 - g.x0);
       let anchor: number | null = null;
       const rows: [string, string, string][] = [];
       lines.forEach(({ layer, color }, i) => {
         const near = nearest(layer.points, at);
-        if (!near) { dots[i]!.setAttribute('visibility', 'hidden'); return; }
+        if (!near) { dots[i].setAttribute('visibility', 'hidden'); return; }
         anchor ??= near[0];
         const inside = near[1] !== null && Number.isFinite(near[1]) && near[1] >= g.y0 && near[1] <= g.y1;
-        dots[i]!.setAttribute('visibility', inside ? 'visible' : 'hidden');
-        if (near[1] !== null && Number.isFinite(near[1])) { dots[i]!.setAttribute('cx', String(g.sx(near[0]))); dots[i]!.setAttribute('cy', String(g.sy(near[1]))); }
+        dots[i].setAttribute('visibility', inside ? 'visible' : 'hidden');
+        if (near[1] !== null && Number.isFinite(near[1])) { dots[i].setAttribute('cx', String(g.sx(near[0]))); dots[i].setAttribute('cy', String(g.sy(near[1]))); }
         rows.push([color, layer.label!, near[1] === null || !Number.isFinite(near[1]) ? '—' : readout(near[1])]);
       });
       if (anchor === null) return hide();
@@ -409,13 +409,13 @@ export class PlotChart {
   private showTip(clientX: number, clientY: number, heading: string, rows: [string, string, string][]): void {
     const tip = this.tip;
     tip.replaceChildren();
-    const head = document.createElement('div');
+    const head = createDiv();
     head.className = 'clew-plot-tip-head';
     head.textContent = heading;
     tip.append(head);
     for (const [color, label, value] of rows) {
-      const row = document.createElement('div');
-      const strong = document.createElement('b');
+      const row = createDiv();
+      const strong = createEl('b');
       strong.textContent = value;
       row.append(swatch('dot', color), label ? `${label}: ` : '', strong);
       tip.append(row);
@@ -438,8 +438,8 @@ function nearest(points: readonly Point[], at: number): Point | null {
   let high = points.length - 1;
   while (high - low > 1) {
     const middle = (low + high) >> 1;
-    if (points[middle]![0] < at) low = middle;
+    if (points[middle][0] < at) low = middle;
     else high = middle;
   }
-  return Math.abs(points[low]![0] - at) <= Math.abs(points[high]![0] - at) ? points[low]! : points[high]!;
+  return Math.abs(points[low][0] - at) <= Math.abs(points[high][0] - at) ? points[low] : points[high];
 }
