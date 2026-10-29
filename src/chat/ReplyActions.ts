@@ -1,31 +1,24 @@
-import { defineAction, parseExpression, tokenize } from '@openuidev/lang-core';
 import { z } from 'zod/v4';
 
 import { FENCE, isClosingFence } from '@/chat/splitReply';
 
-const Title = defineAction({
-  name: 'Title',
-  description: "Names the chat; written once, on the last line of a conversation's first reply.",
-  params: z.object({ text: z.string().trim().min(1).max(80) }),
-});
+/** Names the chat; written once, on the last line of a conversation's first reply. */
+const Title = z.object({ text: z.string().trim().min(1).max(80) });
 
-const Highlight = defineAction({
-  name: 'Highlight',
-  description: "Marks text in a note and scrolls it into view, with a short comment beside it; a run of them walks the student through the note.",
-  params: z.object({
-    quote: z.string().trim().min(4).max(400),
-    // Too long a comment is cut, not refused: the student still sees where the agent pointed.
-    comment: z.string().trim().transform((text) => text.slice(0, 160) || undefined).optional(),
-    // A note elsewhere in the vault; left out, the note the turn was sent with. A bad one fails the call, not the default note.
-    path: z.string().trim().min(1).max(300).optional(),
-    // A bad line number costs only the tie-break, not the highlight.
-    line: z.number().int().positive().optional().catch(undefined),
-  }),
+/** Marks text in a note and scrolls it into view, with a short comment beside it; a run of them walks the student through the note. */
+const Highlight = z.object({
+  quote: z.string().trim().min(4).max(400),
+  // Too long a comment is cut, not refused: the student still sees where the agent pointed.
+  comment: z.string().trim().transform((text) => text.slice(0, 160) || undefined).optional(),
+  // A note elsewhere in the vault; left out, the note the turn was sent with. A bad one fails the call, not the default note.
+  path: z.string().trim().min(1).max(300).optional(),
+  // A bad line number costs only the tie-break, not the highlight.
+  line: z.number().int().positive().optional().catch(undefined),
 });
 
 const ACTIONS = { Title, Highlight } as const;
 
-type ReplyAction = { [N in keyof typeof ACTIONS]: { name: N; params: z.output<(typeof ACTIONS)[N]['params']> } }[keyof typeof ACTIONS];
+type ReplyAction = { [N in keyof typeof ACTIONS]: { name: N; params: z.output<(typeof ACTIONS)[N]> } }[keyof typeof ACTIONS];
 
 /**
  * The action a line of the reply writes; null when it is not a complete call of a known action, and 'invalid' when it
@@ -33,25 +26,47 @@ type ReplyAction = { [N in keyof typeof ACTIONS]: { name: N; params: z.output<(t
  * can be prose.
  */
 export function parseActionLine(line: string): ReplyAction | 'invalid' | null {
-  const source = line.trim();
-  // The parser accepts an unclosed string, so a line cut off mid-quote must not count.
-  if (!source.startsWith('@') || !source.endsWith(')')) return null;
-  let call;
-  try {
-    call = parseExpression(tokenize(source));
-  } catch {
-    return null;
-  }
-  if (call.k !== 'Comp' || !call.fn || !Object.hasOwn(ACTIONS, call.name)) return null;
-  const action = ACTIONS[call.name as keyof typeof ACTIONS];
-  const keys = Object.keys(action.params.shape);
+  const call = parseCall(line.trim());
+  if (!call || !Object.hasOwn(ACTIONS, call.name)) return null;
+  const schema = ACTIONS[call.name as keyof typeof ACTIONS];
+  const keys = Object.keys(schema.shape);
   if (call.args.length > keys.length) return 'invalid';
-  const params = Object.fromEntries(keys.map((key, index) => {
-    const arg = call.args[index];
-    return [key, arg?.k === 'Str' || arg?.k === 'Num' || arg?.k === 'Bool' ? arg.v : undefined];
-  }));
-  const parsed = action.params.safeParse(params);
+  const params = Object.fromEntries(keys.map((key, index) => [key, call.args[index]]));
+  const parsed = schema.safeParse(params);
   return parsed.success ? ({ name: call.name, params: parsed.data } as ReplyAction) : 'invalid';
+}
+
+const CALL_START = /^@([A-Za-z][A-Za-z0-9]*)\s*\(\s*/y;
+const ARG = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|(-?\d+(?:\.\d+)?)(?![\w.])|(true|false)\b/y;
+const ESCAPES: Record<string, string> = { n: '\n', t: '\t' };
+
+/** `@Name(arg, ...)` filling the whole line, each argument a quoted string, a number or a boolean; null otherwise. */
+export function parseCall(source: string): { name: string; args: (string | number | boolean)[] } | null {
+  CALL_START.lastIndex = 0;
+  const start = CALL_START.exec(source);
+  if (!start) return null;
+  const args: (string | number | boolean)[] = [];
+  let at = CALL_START.lastIndex;
+  const skip = (): void => {
+    while (/\s/.test(source[at] ?? '')) at += 1;
+  };
+  if (source[at] !== ')') {
+    for (;;) {
+      ARG.lastIndex = at;
+      const arg = ARG.exec(source);
+      if (!arg) return null;
+      const quoted = arg[1] ?? arg[2];
+      if (quoted !== undefined) args.push(quoted.replace(/\\(.)/g, (_, char: string) => ESCAPES[char] ?? char));
+      else if (arg[3] !== undefined) args.push(Number(arg[3]));
+      else args.push(arg[4] === 'true');
+      at = ARG.lastIndex;
+      skip();
+      if (source[at] !== ',') break;
+      at += 1;
+      skip();
+    }
+  }
+  return source[at] === ')' && at === source.length - 1 ? { name: start[1], args } : null;
 }
 
 /** A piece of a reply in the order it was written: prose to show, or an action whose line ended. */
