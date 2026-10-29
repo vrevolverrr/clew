@@ -43,9 +43,9 @@ npm test
 
 - [x] Chat with Claude Code or Codex beside your notes
 - [x] Guided walkthroughs of the open note
-- [x] Interactive visuals in the chat
+- [ ] **Interactive visuals in the chat (Revising)** 
 - [x] File and image attachments
-- [-] Tool approvals
+- [x] Tool approvals
 - [ ] Visuals inside notes
 - [ ] Evals and visual coverage
 - [ ] Highlights in PDFs
