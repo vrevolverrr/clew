@@ -538,11 +538,11 @@ describe('ReplyView', () => {
       reply.highlight(second);
 
       host.listeners.forEach((listener) => listener({ step: first, state: 'playing' }));
-      expect(rows().map((row) => row.classList.contains('is-active'))).toEqual([true, false]);
+      expect(rows().map((row) => row.classList.contains('is-current'))).toEqual([true, false]);
       host.listeners.forEach((listener) => listener({ step: second, state: 'missed' }));
-      expect(rows().map((row) => [row.classList.contains('is-active'), row.classList.contains('is-missed')])).toEqual([[false, false], [false, true]]);
+      expect(rows().map((row) => [row.classList.contains('is-current'), row.classList.contains('is-missed')])).toEqual([[false, false], [false, true]]);
       host.listeners.forEach((listener) => listener(null));
-      expect(rows().some((row) => row.classList.contains('is-active'))).toBe(false);
+      expect(rows().some((row) => row.classList.contains('is-current'))).toBe(false);
     });
 
     it('counts the stops before the one on screen as seen, across runs, and forgets them when it goes back', () => {
@@ -551,7 +551,7 @@ describe('ReplyView', () => {
       reply.appendText('Between.');
       reply.highlight(b);
       reply.highlight(c);
-      const seen = () => rows().map((row) => row.classList.contains('is-seen'));
+      const seen = () => rows().map((row) => row.classList.contains('is-done'));
 
       host.listeners.forEach((listener) => listener({ step: c, state: 'playing' }));
       expect(seen()).toEqual([true, true, false]);

@@ -2653,7 +2653,12 @@
   }
 }
 
+/* The tour's stepper keeps the tour's purple, and its dots sit inside each row's padding. */
 .clew-walkthrough {
+  --clew-step-accent: var(--clew-accent);
+  --clew-step-accent-text: var(--clew-accent);
+  --clew-step-x: 8px;
+  --clew-step-y: 7px;
   display: flex;
   flex-direction: column;
   margin: 8px 0;
@@ -2692,22 +2697,6 @@
   outline-offset: -2px;
 }
 
-/* A line from each number to the next, so the stops read as one path. It sits above the next row's background, which would hide its end. */
-.clew-walkthrough .clew-walk-step:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  top: 31px;
-  bottom: -7px;
-  left: 18px;
-  width: 2px;
-  background: var(--background-modifier-border);
-}
-
-.clew-walkthrough .clew-walk-step.is-seen:not(:last-child)::before {
-  background: color-mix(in srgb, var(--clew-accent) 55%, transparent);
-}
-
 /* A play mark on hover says a click starts the tour here. */
 .clew-walkthrough .clew-walk-step::after {
   content: '';
@@ -2728,31 +2717,13 @@
   opacity: 0.9;
 }
 
-.clew-walk-num {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  flex: none;
-  place-items: center;
-  box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid var(--background-modifier-border);
-  border-radius: 50%;
-  background: var(--background-primary);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  font-variant-numeric: tabular-nums;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-
 .clew-walk-body {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
-  padding-top: 1px;
+  padding-top: 2px;
 }
 
 .clew-walk-comment {
@@ -2786,33 +2757,21 @@
   font-size: var(--font-ui-smaller);
 }
 
-.clew-walkthrough .clew-walk-step.is-seen .clew-walk-num {
-  border-color: var(--clew-accent);
-  color: var(--clew-accent);
-}
-
-.clew-walkthrough .clew-walk-step.is-active {
+.clew-walkthrough .clew-walk-step.is-current {
   background: color-mix(in srgb, var(--clew-accent) 13%, transparent);
-}
-
-.clew-walkthrough .clew-walk-step.is-active .clew-walk-num {
-  border-color: var(--clew-accent);
-  background: var(--clew-accent);
-  color: #fff;
 }
 
 .clew-walkthrough .clew-walk-step.is-missed {
   opacity: 0.55;
 }
 
-.clew-walkthrough .clew-walk-step.is-missed .clew-walk-num {
+.clew-walkthrough .clew-walk-step.is-missed .clew-step-dot {
   border-style: dashed;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .clew-walkthrough .clew-walk-step,
-  .clew-walkthrough .clew-walk-step::after,
-  .clew-walk-num {
+  .clew-walkthrough .clew-walk-step::after {
     transition: none;
   }
 }
@@ -2974,21 +2933,29 @@
   height: 12px;
 }
 
-/* A vertical stepper: numbered dots joined by a line that fills in as the steps pass. */
+/* A vertical stepper, for a figure's steps and a tour's stops: numbered dots joined by a line that fills in as the steps pass. */
 .clew-steps {
-  --clew-step-done: color-mix(in srgb, var(--interactive-accent) 50%, var(--background-primary));
+  --clew-step-accent: var(--interactive-accent);
+  --clew-step-accent-text: var(--text-accent);
+}
+
+:is(.clew-steps, .clew-walkthrough) {
+  --clew-step-done: color-mix(in srgb, var(--clew-step-accent) 50%, var(--background-primary));
 }
 
 .clew-step {
   position: relative;
 }
 
+/* From each dot's bottom edge to the next one's top, so it never shows through a faded dot. It sits above the next row's
+   background, which would hide its end. */
 .clew-step:not(:last-child)::before {
   content: '';
   position: absolute;
-  top: 12px;
-  bottom: -12px;
-  left: 11.5px;
+  z-index: 1;
+  top: calc(var(--clew-step-y, 0px) + 24px);
+  bottom: calc(-1 * var(--clew-step-y, 0px));
+  left: calc(var(--clew-step-x, 0px) + 11.5px);
   width: 1px;
   background: var(--background-modifier-border);
   transition: background-color 0.25s ease;
@@ -3065,9 +3032,9 @@
 }
 
 .clew-step.is-current .clew-step-dot {
-  border-color: var(--interactive-accent);
-  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
-  color: var(--text-accent);
+  border-color: var(--clew-step-accent);
+  background: color-mix(in srgb, var(--clew-step-accent) 10%, var(--background-primary));
+  color: var(--clew-step-accent-text);
   font-weight: var(--font-semibold);
 }
 
@@ -3142,7 +3109,7 @@
 }
 
 /* A one-step figure has nothing to count. */
-.clew-step:only-child .clew-step-dot {
+.clew-steps .clew-step:only-child .clew-step-dot {
   display: none;
 }
 

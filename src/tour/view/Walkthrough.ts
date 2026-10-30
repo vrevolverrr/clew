@@ -25,7 +25,7 @@ function noteName(path: string): string {
 /**
  * A run of the stops an agent pointed at, drawn in the reply where it wrote them. One list of stops belongs to the
  * whole reply and a run shows its own part of it, so a stop's number and what a click plays are the reply's, not the
- * run's. As the tour plays, the stop on screen is marked, the ones before it count as seen, and a click on any stop plays
+ * run's. As the tour plays, the stop on screen is marked, the ones before it count as done, and a click on any stop plays
  * from there.
  */
 export class Walkthrough {
@@ -43,8 +43,8 @@ export class Walkthrough {
   add(): void {
     const index = this.steps.length - 1;
     const step = this.steps[index];
-    const row = this.el.createEl('button', { cls: 'clew-walk-step', attr: { type: 'button', 'aria-label': `Show stop ${index + 1}` } });
-    row.createSpan({ cls: 'clew-walk-num', text: String(index + 1) });
+    const row = this.el.createEl('button', { cls: 'clew-step clew-walk-step', attr: { type: 'button', 'aria-label': `Show stop ${index + 1}` } });
+    row.createSpan({ cls: 'clew-step-dot', text: String(index + 1) });
     const body = row.createSpan({ cls: 'clew-walk-body' });
     body.createSpan({ cls: 'clew-walk-comment', text: step.comment ?? snippet(step.quote) });
     if (step.comment) body.createSpan({ cls: 'clew-walk-quote', text: snippet(step.quote) });
@@ -56,9 +56,9 @@ export class Walkthrough {
   private mark(event: TourEvent): void {
     const playing = event ? this.steps.indexOf(event.step) : -1;
     for (const { index, row } of this.rows) {
-      row.toggleClass('is-active', event?.state === 'playing' && index === playing);
+      row.toggleClass('is-current', event?.state === 'playing' && index === playing);
       if (!event) continue;
-      row.toggleClass('is-seen', index < playing);
+      row.toggleClass('is-done', index < playing);
       if (index === playing) {
         row.toggleClass('is-missed', event.state === 'missed');
         row.title = event.state === 'missed' ? MISSED : '';
