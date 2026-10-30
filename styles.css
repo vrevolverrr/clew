@@ -3163,6 +3163,11 @@
   align-self: stretch;
 }
 
+/* A Quiz is read, not looked at: it keeps the step's full width. */
+.clew-figure-step > .clew-figure-quiz {
+  align-self: stretch;
+}
+
 /* A root Row wide enough to wrap fills the step, so its own lines are centred as well. */
 .clew-figure-step > .clew-figure-row {
   justify-content: safe center;
@@ -3225,7 +3230,8 @@
   padding: 4px 10px !important;
   font-size: var(--font-ui-small) !important;
   line-height: 1.5 !important;
-  border: 0 solid var(--background-modifier-border);
+  /* Translucent, so a gridline still shows across a tag's fill, which the theme's border grey matches in brightness. */
+  border: 0 solid color-mix(in srgb, var(--text-normal) 12%, transparent);
   border-width: 1px 0 0 1px;
   text-align: center;
   white-space: nowrap;
@@ -3438,9 +3444,12 @@
   font-size: var(--clew-figure-tex-size);
 }
 
+/* Under the drawing whose marks it explains. `contain` keeps a long key from widening the drawing's column; it wraps instead. */
 .clew-figure-key {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
+  contain: inline-size;
   gap: 4px 14px;
   color: var(--text-muted);
   font-size: 12px;

@@ -417,7 +417,7 @@ export class FigureView {
     }
     const explained = TAGS.filter((tag) => used.has(tag) && MEANING[tag]);
     if (explained.length) {
-      const key = body.appendChild(div('clew-figure-key'));
+      const key = scroll.appendChild(div('clew-figure-key'));
       for (const tag of explained) {
         const item = key.appendChild(div('clew-figure-key-item'));
         const mark = item.appendChild(createSpan());
