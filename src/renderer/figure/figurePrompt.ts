@@ -41,7 +41,7 @@ Objects (all take \`id\`; \`title\`, \`label\` and cells are text):
 Links, placed anywhere in the tree and attached by id:
 
 - \`<Arrow from to label tag />\`: an arrow between any two elements, rows, items or nodes.
-- \`<Pointer to name tag />\`: a named marker under a Seq item, left of a Table row, or beside any element.
+- \`<Pointer to name tag />\`: a named marker under a Seq item, left of a Table row, or beside any element. Keep \`name\` short (a variable, an index, a row operation): it takes room beside what it marks.
 
 Two drawings, each holding layers in its own coordinates:
 

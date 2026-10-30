@@ -1,13 +1,13 @@
 import { div } from '@/renderer/figure/dom';
 import { diagramExtent, drawDiagram, type Extent, type Room, widen } from '@/renderer/figure/drawDiagram';
 import { drawGraph, layoutGraph } from '@/renderer/figure/drawGraph';
-import { drawLinks, type Link } from '@/renderer/figure/drawLinks';
+import { drawLinks, type Link, POINTER_STEP, pointerLabel } from '@/renderer/figure/drawLinks';
 import { drawParams } from '@/renderer/figure/drawParams';
 import { plotModel } from '@/renderer/figure/drawPlot';
 import { drawQuiz } from '@/renderer/figure/drawQuiz';
 import { type FigureData, type FigureNode, type Param, TAGS, type Tag } from '@/renderer/figure/FigureData';
 import { figureSandbox, type FigureSandbox } from '@/renderer/figure/FigureSandbox';
-import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texTags, TYPESET_MATH } from '@/renderer/figure/figureTex';
+import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texAnchors, texTags, TYPESET_MATH } from '@/renderer/figure/figureTex';
 import { figureText } from '@/renderer/figure/figureText';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { status } from '@/renderer/figure/geometry';
@@ -85,13 +85,16 @@ interface StepView {
   dirty: boolean;
 }
 
+/** The pointers one Seq, Table or Tex holds in its busiest step, the longest name's length, and every step's names. */
+type Lane = { count: number; name: number; names: (string | number)[] };
+
 /** What drawing one figure needs, shared by its steps. */
 interface Drawing {
   markdown: (el: HTMLElement, text: string | number) => void;
   tex: (el: HTMLElement, tex: string) => void;
   graphs: Map<string, NetworkLayout>;
   extents: Map<string, Extent>;
-  lanes: Map<string, { count: number; name: number }>;
+  lanes: Map<string, Lane>;
   used: Set<Tag>;
 }
 
@@ -584,9 +587,9 @@ export class FigureView {
     return this.extents;
   }
 
-  /** Room each Seq (below), Table (left) and Tex (right) keeps for its pointers: the most in any step, and the longest name. */
-  private pointerLanes(figure: FigureData): Map<string, { count: number; name: number }> {
-    const lanes = new Map<string, { count: number; name: number }>();
+  /** Room each Seq (below), Table (left) and Tex (right) keeps for its pointers, over every step. */
+  private pointerLanes(figure: FigureData): Map<string, Lane> {
+    const lanes = new Map<string, Lane>();
     for (const step of figure.steps) {
       const owner = new Map<string, string>();
       const counts = new Map<string, number>();
@@ -598,15 +601,16 @@ export class FigureView {
         const key = laneKey(node, n);
         if (node.type === 'Seq') for (const item of node.items) owner.set(item.id, key);
         if (node.type === 'Table') for (const row of node.rowIds) for (let c = -1; c < node.columns.length; c += 1) owner.set(c < 0 ? row : `${row}.${c}`, key);
-        if (node.type === 'Tex') for (const match of node.tex.matchAll(/\\cssId\s*\{([^}]*)\}/g)) owner.set(match[1].trim(), key);
+        if (node.type === 'Tex') for (const id of [node.id, ...texAnchors(node.tex)]) if (id) owner.set(id, key);
       });
       walk(step.root, (node) => {
         if (node.type !== 'Pointer' || !owner.has(node.to)) return;
         const key = owner.get(node.to)!;
         const count = (counts.get(node.to) ?? 0) + 1;
         counts.set(node.to, count);
-        const lane = lanes.get(key) ?? { count: 0, name: 0 };
-        lanes.set(key, { count: Math.max(lane.count, count), name: Math.max(lane.name, formatFigure(node.name).length) });
+        const lane = lanes.get(key) ?? { count: 0, name: 0, names: [] };
+        const names = lane.names.includes(node.name) ? lane.names : [...lane.names, node.name];
+        lanes.set(key, { count: Math.max(lane.count, count), name: Math.max(lane.name, formatFigure(node.name).length), names });
       });
     }
     return lanes;
@@ -692,7 +696,7 @@ export class FigureView {
           drawing.markdown(cell, `${status(cell.dataset.tag ?? '')}${formatFigure(item.label)}`);
         });
         const lane = drawing.lanes.get(laneKey(node, ordinal()));
-        if (lane) child('clew-figure-lane', wrap).style.height = `${lane.count * 20 + 4}px`;
+        if (lane) child('clew-figure-lane', wrap).style.height = `${lane.count * POINTER_STEP + 4}px`;
         return;
       }
       case 'Node': {
@@ -707,9 +711,13 @@ export class FigureView {
       case 'Tex': {
         const el = mark(child('clew-figure-tex'), node.id);
         const lane = drawing.lanes.get(laneKey(node, ordinal()));
-        // As much room on the left as the pointers take on the right, so the formula itself sits centred.
-        if (lane) el.style.paddingInline = `${lane.name + 3}ch`;
-        drawing.tex(el, node.tex);
+        drawing.tex(child('clew-figure-tex-math', el), node.tex);
+        if (lane) {
+          const column = child('clew-figure-tex-lane', el);
+          column.setAttribute('aria-hidden', 'true');
+          const sizes = child('clew-figure-tex-sizes', column);
+          for (const name of lane.names) sizes.append(pointerLabel(name, '←', drawing.markdown));
+        }
         return;
       }
       case 'Graph': {

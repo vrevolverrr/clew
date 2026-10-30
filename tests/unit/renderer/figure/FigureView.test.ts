@@ -334,6 +334,22 @@ describe('FigureView', () => {
     expect(frame()).toBe(before);
   });
 
+  it('sizes a Tex\'s pointer column by every step\'s names and draws each step\'s pointer in it', async () => {
+    const step = (name: string): { caption: string; root: El } => ({ caption: name, root: el('Column', {}, el('Tex', { id: 't', tex: 'x = 1' }), el('Pointer', { to: 't', name })) });
+    const view = new FigureView(document.body, host(), sandbox(() => payload([step('i'), step('long name')])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    const columns = [...view.el.querySelectorAll('.clew-figure-tex-lane')];
+    expect(columns.map((column) => [...column.querySelectorAll('.clew-figure-tex-sizes > .clew-figure-pointer')].map((size) => size.textContent))).toEqual([['←i', '←long name'], ['←i', '←long name']]);
+    expect(columns.map((column) => column.querySelector(':scope > .clew-figure-pointer')?.textContent)).toEqual(['←i', '←long name']);
+  });
+
+  it('gives a Tex a pointer column for a pointer that names the Tex itself', async () => {
+    const root = el('Column', {}, el('Tex', { id: 't', tex: 'x = 1' }), el('Pointer', { to: 't', name: 'all' }));
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    expect(view.el.querySelector('.clew-figure-tex-lane > .clew-figure-pointer')?.textContent).toBe('←all');
+  });
+
   it('stacks pointers to two cells of one table row instead of drawing them on top of each other', async () => {
     const table = el('Table', { id: 't', columns: ['a', 'b'], rows: [[1, 2]], rowIds: ['r'] });
     const root = el('Row', {}, table, el('Pointer', { to: 'r.0', name: 'i' }), el('Pointer', { to: 'r.1', name: 'j' }));

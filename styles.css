@@ -3299,15 +3299,53 @@
   font-size: 12px;
 }
 
-/* A Tex element is often the figure itself (a matrix, a derivation), so it is set larger than the figure's UI text. */
+/* A Tex element is often the figure itself (a matrix, a derivation), so it is set larger than the figure's UI text. Its
+   formula sits between an empty column and its pointers' column, which share the spare width equally, so the formula stays
+   centred; short of room, the empty column gives way first, so a long pointer name does not count twice. */
 .clew-figure-tex {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   font-size: var(--clew-figure-tex-size);
 }
 
-/* Left-aligned, so the room its pointers reserve on the right never moves the formula. Doubled up to outrank MathJax's own centring. */
+.clew-figure-tex-math {
+  grid-column: 2;
+  min-width: 0;
+}
+
+/* Doubled up to outrank MathJax's own spacing around display maths. */
 .clew-figure .clew-figure-tex mjx-container[display='true'] {
   margin: 0;
-  text-align: left;
+}
+
+.clew-figure-tex-lane {
+  position: relative;
+  grid-column: 3;
+}
+
+/* Every step's pointer names, laid over each other unseen, so the column takes the widest in any step and keeps it. */
+.clew-figure-tex-sizes {
+  display: grid;
+  height: 0;
+  visibility: hidden;
+}
+
+.clew-figure-tex-sizes > .clew-figure-pointer {
+  grid-area: 1 / 1;
+  position: static;
+  justify-self: start;
+  margin-left: 8px;
+  transform: none;
+}
+
+.clew-figure-tex-lane > .clew-figure-pointer {
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+/* A formula's pointers are larger than other pointers, as the formula is, but smaller than the formula itself. */
+.clew-figure-tex .clew-figure-pointer {
+  font-size: var(--font-ui-medium);
 }
 
 .clew-figure-text {
@@ -3433,15 +3471,6 @@
 
 .clew-figure-pointer.is-left {
   transform: translate(-100%, -50%);
-}
-
-.clew-figure-pointer.is-right {
-  transform: translateY(-50%);
-}
-
-/* The size of the Tex beside it, which reserves its room in this size's ch. */
-.clew-figure-pointer.is-tex {
-  font-size: var(--clew-figure-tex-size);
 }
 
 /* Under the drawing whose marks it explains. `contain` keeps a long key from widening the drawing's column; it wraps instead. */
