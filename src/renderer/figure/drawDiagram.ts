@@ -1,5 +1,5 @@
 import { angleMark, dimensionMark, rightAngleMark, tickMarks } from '@/renderer/figure/diagram/marks';
-import { arrowHeads, div, svg } from '@/renderer/figure/dom';
+import { arrowHeads, div, svg, tagInk } from '@/renderer/figure/dom';
 import type { DiagramLayer, FigureNode, Point, Tag } from '@/renderer/figure/FigureData';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
@@ -30,8 +30,28 @@ function pointsOf(layer: DiagramLayer): readonly Point[] {
 }
 
 export type Extent = readonly [number, number, number, number];
+
+/** [minX, minY, maxX, maxY] of `points`, by a loop: spreading a layer's thousands of points into Math.min overflows the stack. */
+function bounds(points: Iterable<readonly [number, number]>): Extent {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of points) {
+    if (x < x0) x0 = x;
+    if (y < y0) y0 = y;
+    if (x > x1) x1 = x;
+    if (y > y1) y1 = y;
+  }
+  return [x0, y0, x1, y1];
+}
 /** Pixels a drawing reaches past its border on each side, for marks drawn off their points and labels pushed outside. */
 export type Room = Readonly<{ left: number; top: number; right: number; bottom: number }>;
+
+/** The larger of two rooms on each side. */
+export const widen = (a: Room, b: Room = a): Room => ({
+  left: Math.max(a.left, b.left),
+  top: Math.max(a.top, b.top),
+  right: Math.max(a.right, b.right),
+  bottom: Math.max(a.bottom, b.bottom),
+});
 
 /**
  * What a Diagram shows, as [x0, y0, x1, y1]: what it drew, or the model's width and height when it drew nothing.
@@ -39,9 +59,7 @@ export type Room = Readonly<{ left: number; top: number; right: number; bottom: 
  */
 export function diagramExtent(diagram: Diagram, keep?: Extent): Extent {
   const points = diagram.children.flatMap(pointsOf);
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  const [x0, y0, x1, y1] = points.length ? [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] : [0, 0, diagram.width, diagram.height];
+  const [x0, y0, x1, y1] = points.length ? bounds(points) : [0, 0, diagram.width, diagram.height];
   // A single point has no size to scale to, so it gets a unit around it.
   const pad = x1 > x0 || y1 > y0 ? 0 : 1;
   const own: Extent = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
@@ -70,7 +88,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
   const labels: (LabelBox & { box: HTMLElement })[] = [];
   const mark = (tag: string, attrs: Record<string, string | number>, layerTag?: Tag): SVGElement => {
     const shape = svg(tag, { ...attrs, class: `clew-figure-mark${attrs.class ? ` ${attrs.class}` : ''}` }, root);
-    if (layerTag) shape.style.color = `var(--clew-figure-tag-${layerTag})`;
+    if (layerTag) shape.style.color = tagInk(layerTag);
     return shape;
   };
   const path = (points: readonly Point[], close = false): string => `M${points.map((p) => px(p).map((v) => v.toFixed(1)).join(',')).join('L')}${close ? 'Z' : ''}`;
@@ -85,7 +103,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
     const text = layer.type === 'Label' ? layer.text : 'label' in layer ? layer.label : undefined;
     if (text === undefined) continue;
     const box = el.appendChild(div('clew-figure-diagram-label'));
-    if (layer.tag) box.style.color = `var(--clew-figure-tag-${layer.tag})`;
+    if (layer.tag) box.style.color = tagInk(layer.tag);
     if (layer.type === 'Shape' && layer.closed) box.classList.add('is-inside');
     markdown(box, text);
     boxes.set(layer, { box, width: formatFigure(text).length * CHAR_WIDTH + 8, height: 18 });
@@ -122,7 +140,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
       }
       case 'Vector':
       case 'Segment':
-        polyline([layer.from, layer.to], layer.tag, layer.type === 'Vector' ? { 'marker-end': head(layer.tag ? `var(--clew-figure-tag-${layer.tag})` : 'var(--clew-figure-ink)'), class: 'is-vector' } : {});
+        polyline([layer.from, layer.to], layer.tag, layer.type === 'Vector' ? { 'marker-end': head(layer.tag ? tagInk(layer.tag) : 'var(--clew-figure-ink)'), class: 'is-vector' } : {});
         label([(layer.from[0] + layer.to[0]) / 2, (layer.from[1] + layer.to[1]) / 2], layer);
         break;
       case 'Points':
@@ -166,28 +184,23 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
   }
 
   // A mark drawn at a pixel offset from its points (a Dimension's line and bars) can reach past the border; the drawing grows to hold it.
-  const xs = lines.flat().map((p) => p[0]);
-  const ys = lines.flat().map((p) => p[1]);
-  const left = Math.max(0, PAD - Math.min(PAD, ...xs));
-  const top = Math.max(0, PAD - Math.min(PAD, ...ys));
-  const right = Math.max(0, Math.max(width - PAD, ...xs) - width + PAD);
-  const bottom = Math.max(0, Math.max(height - PAD, ...ys) - height + PAD);
+  const [lx0, ly0, lx1, ly1] = bounds(lines.flat());
+  const left = Math.max(0, PAD - Math.min(PAD, lx0));
+  const top = Math.max(0, PAD - Math.min(PAD, ly0));
+  const right = Math.max(0, Math.max(width - PAD, lx1) - width + PAD);
+  const bottom = Math.max(0, Math.max(height - PAD, ly1) - height + PAD);
   const marks = { x0: -left, y0: -top, x1: width + right, y1: height + bottom };
   // A label pushed past the top or bottom (one on a line along the edge) grows the drawing instead of covering the line.
   const spare = Math.max(0, ...labels.map((item) => item.height)) + LABEL_GAP * 2;
   const placed = placeLabels(labels, { ...marks, y0: marks.y0 - spare, y1: marks.y1 + spare }, lines);
   const needed: Room = {
-    left,
-    right,
+    left: Math.max(left, -Math.min(0, ...placed.map((at) => at.x))),
+    right: Math.max(right, Math.max(width, ...placed.map((at, i) => at.x + labels[i].width)) - width),
     top: Math.max(top, -Math.min(0, ...placed.map((at) => at.y))),
     bottom: Math.max(bottom, Math.max(height, ...placed.map((at, i) => at.y + labels[i].height)) - height),
   };
-  const frame = {
-    x0: -Math.max(needed.left, keep?.left ?? 0),
-    y0: -Math.max(needed.top, keep?.top ?? 0),
-    x1: width + Math.max(needed.right, keep?.right ?? 0),
-    y1: height + Math.max(needed.bottom, keep?.bottom ?? 0),
-  };
+  const room = widen(needed, keep);
+  const frame = { x0: -room.left, y0: -room.top, x1: width + room.right, y1: height + room.bottom };
   for (const [name, value] of Object.entries({ width: frame.x1 - frame.x0, height: frame.y1 - frame.y0, viewBox: `${frame.x0} ${frame.y0} ${frame.x1 - frame.x0} ${frame.y1 - frame.y0}` })) root.setAttribute(name, String(value));
   placed.forEach((at, i) => {
     labels[i].box.style.left = `${at.x - frame.x0}px`;

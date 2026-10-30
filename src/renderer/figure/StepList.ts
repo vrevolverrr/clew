@@ -9,6 +9,12 @@ export function writeStep(el: HTMLElement, step: StepText, write: Write): void {
   write(el.createDiv({ cls: 'clew-step-caption' }), step.caption);
 }
 
+/** Writes a step beside its numbered dot, as the stepper lists it. */
+export function writeNumbered(el: HTMLElement, step: StepText, index: number, write: Write, dot = 'clew-step-dot'): void {
+  el.createSpan({ cls: dot, text: String(index + 1) });
+  writeStep(el.createDiv({ cls: 'clew-step-text' }), step, write);
+}
+
 /** Every step as a numbered vertical list: the current one marked and announced, any one picked by a click. */
 export class StepList {
   readonly el = createDiv();
@@ -23,12 +29,11 @@ export class StepList {
       const item = list.createDiv({ cls: 'clew-step', attr: { role: 'listitem' } });
       const button = item.createEl('button', { cls: 'clew-step-button' });
       button.type = 'button';
-      button.createSpan({ cls: 'clew-step-dot', text: String(index + 1) });
-      writeStep(button.createDiv({ cls: 'clew-step-text' }), step, write);
+      writeNumbered(button, step, index, write);
       button.addEventListener('click', () => pick(index));
       return item;
     });
-    this.live.className = 'clew-steps-live';
+    this.live.className = 'clew-visually-hidden';
     this.live.setAttribute('aria-live', 'polite');
     this.el.append(this.live);
   }
@@ -40,6 +45,7 @@ export class StepList {
       if (k === index) item.setAttribute('aria-current', 'step');
       else item.removeAttribute('aria-current');
     });
-    this.live.textContent = this.items[index]?.querySelector('.clew-step-text')?.textContent ?? '';
+    const parts = this.items[index]?.querySelector('.clew-step-text')?.children ?? [];
+    this.live.textContent = Array.from(parts, (part) => part.textContent).join(': ');
   }
 }

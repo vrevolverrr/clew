@@ -209,11 +209,15 @@ export const VISUALS_DEMO_TURNS: readonly { message: string; reply: string }[] =
   },
 ];
 
-/** Plays scripted replies in a new chat, so figures can be tried in the vault's theme without a model. */
-export async function playVisualsDemo(app: App, openChat: () => Promise<DemoChat | null>): Promise<void> {
+/** Plays scripted turns in a new chat, so figures can be tried in the vault without a model. */
+export async function playScriptedTurns(app: App, openChat: () => Promise<DemoChat | null>, notice: string, turns: readonly { message: string; reply: string }[]): Promise<void> {
   const chat = await openChat();
   if (!chat) return;
-  new Notice('Visuals demo: move each control and step through each figure, then switch between a light and a dark theme.');
+  new Notice(notice);
   const path = app.workspace.getActiveFile()?.path ?? '';
-  for (const turn of VISUALS_DEMO_TURNS) await chat.playTurn(turn.message, scriptedSession(turn.reply), path);
+  for (const turn of turns) await chat.playTurn(turn.message, scriptedSession(turn.reply), path);
+}
+
+export function playVisualsDemo(app: App, openChat: () => Promise<DemoChat | null>): Promise<void> {
+  return playScriptedTurns(app, openChat, 'Visuals demo: move each control and step through each figure, then switch between a light and a dark theme.', VISUALS_DEMO_TURNS);
 }

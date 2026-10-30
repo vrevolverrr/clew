@@ -30,6 +30,12 @@ export function arrowHeads(drawing: SVGElement, size: Record<string, string | nu
   };
 }
 
+/** A tag's ink, as `styles.css` defines it on `.clew-figure`. */
+export const tagInk = (tag: string): string => `var(--clew-figure-tag-${tag})`;
+
+/** An arrowhead's fill: the colour its line's tag strokes it in (`styles.css`); a dimmed line only fades. */
+export const lineInk = (tag?: string): string => (tag && tag !== 'dim' ? tagInk(tag) : 'var(--text-muted)');
+
 export function div(className: string, role?: string): HTMLElement {
   const el = createDiv();
   el.className = className;

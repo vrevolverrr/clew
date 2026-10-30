@@ -1050,9 +1050,6 @@
   display: flex;
   align-items: center;
   gap: var(--size-2-1);
-  padding-top: var(--size-4-4);
-  border-top: 1px solid var(--background-modifier-border);
-  order: 1;
 }
 
 /* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
@@ -1207,6 +1204,7 @@
 .clew-captions:not([hidden]),
 .clew-caption-sizes {
   display: grid;
+  overflow-wrap: break-word;
 }
 
 .clew-captions > *,
@@ -1220,12 +1218,7 @@
 }
 
 .clew-caption {
-  color: var(--text-muted);
-}
-
-.clew-caption > :first-child,
-.clew-caption > :first-child > :first-child {
-  margin: 0;
+  color: var(--text-normal);
 }
 
 /* Markdown tables share one presentation in prose and OpenUI text. */
@@ -2864,6 +2857,7 @@
 
 /* Figures: model-written programs drawn with the host's own layout. Tag colours are per surface, never one rule for every [data-tag]. */
 .clew-figure {
+  --clew-figure-tex-size: 1.3em;
   --clew-figure-ink: color-mix(in srgb, var(--text-normal) 80%, var(--background-primary));
   --clew-figure-tag-active: var(--interactive-accent);
   --clew-figure-tag-done: var(--text-muted);
@@ -2962,33 +2956,20 @@
 }
 
 /* With the full player, the caption and player always sit under the figure, centred, and the player is wide enough to scrub. */
-.clew-figure-side.is-player,
-.clew-figure-side.is-listed.is-under {
+.clew-figure-side:is(.is-player, .is-under) {
   flex-basis: 100%;
   align-items: center;
 }
 
-.clew-figure-side:is(.is-player, .is-under) .clew-player {
-  width: min(100%, 32em);
-}
-
 /* A listed figure keeps both views of its steps and shows the list beside the drawing, the one caption under it. */
-.clew-figure-side.is-listed.is-under > .clew-steps,
+.clew-figure-side.is-under > .clew-steps,
 .clew-figure-side.is-listed:not(.is-under) > .clew-captions {
   display: none;
 }
 
-.clew-figure-side .clew-caption {
-  color: var(--text-normal);
-}
-
-.clew-figure-side .clew-player {
-  padding-top: 0;
-  border-top: 0;
-}
-
 /* The full player is its own card, like the figure's, so its controls and track read as one object. */
-.clew-figure-side .clew-player:not(.is-play-only) {
+.clew-player:not(.is-play-only) {
+  width: min(100%, 32em);
   padding: var(--size-4-1) var(--size-4-3) var(--size-4-1) var(--size-4-1);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-l);
@@ -3117,7 +3098,6 @@
   font-weight: var(--font-semibold);
 }
 
-/* Lifted so the lowercase text, not its line box, centres on the dot. */
 .clew-caption.is-numbered {
   display: flex;
   align-items: flex-start;
@@ -3129,6 +3109,7 @@
   flex: 0 1 auto;
 }
 
+/* Lifted so the lowercase text, not its line box, centres on the dot. */
 .clew-step-text {
   flex: 1;
   min-width: 0;
@@ -3142,8 +3123,6 @@
   color: inherit;
 }
 
-.clew-step-text > :first-child,
-.clew-step-text > :first-child > :first-child,
 :is(.clew-step-heading, .clew-step-caption) > * {
   margin: 0;
 }
@@ -3161,15 +3140,6 @@
 
 :is(.clew-step.is-current, .clew-caption) .clew-step-heading + .clew-step-caption {
   color: var(--text-muted);
-}
-
-.clew-steps-live {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3352,7 +3322,7 @@
 
 /* A Tex element is often the figure itself (a matrix, a derivation), so it is set larger than the figure's UI text. */
 .clew-figure-tex {
-  font-size: 1.3em;
+  font-size: var(--clew-figure-tex-size);
 }
 
 /* Left-aligned, so the room its pointers reserve on the right never moves the formula. Doubled up to outrank MathJax's own centring. */
@@ -3492,7 +3462,7 @@
 
 /* The size of the Tex beside it, which reserves its room in this size's ch. */
 .clew-figure-pointer.is-tex {
-  font-size: 1.3em;
+  font-size: var(--clew-figure-tex-size);
 }
 
 .clew-figure-key {
@@ -3526,9 +3496,6 @@
   visibility: hidden;
 }
 
-.clew-figure .clew-captions:not([hidden]) {
-  overflow-wrap: break-word;
-}
 
 /* Tags, one rule per surface: boxes (nodes, cells, key marks), lines (edges, links) and text (edge labels, pointers). A table cell's rule outranks Obsidian's striped columns. */
 :is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='active'] {

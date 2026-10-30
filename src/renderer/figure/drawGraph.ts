@@ -1,4 +1,4 @@
-import { arrowHeads, div, svg } from '@/renderer/figure/dom';
+import { arrowHeads, div, lineInk, svg } from '@/renderer/figure/dom';
 import type { FigureNode, GraphEdge, GraphNode, Tag } from '@/renderer/figure/FigureData';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { position, status } from '@/renderer/figure/geometry';
@@ -61,7 +61,7 @@ export function drawGraph(parent: HTMLElement, graph: Graph, layout: NetworkLayo
     const path = svg('path', { d: geometry.path, fill: 'none', class: 'clew-network-edge' }, drawing);
     if (edge.id) path.dataset.figureId = edge.id;
     if (tag) path.dataset.tag = tag;
-    if (edge.directed) path.setAttribute('marker-end', head(tag === 'active' ? 'var(--interactive-accent)' : 'var(--text-muted)'));
+    if (edge.directed) path.setAttribute('marker-end', head(lineInk(tag)));
     if (edge.label === undefined) continue;
     const label = surface.appendChild(div('clew-network-edge-label'));
     if (tag) label.dataset.tag = tag;

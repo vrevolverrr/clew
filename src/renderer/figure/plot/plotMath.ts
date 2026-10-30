@@ -10,10 +10,16 @@ function niceStep(span: number, count: number): number {
 export function niceTicks(low: number, high: number, count: number): number[] {
   const step = niceStep(high - low, count);
   const first = Math.ceil(low / step - 1e-9);
-  const ticks: number[] = [];
-  for (let i = first; i * step <= high + step * 1e-9; i++) ticks.push(+(i * step).toFixed(10));
-  return ticks;
+  const last = Math.floor(high / step + 1e-9);
+  // Counted, not stepped by i++: far from zero (1e20) adding 1 to i no longer changes it, and the loop would never end.
+  const n = Math.min(last - first, MAX_TICKS);
+  if (!Number.isFinite(n) || n < 0) return [low, high];
+  return Array.from({ length: n + 1 }, (_, k) => round((first + k) * step));
 }
+
+const MAX_TICKS = 100;
+/** Rounds away floating-point noise, keeping 12 significant digits so a tiny range (1e-12) keeps its size. */
+const round = (value: number): number => +value.toPrecision(12);
 
 /** The smallest range with round ends that holds `[low, high]`. A flat range gets some height. */
 export function niceDomain(low: number, high: number): [number, number] {
@@ -22,7 +28,7 @@ export function niceDomain(low: number, high: number): [number, number] {
     return niceDomain(low - pad, high + pad);
   }
   const step = niceStep(high - low, 5);
-  return [+(Math.floor(low / step + 1e-9) * step).toFixed(10), +(Math.ceil(high / step - 1e-9) * step).toFixed(10)];
+  return [round(Math.floor(low / step + 1e-9) * step), round(Math.ceil(high / step - 1e-9) * step)];
 }
 
 const MAX_LINES = 3;

@@ -143,7 +143,8 @@ describe('FigureView', () => {
   });
 
   it('numbers the one caption of a figure too long to list with the current step', async () => {
-    const frames = Array.from({ length: 7 }, (_, i) => ({ caption: `c${i}`, root: el('Node', { label: String(i) }) }));
+    // Repeated captions still take each step's number.
+    const frames = Array.from({ length: 7 }, (_, i) => ({ caption: 'same', root: el('Node', { label: String(i) }) }));
     const view = new FigureView(document.body, host(), sandbox(() => payload(frames)));
     await expect(view.run('src')).resolves.toEqual({ drawn: true });
     view.el.querySelector<HTMLButtonElement>('button[aria-label="Next"]')!.click();
@@ -304,6 +305,16 @@ describe('FigureView', () => {
     const frames = [...view.el.querySelectorAll('.clew-figure-step svg')].map((svg) => svg.getAttribute('viewBox'));
     expect(frames).toHaveLength(2);
     expect(frames[1]).toBe(frames[0]);
+  });
+
+  it('stacks pointers to two cells of one table row instead of drawing them on top of each other', async () => {
+    const table = el('Table', { id: 't', columns: ['a', 'b'], rows: [[1, 2]], rowIds: ['r'] });
+    const root = el('Row', {}, table, el('Pointer', { to: 'r.0', name: 'i' }), el('Pointer', { to: 'r.1', name: 'j' }));
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    const tops = [...view.el.querySelectorAll<HTMLElement>('.clew-figure-pointer')].map((pointer) => pointer.style.top);
+    expect(tops).toHaveLength(2);
+    expect(tops[1]).not.toBe(tops[0]);
   });
 
   it('draws a Diagram whose only point is the origin', async () => {

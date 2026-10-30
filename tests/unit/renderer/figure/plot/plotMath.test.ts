@@ -12,6 +12,19 @@ describe('niceTicks', () => {
   });
 });
 
+describe('niceTicks far from zero and close to it', () => {
+  it('ends where adding 1 to the counter changes nothing', () => {
+    const ticks = niceTicks(1e20, 1e20 + 32768, 5);
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(ticks.length).toBeLessThanOrEqual(101);
+  });
+
+  it('keeps a range of 1e-12 from rounding to nothing', () => {
+    const [low, high] = niceDomain(0, 1e-12);
+    expect(high).toBeGreaterThan(low);
+  });
+});
+
 describe('niceDomain', () => {
   it('widens a range to round ends that hold it', () => {
     expect(niceDomain(0.3, 8.7)).toEqual([0, 10]);

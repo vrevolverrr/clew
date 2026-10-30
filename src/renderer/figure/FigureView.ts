@@ -1,6 +1,6 @@
 import { CaptionStack } from '@/renderer/figure/CaptionStack';
 import { div } from '@/renderer/figure/dom';
-import { diagramExtent, drawDiagram, type Extent, type Room } from '@/renderer/figure/drawDiagram';
+import { diagramExtent, drawDiagram, type Extent, type Room, widen } from '@/renderer/figure/drawDiagram';
 import { drawGraph, layoutGraph } from '@/renderer/figure/drawGraph';
 import { drawLinks, type Link } from '@/renderer/figure/drawLinks';
 import { drawParams } from '@/renderer/figure/drawParams';
@@ -30,13 +30,16 @@ export interface FigureHost {
 
 export type FigureOutcome = { drawn: true } | { drawn: false; error: string; repairable: boolean };
 
-/** The tags the key explains: ▶, ✓ and green or red say what they mean, these three do not. */
 /** How long Play shows each step: long enough to read its caption. */
 const STEP_MS = 2000;
+
+/** How long a resize must rest before hidden steps repaint at the new width. */
+const SETTLE_MS = 150;
 
 /** The most steps listed beside a figure; more show one caption at a time. */
 const MAX_LISTED = 6;
 
+/** The tags the key explains: ▶, ✓ and green or red say what they mean, these three do not. */
 const MEANING: Partial<Record<Tag, string>> = {
   match: 'a found or equal pair',
   new: 'just added or changed',
@@ -142,6 +145,7 @@ export class FigureView {
   private playback?: Playback;
   private narrate?: (index: number) => void;
   private placeSide?: () => void;
+  private settle?: number;
   private params?: HTMLElement;
   private paramError?: HTMLElement;
   private body?: HTMLElement;
@@ -153,8 +157,8 @@ export class FigureView {
   private readonly rendered = new Map<string, DocumentFragment>();
   /** Each Diagram's extent, kept across redraws so it stays anchored as params change. */
   private readonly extents = new Map<string, Extent>();
-  /** Per Diagram, the most room past its border any step needs, and every step's paint, so all steps keep one frame. */
-  private readonly rooms = new Map<string, { room: Room; paints: Set<() => void> }>();
+  /** Per Diagram, the most room past its border any step needs, and every step's paint with its step, so all steps keep one frame. */
+  private readonly rooms = new Map<string, { room: Room; paints: Map<() => void, StepView> }>();
   /** Each sent Quiz answer, so a redraw keeps the Quiz answered. */
   private readonly answers = new Map<string, number>();
   /** The shown drawing's Markdown, for links redrawn after a resize. */
@@ -197,6 +201,7 @@ export class FigureView {
 
   destroy(): void {
     this.controller.abort();
+    window.clearTimeout(this.settle);
     this.observer?.disconnect();
     live.delete(this);
     // The last figure going (a closed chat, the plugin unloading) stops the watch, so a reload does not leave one behind.
@@ -405,6 +410,8 @@ export class FigureView {
       // Under the drawing, a list would push the current step out of view; one caption with the full player stays beside it.
       // A wrapped side column starts at the drawing's left edge, whatever its height.
       placeSide = () => {
+        // Measured without `is-under`, whose full-width basis would keep the column wrapped once the pane widens again.
+        side.classList.remove('is-under');
         const under = side.offsetLeft <= scroll.offsetLeft + 1;
         side.classList.toggle('is-under', under);
         playback?.el.classList.toggle('is-play-only', !under);
@@ -462,8 +469,11 @@ export class FigureView {
     }
     if (shown) commit();
     // Diagram labels drawn while their render ran were placed from an estimate.
+    const settled = renders.length;
     this.remeasure(drawing.markdown, renders.length > 0);
-    void document.fonts?.ready.then(() => {
+    // Links are placed again once the fonts load and once their own labels, rendered as the links were drawn, have finished:
+    // a rendered label is copied, so this second draw measures it whole.
+    void Promise.allSettled([...renders.slice(settled), document.fonts?.ready]).then(() => {
       if (generation === this.generation) for (const step of this.steps) drawLinks(step.el, step.links, drawing.markdown);
     });
     if (typeset) {
@@ -496,17 +506,20 @@ export class FigureView {
   }
 
   private resized(): void {
-    this.placeSide?.();
     const width = this.canvasWidth();
     if (!this.steps.length || width === this.width) return;
     this.width = width;
-    // Room is in pixels at the old scale; the steps measure it again as they repaint.
-    for (const shared of this.rooms.values()) shared.room = { left: 0, top: 0, right: 0, bottom: 0 };
+    this.placeSide?.();
     if (this.body) this.fitGraphs(this.body);
     this.steps.forEach((step, k) => {
       if (k === this.current) this.repaint(step);
       else step.dirty = true;
     });
+    // Hidden steps share the grid cell, so their old widths would keep the figure as wide as before; they repaint once the resize settles.
+    window.clearTimeout(this.settle);
+    this.settle = window.setTimeout(() => {
+      if (!this.controller.signal.aborted) for (const step of this.steps) if (step.dirty) this.repaint(step);
+    }, SETTLE_MS);
   }
 
   private repaint(step: StepView): void {
@@ -728,17 +741,21 @@ export class FigureView {
         const el = mark(child('clew-figure-diagram', child('clew-figure-canvas')), node.id);
         const key = nodeKey(node, ordinal());
         const extent = drawing.extents.get(key) ?? diagramExtent(node);
-        const shared = this.rooms.get(key) ?? { room: { left: 0, top: 0, right: 0, bottom: 0 }, paints: new Set() };
+        const shared = this.rooms.get(key) ?? { room: { left: 0, top: 0, right: 0, bottom: 0 }, paints: new Map() };
         this.rooms.set(key, shared);
         const paint = (): void => {
           const needed = drawDiagram(el, node, extent, this.width, drawing.markdown, shared.room);
-          const { room } = shared;
-          if (needed.left <= room.left && needed.top <= room.top && needed.right <= room.right && needed.bottom <= room.bottom) return;
-          shared.room = { left: Math.max(room.left, needed.left), top: Math.max(room.top, needed.top), right: Math.max(room.right, needed.right), bottom: Math.max(room.bottom, needed.bottom) };
-          // Room only grows, so each other step repaints at most once more per side that grew.
-          for (const other of shared.paints) if (other !== paint) other();
+          const grown = widen(shared.room, needed);
+          if ((['left', 'top', 'right', 'bottom'] as const).every((side) => grown[side] === shared.room[side])) return;
+          shared.room = grown;
+          // Only the shown step repaints now; the others repaint with the grown room when they are shown.
+          for (const [other, owner] of shared.paints) {
+            if (other === paint) continue;
+            if (owner.el.classList.contains('is-current')) other();
+            else owner.dirty = true;
+          }
         };
-        shared.paints.add(paint);
+        shared.paints.set(paint, view);
         paint();
         view.diagrams.push(paint);
         return;

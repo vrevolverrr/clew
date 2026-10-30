@@ -36,7 +36,8 @@ export function drawQuiz(parent: HTMLElement, quiz: Quiz, markdown: (el: HTMLEle
   submit.textContent = 'Submit';
 
   const right = quiz.options.indexOf(quiz.correct);
-  const key = quiz.id ?? quiz.question;
+  // A param can change the question or its answer under the same id; a saved answer belongs only to the same quiz.
+  const key = JSON.stringify([quiz.id, quiz.question, quiz.options, quiz.correct]);
   let chosen: number | null = answers.get(key) ?? null;
   let locked = chosen !== null;
   const buttons = quiz.options.map((option, index) => {

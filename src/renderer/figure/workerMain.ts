@@ -105,11 +105,12 @@ function run(source: string, sent: Record<string, unknown>): unknown {
     if (steps.length > LIMITS.steps) throw new FigureError(`Figure: ${steps.length} steps; the limit is ${LIMITS.steps}`);
     if (typeof render !== 'function') throw new FigureError('Figure render must be a function of the step');
     steps.forEach((step, i) => {
+      const call = (fn: unknown): unknown => (fn as (s: unknown, i: number) => unknown)(step, i);
       try {
         frames.push({
-          caption: typeof caption === 'function' ? (caption as (s: unknown, i: number) => unknown)(step, i) : '',
-          ...(typeof heading === 'function' ? { heading: (heading as (s: unknown, i: number) => unknown)(step, i) } : {}),
-          root: plain((render as (s: unknown, i: number) => unknown)(step, i), undefined),
+          caption: typeof caption === 'function' ? call(caption) : '',
+          ...(typeof heading === 'function' ? { heading: call(heading) } : {}),
+          root: plain(call(render), undefined),
         });
       } catch (error) {
         throw located(error, url, `Step ${i + 1}: `);

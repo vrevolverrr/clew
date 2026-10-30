@@ -177,16 +177,17 @@ function readStep(frame: unknown, index: number, count: number, figure: { elemen
   const path = `Step ${index + 1}`;
   if (!isObject(frame)) fail(path, 'a step must be an object');
   onlyKeys(frame, ['caption', 'heading', 'root'], path, 'a step');
-  const caption = own(frame, 'caption') ?? '';
-  if (typeof caption !== 'string' && typeof caption !== 'number') fail(path, 'the caption must be text');
-  const shown = typeof caption === 'number' ? formatFigure(caption) : caption;
-  if (count > 1 && !shown.trim()) fail(path, 'a caption is required when a figure has two or more steps');
   const scope: StepScope = { ids: new Map(), targets: [], anchors: 0, elements: 0 };
-  checkString(shown, path, 'the caption', scope, false);
-  const rawHeading = own(frame, 'heading') ?? '';
-  if (typeof rawHeading !== 'string' && typeof rawHeading !== 'number') fail(path, 'the heading must be text');
-  const heading = typeof rawHeading === 'number' ? formatFigure(rawHeading) : rawHeading.trim();
-  checkString(heading, path, 'the heading', scope, false);
+  const text = (key: 'caption' | 'heading'): string => {
+    const value = own(frame, key) ?? '';
+    if (typeof value !== 'string' && typeof value !== 'number') fail(path, `the ${key} must be text`);
+    const shown = typeof value === 'number' ? formatFigure(value) : value;
+    checkString(shown, path, `the ${key}`, scope, false);
+    return shown;
+  };
+  const shown = text('caption');
+  if (count > 1 && !shown.trim()) fail(path, 'a caption is required when a figure has two or more steps');
+  const heading = text('heading').trim();
   const root = readNode(own(frame, 'root'), path, 1, null, scope);
   for (const target of scope.targets) {
     if (!scope.ids.has(target.id)) fail(target.path, `${target.what} "${target.id}" names no element, row, item or node in this step`);
@@ -199,9 +200,10 @@ function readStep(frame: unknown, index: number, count: number, figure: { elemen
 /** Checks the maths in a string; anchors join the step's ids when they can be pointed at. */
 function checkString(value: string, path: string, what: string, scope: StepScope, anchors = true, whole = false): void {
   if (value.length > LIMITS.string) fail(path, `${what} is ${over(value.length, 'characters', LIMITS.string)}`);
+  // Renderers pair `$` signs differently, so a forbidden command anywhere in a string with maths fails, whatever the pairing.
+  const problem = whole || value.includes('$') ? texProblems(value) : undefined;
+  if (problem) fail(path, problem);
   for (const tex of whole ? [value] : texIn(value)) {
-    const problem = texProblems(tex);
-    if (problem) fail(path, problem);
     for (const anchor of texAnchors(tex)) {
       if (!anchors) {
         if (!ID.test(anchor)) fail(path, `anchor "${anchor}" is not an id`);

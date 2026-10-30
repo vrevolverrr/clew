@@ -1,4 +1,4 @@
-import { div, reducedMotion, svg } from '@/renderer/figure/dom';
+import { div, reducedMotion, svg, tagInk } from '@/renderer/figure/dom';
 import { categoriesOf, mixModel, modelDistance, type ResolvedModel, sameShape } from '@/renderer/figure/plot/mixModel';
 import { barSteps, niceDomain, niceTicks, wrapLabel } from '@/renderer/figure/plot/plotMath';
 import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
@@ -91,8 +91,8 @@ export class PlotChart {
   writeLabel: (el: HTMLElement, text: string) => void = (el, text) => {
     el.textContent = text;
   };
-  /** Each legend label as drawn, copied into the tooltip; the legend is redrawn only when its entries change. */
-  private labels = new Map<string, HTMLElement>();
+  /** Each label as drawn, written once: the legend shows it and the tooltip copies it, whether or not the legend lists it. */
+  private readonly labels = new Map<string, HTMLElement>();
   private legendKey = '';
 
   /** The owner calls `repaint` when the width changes. */
@@ -274,7 +274,7 @@ export class PlotChart {
   private assignColors(layers: readonly Layer[]): string[] {
     let next = 1;
     return layers.map((layer) => {
-      if (layer.tag) return `var(--clew-figure-tag-${layer.tag})`;
+      if (layer.tag) return tagInk(layer.tag);
       if (layer.kind === 'note') return 'var(--text-normal)';
       if (layer.series !== undefined) return seriesColor(layer.series);
       if (layer.kind === 'dot' || layer.kind === 'arrow') return 'var(--text-normal)';
@@ -302,14 +302,17 @@ export class PlotChart {
     const legendKey = JSON.stringify(entries);
     if (legendKey === this.legendKey) return;
     this.legendKey = legendKey;
-    const labels = new Map<string, HTMLElement>();
-    this.legend.replaceChildren(...entries.map(([text, color, kind]) => {
-      const label = this.labels.get(text) ?? createSpan();
-      if (!this.labels.has(text)) this.writeLabel(label, text);
-      labels.set(text, label);
-      return key(label, color, kind);
-    }));
-    this.labels = labels;
+    this.legend.replaceChildren(...entries.map(([text, color, kind]) => key(this.label(text), color, kind)));
+  }
+
+  private label(text: string): HTMLElement {
+    let label = this.labels.get(text);
+    if (!label) {
+      label = createSpan();
+      this.writeLabel(label, text);
+      this.labels.set(text, label);
+    }
+    return label;
   }
 
   private text(parent: Element, x: number, y: number, text: string, anchor: 'start' | 'middle' | 'end', strong: boolean): void {
@@ -434,8 +437,7 @@ export class PlotChart {
       const row = createDiv();
       const strong = createEl('b');
       strong.textContent = value;
-      const drawn = this.labels.get(label)?.cloneNode(true);
-      row.append(swatch('dot', color), ...(label ? [drawn ?? label, ': '] : []), strong);
+      row.append(swatch('dot', color), ...(label ? [this.label(label).cloneNode(true), ': '] : []), strong);
       tip.append(row);
     }
     tip.hidden = false;

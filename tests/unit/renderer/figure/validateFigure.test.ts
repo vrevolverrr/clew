@@ -151,6 +151,10 @@ describe('validateFigure output', () => {
     expect(errorOf({ params: {}, frames: [{ caption: 'one', root: node() }, { caption: ' ', root: node() }] })).toBe('Step 2: a caption is required when a figure has two or more steps');
   });
 
+  it('refuses a forbidden TeX command a different pairing of $ signs would hide', () => {
+    expect(errorOf({ params: {}, frames: [{ caption: 'pay $5 and $\\style{color:red}{x}$', root: node() }] })).toMatch(/\\style is not allowed/);
+  });
+
   it('keeps a step heading, leaves out a blank one, and refuses one that is not text', () => {
     const result = validateFigure({ params: {}, frames: [{ caption: 'one', heading: 'First', root: node() }, { caption: 'two', heading: ' ', root: node() }] });
     if (!result.ok) throw new Error(result.error);

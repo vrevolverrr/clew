@@ -13,6 +13,12 @@ describe('diagramExtent', () => {
     expect(diagramExtent(diagram({ type: 'Segment', from: [1, 2], to: [3, 4] }))).toEqual([1, 2, 3, 4]);
   });
 
+  it('fits a quarter of a million points without spreading them into Math.min', () => {
+    const pts = Array.from({ length: 2000 }, (_, i): [number, number] => [i, -i]);
+    const many = diagram(...Array.from({ length: 128 }, (): DiagramLayer => ({ type: 'Points', pts })));
+    expect(diagramExtent(many)).toEqual([0, -1999, 1999, 0]);
+  });
+
   it('gives a single point a unit around it', () => {
     expect(diagramExtent(diagram({ type: 'Points', pts: [[2, -1]] }))).toEqual([1, -2, 3, 0]);
   });

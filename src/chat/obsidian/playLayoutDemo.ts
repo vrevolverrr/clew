@@ -1,7 +1,7 @@
-import { type App, Notice } from 'obsidian';
+import type { App } from 'obsidian';
 
-import { type DemoChat, scriptedSession } from '@/chat/obsidian/playHighlightDemo';
-import { fence } from '@/chat/obsidian/playVisualsDemo';
+import type { DemoChat } from '@/chat/obsidian/playHighlightDemo';
+import { fence, playScriptedTurns } from '@/chat/obsidian/playVisualsDemo';
 
 const LISTED = String.raw`const g = 10, top = 11.25;
 
@@ -28,7 +28,7 @@ export default function () {
     while (j >= 0 && a[j] > key) { a[j + 1] = a[j]; j--; }
     a[j + 1] = key;
     const moved = i - 1 - j;
-    steps.push({ a: a.slice(), sorted: i + 1, key, heading: 'Insert ' + key, text: (moved ? 'Shift ' + moved + (moved === 1 ? ' larger item' : ' larger items') + ' right and drop ' + key + ' at position ' + (j + 2) : key + ' already sits after everything smaller') + '. The first ' + (i + 1) + ' items are sorted.' });
+    steps.push({ a: a.slice(), sorted: i + 1, key, heading: 'Insert ' + key, text: (moved ? 'Shift ' + moved + (moved === 1 ? ' larger item' : ' larger items') + ' right and drop ' + key + ' at index ' + (j + 1) : key + ' already sits after everything smaller') + '. The first ' + (i + 1) + ' items are sorted.' });
   }
   return <Figure steps={steps} heading={s => s.heading} caption={s => s.text} render={s => (
     <Seq id="a" items={s.a.map(v => ({ id: 'v' + v, label: v }))} index
@@ -106,11 +106,7 @@ export const LAYOUT_DEMO_TURNS: readonly { message: string; reply: string }[] = 
   },
 ];
 
-/** Plays scripted replies in a new chat, one figure per layout, so each can be checked while the pane is resized. */
-export async function playLayoutDemo(app: App, openChat: () => Promise<DemoChat | null>): Promise<void> {
-  const chat = await openChat();
-  if (!chat) return;
-  new Notice('Figure layout demo: resize the pane and step through each figure.');
-  const path = app.workspace.getActiveFile()?.path ?? '';
-  for (const turn of LAYOUT_DEMO_TURNS) await chat.playTurn(turn.message, scriptedSession(turn.reply), path);
+/** One figure per layout, so each can be checked while the pane is resized. */
+export function playLayoutDemo(app: App, openChat: () => Promise<DemoChat | null>): Promise<void> {
+  return playScriptedTurns(app, openChat, 'Figure layout demo: resize the pane and step through each figure.', LAYOUT_DEMO_TURNS);
 }
