@@ -2,8 +2,13 @@ import { TAGS, type Tag } from '@/renderer/figure/FigureData';
 
 export type Rgb = readonly [number, number, number];
 
-// Inline maths as Obsidian reads it (Pandoc's rule): no space just inside either `$`, and no digit right after the closing one, so prices stay text.
-const MATH = /(?<!\\)\$\$[\s\S]+?\$\$|(?<!\\)\$(?=[^\s$])(?:[^$\n\\]|\\.)*?(?<=[^\s\\])\$(?!\d)/g;
+// Every span any renderer might typeset as maths: the checks and the sanitising run on these, so they fail closed.
+const MATH = /(?<!\\)\$\$[\s\S]+?\$\$|(?<!\\)\$(?:[^$\n\\]|\\.)+?\$/g;
+/**
+ * Inline maths as Obsidian reads it (Pandoc's rule): no space just inside either `$`, and no digit right after the closing
+ * one, so prices stay text. Only for deciding what Clew typesets itself, never for a check.
+ */
+export const TYPESET_MATH = /(?<!\\)\$\$[\s\S]+?\$\$|(?<!\\)\$(?=[^\s$])(?:[^$\n\\]|\\.)*?(?<=[^\s\\])\$(?!\d)/g;
 const COLOUR = /\\(rowcolor|cellcolor|colorbox|color)\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g;
 const BBOX = /\\bbox\s*\[([^\]]*)\]/g;
 const ANCHOR = /\\cssId\s*\{([^}]*)\}/g;
@@ -13,10 +18,10 @@ const TAG_LIST = TAGS.join(', ');
 const isTag = (name: string): name is Tag => (TAGS as readonly string[]).includes(name);
 
 /** Applies `inMath` to each `$…$` and `$$…$$` of Markdown, delimiters included, and `outside` to the text between. */
-export function mapMath(markdown: string, inMath: (math: string) => string, outside: (text: string) => string = (text) => text): string {
+export function mapMath(markdown: string, inMath: (math: string) => string, outside: (text: string) => string = (text) => text, pattern = MATH): string {
   let out = '';
   let at = 0;
-  for (const match of markdown.matchAll(MATH)) {
+  for (const match of markdown.matchAll(pattern)) {
     out += outside(markdown.slice(at, match.index)) + inMath(match[0]);
     at = match.index + match[0].length;
   }

@@ -1,12 +1,23 @@
-import { drawTex, drawTexIn, texAnchors, texIn, texProblems } from '@/renderer/figure/figureTex';
+import { drawTex, drawTexIn, mapMath, texAnchors, texIn, texProblems, TYPESET_MATH } from '@/renderer/figure/figureTex';
 
 const colour = (_tag: string, fill: boolean): readonly [number, number, number] => (fill ? [1, 2, 3] : [10, 20, 30]);
 
-describe('texIn', () => {
-  it('reads inline maths as Obsidian does, so prices stay text', () => {
-    expect(texIn('debits $28,200.00 equal credits $28,200.00.')).toEqual([]);
-    expect(texIn('costs $5 and $10')).toEqual([]);
-    expect(texIn('$x$, $a + b$ and $$\\sum x$$')).toEqual(['$x$', '$a + b$', '$$\\sum x$$']);
+describe('maths spans', () => {
+  const typeset = (text: string): string[] => {
+    const spans: string[] = [];
+    mapMath(text, (math) => (spans.push(math), math), undefined, TYPESET_MATH);
+    return spans;
+  };
+
+  it('typesets inline maths as Obsidian does, so prices stay text', () => {
+    expect(typeset('debits $28,200.00 equal credits $28,200.00.')).toEqual([]);
+    expect(typeset('costs $5 and $10')).toEqual([]);
+    expect(typeset('$x$, $a + b$ and $$\\sum x$$')).toEqual(['$x$', '$a + b$', '$$\\sum x$$']);
+  });
+
+  it('checks every span another renderer might typeset, so a check never misses one', () => {
+    expect(texIn('a $ \\style{x}{y} $ b')).toEqual(['$ \\style{x}{y} $']);
+    expect(texProblems('$ \\style{x}{y} $')).toBeDefined();
   });
 });
 

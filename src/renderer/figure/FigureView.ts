@@ -8,7 +8,7 @@ import { plotModel } from '@/renderer/figure/drawPlot';
 import { drawQuiz } from '@/renderer/figure/drawQuiz';
 import { type FigureData, type FigureNode, type Param, TAGS, type Tag } from '@/renderer/figure/FigureData';
 import { figureSandbox, type FigureSandbox } from '@/renderer/figure/FigureSandbox';
-import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texTags } from '@/renderer/figure/figureTex';
+import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texTags, TYPESET_MATH } from '@/renderer/figure/figureTex';
 import { figureText } from '@/renderer/figure/figureText';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { status } from '@/renderer/figure/geometry';
@@ -58,7 +58,7 @@ function mathParts(markdown: string): (string | { tex: string; display: boolean 
     plain &&= isPlain(text);
     parts.push(text);
     return '';
-  });
+  }, TYPESET_MATH);
   return plain ? parts : undefined;
 }
 /** Runs per param when fitting a Diagram's frame to its range. */
