@@ -150,4 +150,11 @@ describe('validateFigure output', () => {
   it('requires a caption on every step of a stepped figure', () => {
     expect(errorOf({ params: {}, frames: [{ caption: 'one', root: node() }, { caption: ' ', root: node() }] })).toBe('Step 2: a caption is required when a figure has two or more steps');
   });
+
+  it('keeps a step heading, leaves out a blank one, and refuses one that is not text', () => {
+    const result = validateFigure({ params: {}, frames: [{ caption: 'one', heading: 'First', root: node() }, { caption: 'two', heading: ' ', root: node() }] });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.figure.steps.map((step) => step.heading)).toEqual(['First', undefined]);
+    expect(errorOf({ params: {}, frames: [{ caption: 'one', heading: ['x'], root: node() }] })).toBe('Step 1: the heading must be text');
+  });
 });

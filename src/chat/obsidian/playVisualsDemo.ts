@@ -2,7 +2,7 @@ import { type App, Notice } from 'obsidian';
 
 import { type DemoChat, scriptedSession } from '@/chat/obsidian/playHighlightDemo';
 
-const fence = (program: string): string => ['```figure', program, '```'].join('\n');
+export const fence = (program: string): string => ['```figure', program, '```'].join('\n');
 
 const TAYLOR = String.raw`export const params = { n: { label: 'Terms in the series', min: 1, max: 8, step: 1, value: 3 } };
 
@@ -133,6 +133,51 @@ export default function () {
   )} />;
 }`;
 
+const T_ACCOUNTS = String.raw`const transactions = [
+  { description: 'Owner invests cash', debit: 'Cash', credit: "Owner's Capital", amount: 2000000 },
+  { description: 'Buy equipment on account', debit: 'Equipment', credit: 'Accounts Payable', amount: 750000 },
+  { description: 'Perform services for cash', debit: 'Cash', credit: 'Service Revenue', amount: 320000 },
+  { description: 'Pay rent', debit: 'Rent Expense', credit: 'Cash', amount: 110000 },
+  { description: 'Pay part of the payable', debit: 'Accounts Payable', credit: 'Cash', amount: 250000 },
+];
+
+export default function () {
+  const usd = c => '$' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const accounts = [...new Set(transactions.flatMap(t => [t.debit, t.credit]))];
+  const slug = a => a.replace(/[^A-Za-z]/g, '');
+  const balance = p => p.dr.reduce((s, v) => s + v, 0) - p.cr.reduce((s, v) => s + v, 0);
+  const side = v => usd(Math.abs(v)) + (v >= 0 ? ' Dr' : ' Cr');
+  const posted = Object.fromEntries(accounts.map(a => [a, { dr: [], cr: [] }]));
+  const steps = transactions.map((t, i) => {
+    posted[t.debit].dr.push(t.amount);
+    posted[t.credit].cr.push(t.amount);
+    const snap = Object.fromEntries(accounts.map(a => [a, { dr: posted[a].dr.slice(), cr: posted[a].cr.slice() }]));
+    return { i, posted: snap, text: t.description + ': debit ' + t.debit + ', credit ' + t.credit + ', ' + usd(t.amount) + '. Balances: ' + t.debit + ' ' + side(balance(snap[t.debit])) + ', ' + t.credit + ' ' + side(balance(snap[t.credit])) + '.' };
+  });
+  const total = accounts.map(a => balance(posted[a])).filter(v => v > 0).reduce((s, v) => s + v, 0);
+  steps.push({ trial: true, text: 'Trial balance: total debits ' + usd(total) + ' equal total credits ' + usd(total) + '.' });
+  return <Figure steps={steps} caption={step => step.text} render={step => step.trial ? (
+    <Table id="trial" title="Trial balance" columns={['Account', 'Debit', 'Credit']}
+      rows={accounts.map(a => { const v = balance(posted[a]); return [a, v > 0 ? usd(v) : '', v < 0 ? usd(-v) : '']; }).concat([['Total', usd(total), usd(total)]])}
+      rowIds={accounts.map(slug).concat(['total'])} tags={{ total: 'match' }} />
+  ) : (
+    <Row gap="md">
+      {accounts.map(a => {
+        const { dr, cr } = step.posted[a];
+        const rows = Array.from({ length: Math.max(dr.length, cr.length, 1) }, (_, k) => [dr[k] === undefined ? '' : usd(dr[k]), cr[k] === undefined ? '' : usd(cr[k])]);
+        const v = balance(step.posted[a]);
+        const t = transactions[step.i];
+        return (
+          <Panel id={slug(a)} title={a} tag={t.debit === a || t.credit === a ? 'active' : undefined}>
+            <Table id={'t-' + slug(a)} columns={['Debit', 'Credit']} rows={rows.concat([[v >= 0 ? usd(v) : '', v < 0 ? usd(-v) : '']])}
+              rowIds={rows.map((_, k) => slug(a) + '-' + k).concat([slug(a) + '-bal'])} tags={{ [slug(a) + '-bal']: 'done' }} />
+          </Panel>
+        );
+      })}
+    </Row>
+  )} />;
+}`;
+
 /** What an agent would write, in two turns: a reply draws at most four figures. */
 export const VISUALS_DEMO_TURNS: readonly { message: string; reply: string }[] = [
   {
@@ -149,7 +194,7 @@ export const VISUALS_DEMO_TURNS: readonly { message: string; reply: string }[] =
     ].join('\n\n'),
   },
   {
-    message: 'Show me geometry, a matrix and a table.',
+    message: 'Show me geometry, a matrix and some tables.',
     reply: [
       'A block on an incline. Change the angle and the forces follow:',
       fence(INCLINE),
@@ -157,6 +202,8 @@ export const VISUALS_DEMO_TURNS: readonly { message: string; reply: string }[] =
       fence(ELIMINATION),
       'Edit distance as a table that fills row by row:',
       fence(EDIT_DISTANCE),
+      'T-accounts posted one transaction at a time, then the trial balance:',
+      fence(T_ACCOUNTS),
       'That is every kind of figure. Try them in a light and a dark theme.',
     ].join('\n\n'),
   },

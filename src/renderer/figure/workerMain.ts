@@ -96,10 +96,10 @@ function run(source: string, sent: Record<string, unknown>): unknown {
   } catch (error) {
     throw located(error, url, '');
   }
-  const frames: { caption: unknown; root: unknown }[] = [];
+  const frames: { caption: unknown; heading?: unknown; root: unknown }[] = [];
   let title: unknown;
   if (isWire(result) && result.type === 'Figure') {
-    const { steps, caption, render } = result.props;
+    const { steps, caption, heading, render } = result.props;
     title = result.props.title;
     if (!Array.isArray(steps)) throw new FigureError('Figure steps must be an array, one value per step');
     if (steps.length > LIMITS.steps) throw new FigureError(`Figure: ${steps.length} steps; the limit is ${LIMITS.steps}`);
@@ -108,6 +108,7 @@ function run(source: string, sent: Record<string, unknown>): unknown {
       try {
         frames.push({
           caption: typeof caption === 'function' ? (caption as (s: unknown, i: number) => unknown)(step, i) : '',
+          ...(typeof heading === 'function' ? { heading: (heading as (s: unknown, i: number) => unknown)(step, i) } : {}),
           root: plain((render as (s: unknown, i: number) => unknown)(step, i), undefined),
         });
       } catch (error) {

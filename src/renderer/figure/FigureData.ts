@@ -57,6 +57,8 @@ export interface FigureData {
 
 export interface Step {
   caption: string;
+  /** A few words naming the step, shown above its caption. */
+  heading?: string;
   root: FigureNode;
   /** Every id this step's links and tags can name: elements, rows, cells, items, nodes, edges and TeX anchors. */
   ids: ReadonlySet<string>;

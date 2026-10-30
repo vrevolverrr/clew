@@ -1,4 +1,4 @@
-import { div, svg } from '@/renderer/figure/dom';
+import { arrowHeads, div, svg } from '@/renderer/figure/dom';
 import type { FigureNode, GraphEdge, GraphNode, Tag } from '@/renderer/figure/FigureData';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { position, status } from '@/renderer/figure/geometry';
@@ -8,7 +8,6 @@ type Graph = Extract<FigureNode, { type: 'Graph' }>;
 
 export type Markdown = (el: HTMLElement, text: string | number) => void;
 
-let markerId = 0;
 
 const nodeText = (node: GraphNode): string => [formatFigure(node.label), node.sub === undefined ? '' : formatFigure(node.sub)].filter(Boolean).join('\n');
 
@@ -52,9 +51,7 @@ export function drawGraph(parent: HTMLElement, graph: Graph, layout: NetworkLayo
   surface.style.width = `${layout.width}px`;
   surface.style.height = `${layout.height}px`;
   const drawing = svg('svg', { width: layout.width, height: layout.height, 'aria-hidden': 'true', class: 'clew-network-edges' }, surface);
-  const marker = `clew-figure-graph-arrow-${(markerId += 1)}`;
-  const head = svg('marker', { id: marker, viewBox: '0 0 10 10', refX: 9, refY: 5, markerUnits: 'userSpaceOnUse', markerWidth: 12, markerHeight: 12, orient: 'auto-start-reverse' }, svg('defs', {}, drawing));
-  svg('path', { d: 'M0 0L10 5L0 10z', fill: 'context-stroke' }, head);
+  const head = arrowHeads(drawing, { markerUnits: 'userSpaceOnUse', markerWidth: 12, markerHeight: 12 });
 
   const present = new Map(edgeKeys(graph.edges).map((key, i) => [key, graph.edges[i]]));
   for (const geometry of layout.edges) {
@@ -64,7 +61,7 @@ export function drawGraph(parent: HTMLElement, graph: Graph, layout: NetworkLayo
     const path = svg('path', { d: geometry.path, fill: 'none', class: 'clew-network-edge' }, drawing);
     if (edge.id) path.dataset.figureId = edge.id;
     if (tag) path.dataset.tag = tag;
-    if (edge.directed) path.setAttribute('marker-end', `url(#${marker})`);
+    if (edge.directed) path.setAttribute('marker-end', head(tag === 'active' ? 'var(--interactive-accent)' : 'var(--text-muted)'));
     if (edge.label === undefined) continue;
     const label = surface.appendChild(div('clew-network-edge-label'));
     if (tag) label.dataset.tag = tag;

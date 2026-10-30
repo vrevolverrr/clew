@@ -1,6 +1,14 @@
-import { drawTex, drawTexIn, texAnchors, texProblems } from '@/renderer/figure/figureTex';
+import { drawTex, drawTexIn, texAnchors, texIn, texProblems } from '@/renderer/figure/figureTex';
 
 const colour = (_tag: string, fill: boolean): readonly [number, number, number] => (fill ? [1, 2, 3] : [10, 20, 30]);
+
+describe('texIn', () => {
+  it('reads inline maths as Obsidian does, so prices stay text', () => {
+    expect(texIn('debits $28,200.00 equal credits $28,200.00.')).toEqual([]);
+    expect(texIn('costs $5 and $10')).toEqual([]);
+    expect(texIn('$x$, $a + b$ and $$\\sum x$$')).toEqual(['$x$', '$a + b$', '$$\\sum x$$']);
+  });
+});
 
 describe('texProblems', () => {
   it.each([

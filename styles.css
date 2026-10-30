@@ -673,7 +673,7 @@
 /* FigureView reads this padding and border to size what it draws inside. */
 .clew-figure-canvas {
   width: fit-content;
-  padding: var(--size-4-4);
+  padding: var(--size-4-3);
 }
 
 .clew-mermaid {
@@ -2864,6 +2864,7 @@
 
 /* Figures: model-written programs drawn with the host's own layout. Tag colours are per surface, never one rule for every [data-tag]. */
 .clew-figure {
+  --clew-figure-ink: color-mix(in srgb, var(--text-normal) 80%, var(--background-primary));
   --clew-figure-tag-active: var(--interactive-accent);
   --clew-figure-tag-done: var(--text-muted);
   --clew-figure-tag-match: var(--color-cyan);
@@ -2939,7 +2940,249 @@
   min-width: 0;
 }
 
+/* The caption sits beside a drawing narrow enough to leave it room, and wraps under one that is not. */
+.clew-figure-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2) var(--size-4-6);
+}
+
+/* The side column takes nearly all the spare width on a shared line, so the drawing stays its own size there; alone on its line after a wrap, the drawing takes the full width. */
+.clew-figure-side {
+  display: flex;
+  flex: 1000 1 18em;
+  flex-direction: column;
+  gap: var(--size-4-3);
+  font-size: calc(var(--font-ui-medium) - 1px);
+}
+
+.clew-figure-side:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+/* With the full player, the caption and player always sit under the figure, centred, and the player is wide enough to scrub. */
+.clew-figure-side.is-player,
+.clew-figure-side.is-listed.is-under {
+  flex-basis: 100%;
+  align-items: center;
+}
+
+.clew-figure-side:is(.is-player, .is-under) .clew-player {
+  width: min(100%, 32em);
+}
+
+/* A listed figure keeps both views of its steps and shows the list beside the drawing, the one caption under it. */
+.clew-figure-side.is-listed.is-under > .clew-steps,
+.clew-figure-side.is-listed:not(.is-under) > .clew-captions {
+  display: none;
+}
+
+.clew-figure-side .clew-caption {
+  color: var(--text-normal);
+}
+
+.clew-figure-side .clew-player {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* The full player is its own card, like the figure's, so its controls and track read as one object. */
+.clew-figure-side .clew-player:not(.is-play-only) {
+  padding: var(--size-4-1) var(--size-4-3) var(--size-4-1) var(--size-4-1);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: var(--background-primary);
+}
+
+.clew-player.is-play-only :is(input[type='range'], .clew-player-count, .is-back, .is-next) {
+  display: none;
+}
+
+/* Play sits in the stepper's column, drawn like one of its dots. */
+.clew-player.is-play-only .clew-player-button {
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border-hover);
+  color: var(--text-muted);
+}
+
+.clew-player.is-play-only .clew-player-button:hover {
+  border-color: var(--interactive-accent);
+  background: none;
+  color: var(--text-accent);
+}
+
+.clew-player.is-play-only .clew-player-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* A vertical stepper: numbered dots joined by a line that fills in as the steps pass. */
+.clew-steps {
+  --clew-step-done: color-mix(in srgb, var(--interactive-accent) 50%, var(--background-primary));
+}
+
+.clew-step {
+  position: relative;
+}
+
+.clew-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: -12px;
+  left: 11.5px;
+  width: 1px;
+  background: var(--background-modifier-border);
+  transition: background-color 0.25s ease;
+}
+
+.clew-step.is-done::before {
+  background: var(--clew-step-done);
+}
+
+/* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
+.clew-steps .clew-step-button {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--size-4-3);
+  width: 100%;
+  height: auto;
+  padding: 0 0 var(--size-4-5);
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-faint);
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.clew-step:last-child .clew-step-button {
+  padding-bottom: 0;
+}
+
+.clew-steps .clew-step-button:hover {
+  color: var(--text-muted);
+}
+
+.clew-step.is-current .clew-step-button {
+  color: var(--text-normal);
+}
+
+.clew-steps .clew-step-button:focus-visible {
+  outline: none;
+}
+
+.clew-steps .clew-step-button:focus-visible .clew-step-dot {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.clew-step-dot {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--background-modifier-border-hover);
+  border-radius: 50%;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.clew-step.is-done .clew-step-dot {
+  border-color: var(--clew-step-done);
+  color: var(--clew-step-done);
+}
+
+:is(.clew-step.is-current .clew-step-dot, .clew-step-dot.is-current) {
+  border-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
+  color: var(--text-accent);
+  font-weight: var(--font-semibold);
+}
+
+/* Lifted so the lowercase text, not its line box, centres on the dot. */
+.clew-caption.is-numbered {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--size-4-3);
+}
+
+.clew-caption.is-numbered > .clew-step-text {
+  flex: 0 1 auto;
+}
+
+.clew-step-text {
+  flex: 1;
+  min-width: 0;
+  margin-top: -1px;
+  line-height: 24px;
+  overflow-wrap: break-word;
+}
+
+/* Obsidian colours bold and italic text itself; here they follow the step's dimming. */
+.clew-figure :is(.clew-step-text, .clew-caption) :is(strong, b, em, i) {
+  color: inherit;
+}
+
+.clew-step-text > :first-child,
+.clew-step-text > :first-child > :first-child,
+:is(.clew-step-heading, .clew-step-caption) > * {
+  margin: 0;
+}
+
+/* With a heading, the caption is the detail under it: smaller, and muted while its step is current. */
+.clew-step-heading {
+  font-weight: var(--font-semibold);
+}
+
+.clew-step-heading + .clew-step-caption {
+  margin-top: 2px;
+  font-size: calc(var(--font-ui-medium) - 3px);
+  line-height: 1.5;
+}
+
+:is(.clew-step.is-current, .clew-caption) .clew-step-heading + .clew-step-caption {
+  color: var(--text-muted);
+}
+
+.clew-steps-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-step::before,
+  .clew-steps .clew-step-button,
+  .clew-step-dot {
+    transition: none;
+  }
+}
+
 .clew-figure-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   max-width: 100%;
 }
@@ -2974,9 +3217,21 @@
   align-self: stretch;
 }
 
-/* A step's outer Row is centred, so what is left of the pane's width falls on both sides, not all on the right. */
+/* A step's outer Row is centred, so what is left of the pane's width falls on both sides, not all on the right. `safe` starts
+   one wider than the pane at its left edge, where it can scroll, instead of spilling past it. */
 .clew-figure-step > .clew-figure-row {
-  justify-content: center;
+  justify-content: safe center;
+}
+
+/* A lone drawing, strip, table or formula is centred the same way; auto margins fall back to the left edge when it overflows. */
+.clew-figure-step > :is(.clew-figure-canvas, .clew-figure-seq, .clew-figure-table),
+:is(.clew-figure-step, .clew-figure-column) > .clew-figure-tex {
+  margin-inline: auto;
+}
+
+.clew-figure-tex,
+.clew-figure-step > :is(.clew-figure-seq, .clew-figure-table) {
+  width: fit-content;
 }
 
 /* A column of cards takes the widest card's width. */
@@ -3078,8 +3333,8 @@
   justify-content: center;
   min-width: 48px;
   padding: 6px 12px;
-  border: 1px solid var(--text-muted);
-  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
   text-align: center;
   background: var(--background-primary);
 }
@@ -3093,6 +3348,17 @@
 .clew-network-node-sub {
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* A Tex element is often the figure itself (a matrix, a derivation), so it is set larger than the figure's UI text. */
+.clew-figure-tex {
+  font-size: 1.3em;
+}
+
+/* Left-aligned, so the room its pointers reserve on the right never moves the formula. Doubled up to outrank MathJax's own centring. */
+.clew-figure .clew-figure-tex mjx-container[display='true'] {
+  margin: 0;
+  text-align: left;
 }
 
 .clew-figure-text {
@@ -3126,9 +3392,9 @@
 }
 
 .clew-figure-mark {
-  color: var(--text-normal);
+  color: var(--clew-figure-ink);
   stroke: currentColor;
-  stroke-width: 1.75;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -3154,6 +3420,10 @@
   font-size: 13px;
   line-height: 18px;
   white-space: nowrap;
+}
+
+.clew-figure-diagram-label.is-inside {
+  background: none;
 }
 
 .clew-figure-links {
@@ -3220,6 +3490,11 @@
   transform: translateY(-50%);
 }
 
+/* The size of the Tex beside it, which reserves its room in this size's ch. */
+.clew-figure-pointer.is-tex {
+  font-size: 1.3em;
+}
+
 .clew-figure-key {
   display: flex;
   flex-wrap: wrap;
@@ -3252,7 +3527,7 @@
 }
 
 .clew-figure .clew-captions:not([hidden]) {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Tags, one rule per surface: boxes (nodes, cells, key marks), lines (edges, links) and text (edge labels, pointers). A table cell's rule outranks Obsidian's striped columns. */

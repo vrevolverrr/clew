@@ -1,6 +1,6 @@
 import { CaptionStack } from '@/renderer/figure/CaptionStack';
 import { div } from '@/renderer/figure/dom';
-import { diagramExtent, drawDiagram, type Extent } from '@/renderer/figure/drawDiagram';
+import { diagramExtent, drawDiagram, type Extent, type Room } from '@/renderer/figure/drawDiagram';
 import { drawGraph, layoutGraph } from '@/renderer/figure/drawGraph';
 import { drawLinks, type Link } from '@/renderer/figure/drawLinks';
 import { drawParams } from '@/renderer/figure/drawParams';
@@ -15,6 +15,7 @@ import { status } from '@/renderer/figure/geometry';
 import type { NetworkLayout } from '@/renderer/figure/network/layoutNetwork';
 import { Playback } from '@/renderer/figure/Playback';
 import { PlotChart } from '@/renderer/figure/plot/PlotChart';
+import { StepList } from '@/renderer/figure/StepList';
 import { validateFigure } from '@/renderer/figure/validateFigure';
 
 export interface FigureHost {
@@ -30,6 +31,12 @@ export interface FigureHost {
 export type FigureOutcome = { drawn: true } | { drawn: false; error: string; repairable: boolean };
 
 /** The tags the key explains: ▶, ✓ and green or red say what they mean, these three do not. */
+/** How long Play shows each step: long enough to read its caption. */
+const STEP_MS = 2000;
+
+/** The most steps listed beside a figure; more show one caption at a time. */
+const MAX_LISTED = 6;
+
 const MEANING: Partial<Record<Tag, string>> = {
   match: 'a found or equal pair',
   new: 'just added or changed',
@@ -133,7 +140,8 @@ export class FigureView {
   private generation = 0;
   private steps: StepView[] = [];
   private playback?: Playback;
-  private captions?: CaptionStack;
+  private narrate?: (index: number) => void;
+  private placeSide?: () => void;
   private params?: HTMLElement;
   private paramError?: HTMLElement;
   private body?: HTMLElement;
@@ -145,6 +153,8 @@ export class FigureView {
   private readonly rendered = new Map<string, DocumentFragment>();
   /** Each Diagram's extent, kept across redraws so it stays anchored as params change. */
   private readonly extents = new Map<string, Extent>();
+  /** Per Diagram, the most room past its border any step needs, and every step's paint, so all steps keep one frame. */
+  private readonly rooms = new Map<string, { room: Room; paints: Set<() => void> }>();
   /** Each sent Quiz answer, so a redraw keeps the Quiz answered. */
   private readonly answers = new Map<string, number>();
   /** The shown drawing's Markdown, for links redrawn after a resize. */
@@ -298,6 +308,7 @@ export class FigureView {
 
   private clear(): void {
     this.generation += 1;
+    this.rooms.clear();
     this.playback?.stop();
     for (const step of this.steps) for (const plot of step.plots) plot.destroy();
     this.steps = [];
@@ -311,6 +322,8 @@ export class FigureView {
    */
   private async draw(figure: FigureData, keepStep: boolean): Promise<void> {
     const generation = (this.generation += 1);
+    // The room each Diagram keeps carries over, so a redraw does not move it; the paints are this drawing's.
+    for (const shared of this.rooms.values()) shared.paints.clear();
     const shown = this.body?.isConnected ? this.body : undefined;
     if (!shown) this.el.replaceChildren();
     const renders: Promise<unknown>[] = [];
@@ -350,7 +363,9 @@ export class FigureView {
     const body = this.el.appendChild(div('clew-figure-body'));
     if (shown) body.classList.add('is-pending');
     if (figure.title) drawing.markdown(body.appendChild(div('clew-figure-title')), figure.title);
-    const stack = body.appendChild(div('clew-figure-scroll')).appendChild(div('clew-figure-stack'));
+    const main = body.appendChild(div('clew-figure-main'));
+    const scroll = main.appendChild(div('clew-figure-scroll'));
+    const stack = scroll.appendChild(div('clew-figure-stack'));
     this.width = this.canvasWidth();
     const steps = figure.steps.map((step) => {
       const view: StepView = { el: stack.appendChild(div('clew-figure-step')), links: [], plots: [], diagrams: [], dirty: false };
@@ -370,9 +385,32 @@ export class FigureView {
       return view;
     });
 
+    const side = main.appendChild(div('clew-figure-side'));
+    let playback: Playback | undefined;
+    const listed = figure.steps.length > 1 && figure.steps.length <= MAX_LISTED;
     const captions = new CaptionStack((el, text) => drawing.markdown(el, text));
-    body.append(captions.el);
-    captions.set(figure.steps.map((step) => step.caption));
+    captions.set(figure.steps);
+    let narrate = (index: number): void => captions.show(index);
+    let placeSide: (() => void) | undefined;
+    if (listed) {
+      const list = new StepList(figure.steps, (el, text) => drawing.markdown(el, text), (index) => {
+        this.playback?.stop();
+        this.show(index);
+      });
+      side.append(list.el);
+      narrate = (index) => {
+        list.show(index);
+        captions.show(index);
+      };
+      // Under the drawing, a list would push the current step out of view; one caption with the full player stays beside it.
+      // A wrapped side column starts at the drawing's left edge, whatever its height.
+      placeSide = () => {
+        const under = side.offsetLeft <= scroll.offsetLeft + 1;
+        side.classList.toggle('is-under', under);
+        playback?.el.classList.toggle('is-play-only', !under);
+      };
+    }
+    side.append(captions.el);
     const explained = TAGS.filter((tag) => used.has(tag) && MEANING[tag]);
     if (explained.length) {
       const key = body.appendChild(div('clew-figure-key'));
@@ -385,8 +423,14 @@ export class FigureView {
         item.append(`${tag}: ${MEANING[tag]}`);
       }
     }
-    const playback = figure.steps.length > 1 ? new Playback((index) => this.show(index)) : undefined;
-    if (playback) body.append(playback.el);
+    if (figure.steps.length > 1) {
+      playback = new Playback((index) => this.show(index));
+      // The list already shows where the student is and moves on a click, so the player keeps only Play.
+      playback.el.classList.toggle('is-play-only', listed);
+      side.append(playback.el);
+    }
+    side.classList.toggle('is-listed', listed);
+    side.classList.toggle('is-player', figure.steps.length > 1 && !listed);
 
     this.fitGraphs(body);
 
@@ -397,7 +441,8 @@ export class FigureView {
       body.classList.remove('is-pending');
       this.figure = figure;
       this.steps = steps;
-      this.captions = captions;
+      this.narrate = narrate;
+      this.placeSide = placeSide;
       this.playback = playback;
       this.body = body;
       this.markdown = drawing.markdown;
@@ -438,6 +483,7 @@ export class FigureView {
     }
     this.reserveWidths();
     for (const step of this.steps) drawLinks(step.el, step.links, markdown);
+    this.placeSide?.();
   }
 
   private show(index: number): void {
@@ -445,14 +491,17 @@ export class FigureView {
     this.steps.forEach((step, k) => step.el.classList.toggle('is-current', k === index));
     const step = this.steps[index];
     if (step?.dirty) this.repaint(step);
-    this.captions?.show(this.figure?.steps[index]?.caption ?? '');
-    this.playback?.update(this.steps.length - 1, index, { offset: 1 });
+    this.narrate?.(index);
+    this.playback?.update(this.steps.length - 1, index, { ms: STEP_MS, offset: 1 });
   }
 
   private resized(): void {
+    this.placeSide?.();
     const width = this.canvasWidth();
     if (!this.steps.length || width === this.width) return;
     this.width = width;
+    // Room is in pixels at the old scale; the steps measure it again as they repaint.
+    for (const shared of this.rooms.values()) shared.room = { left: 0, top: 0, right: 0, bottom: 0 };
     if (this.body) this.fitGraphs(this.body);
     this.steps.forEach((step, k) => {
       if (k === this.current) this.repaint(step);
@@ -650,7 +699,8 @@ export class FigureView {
       case 'Tex': {
         const el = mark(child('clew-figure-tex'), node.id);
         const lane = drawing.lanes.get(laneKey(node, ordinal()));
-        if (lane) el.style.paddingRight = `${lane.name + 3}ch`;
+        // As much room on the left as the pointers take on the right, so the formula itself sits centred.
+        if (lane) el.style.paddingInline = `${lane.name + 3}ch`;
         drawing.tex(el, node.tex);
         return;
       }
@@ -668,6 +718,7 @@ export class FigureView {
         el.style.width = `${this.width}px`;
         const chart = new PlotChart(el);
         chart.height = (width) => Math.min(360, (width * 2) / 3);
+        chart.writeLabel = drawing.markdown;
         chart.render(plotModel(node));
         view.plots.push(chart);
         return;
@@ -675,8 +726,19 @@ export class FigureView {
       case 'Diagram': {
         for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
         const el = mark(child('clew-figure-diagram', child('clew-figure-canvas')), node.id);
-        const extent = drawing.extents.get(nodeKey(node, ordinal())) ?? diagramExtent(node);
-        const paint = (): void => drawDiagram(el, node, extent, this.width, drawing.markdown);
+        const key = nodeKey(node, ordinal());
+        const extent = drawing.extents.get(key) ?? diagramExtent(node);
+        const shared = this.rooms.get(key) ?? { room: { left: 0, top: 0, right: 0, bottom: 0 }, paints: new Set() };
+        this.rooms.set(key, shared);
+        const paint = (): void => {
+          const needed = drawDiagram(el, node, extent, this.width, drawing.markdown, shared.room);
+          const { room } = shared;
+          if (needed.left <= room.left && needed.top <= room.top && needed.right <= room.right && needed.bottom <= room.bottom) return;
+          shared.room = { left: Math.max(room.left, needed.left), top: Math.max(room.top, needed.top), right: Math.max(room.right, needed.right), bottom: Math.max(room.bottom, needed.bottom) };
+          // Room only grows, so each other step repaints at most once more per side that grew.
+          for (const other of shared.paints) if (other !== paint) other();
+        };
+        shared.paints.add(paint);
         paint();
         view.diagrams.push(paint);
         return;

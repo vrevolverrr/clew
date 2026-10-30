@@ -46,7 +46,7 @@ function swatch(kind: string, color: string): HTMLElement {
   return el;
 }
 
-function key(label: string, color: string, kind: string): HTMLElement {
+function key(label: HTMLElement, color: string, kind: string): HTMLElement {
   const item = createSpan();
   item.className = 'clew-plot-key';
   item.append(swatch(kind === 'line' ? 'dot' : kind, color), label);
@@ -87,6 +87,13 @@ export class PlotChart {
   private last = 0;
   /** The drawing's height for a width; a plot is 300 pixels tall unless its owner sizes it. */
   height: (width: number) => number = () => HEIGHT;
+  /** Draws a legend label; the owner can typeset its Markdown and maths. */
+  writeLabel: (el: HTMLElement, text: string) => void = (el, text) => {
+    el.textContent = text;
+  };
+  /** Each legend label as drawn, copied into the tooltip; the legend is redrawn only when its entries change. */
+  private labels = new Map<string, HTMLElement>();
+  private legendKey = '';
 
   /** The owner calls `repaint` when the width changes. */
   constructor(readonly el: HTMLElement) {
@@ -177,7 +184,8 @@ export class PlotChart {
     const root = this.canvas;
     root.replaceChildren();
     this.tip.hidden = true;
-    svg('title', {}, root, model.yLabel ? `Plot of ${model.yLabel}` : 'Plot');
+    // A label, not an SVG <title>, which the browser would also show as a tooltip over the whole plot.
+    root.setAttribute('aria-label', model.yLabel ? `Plot of ${model.yLabel}` : 'Plot');
     for (const [name, value] of Object.entries({ viewBox: `0 0 ${width} ${height}`, width, height })) root.setAttribute(name, String(value));
 
     const colors = this.assignColors(model.layers);
@@ -276,23 +284,32 @@ export class PlotChart {
   }
 
   private drawLegend({ layers, yLabel }: PlotModel, colors: readonly string[]): void {
-    this.legend.replaceChildren();
+    const entries: [string, string, string][] = [];
     const seen = new Set<string>();
     layers.forEach((layer, index) => {
       // A dot or a rule writes its label on the plot, so only layers with a swatch to explain are listed.
       if (layer.kind === 'note' || layer.kind === 'dot' || layer.kind === 'rule' || layer.kind === 'arrow' || !layer.label || seen.has(layer.label)) return;
       if (layer.kind === 'bars' && layer.mode === 'waterfall') return;
       seen.add(layer.label);
-      this.legend.append(key(layer.label, colors[index], layer.kind));
+      entries.push([layer.label, colors[index], layer.kind]);
     });
     if (layers.some((layer) => layer.kind === 'bars' && layer.mode === 'waterfall')) {
-      for (const [label, color] of [['Total', 'var(--clew-series-1)'], ['Increase', 'var(--color-green)'], ['Decrease', 'var(--color-red)']] as const) {
-        this.legend.append(key(label, color, 'bars'));
-      }
+      entries.push(['Total', 'var(--clew-series-1)', 'bars'], ['Increase', 'var(--color-green)', 'bars'], ['Decrease', 'var(--color-red)', 'bars']);
     }
     // A single entry the y-axis title already names only repeats it.
-    const only = this.legend.childElementCount === 1 ? this.legend.textContent.toLowerCase() : null;
-    if (only && yLabel?.toLowerCase().includes(only)) this.legend.replaceChildren();
+    if (entries.length === 1 && yLabel?.toLowerCase().includes(entries[0][0].toLowerCase())) entries.length = 0;
+    // Paint runs every animation frame; typesetting a label each time would be wasted work.
+    const legendKey = JSON.stringify(entries);
+    if (legendKey === this.legendKey) return;
+    this.legendKey = legendKey;
+    const labels = new Map<string, HTMLElement>();
+    this.legend.replaceChildren(...entries.map(([text, color, kind]) => {
+      const label = this.labels.get(text) ?? createSpan();
+      if (!this.labels.has(text)) this.writeLabel(label, text);
+      labels.set(text, label);
+      return key(label, color, kind);
+    }));
+    this.labels = labels;
   }
 
   private text(parent: Element, x: number, y: number, text: string, anchor: 'start' | 'middle' | 'end', strong: boolean): void {
@@ -417,7 +434,8 @@ export class PlotChart {
       const row = createDiv();
       const strong = createEl('b');
       strong.textContent = value;
-      row.append(swatch('dot', color), label ? `${label}: ` : '', strong);
+      const drawn = this.labels.get(label)?.cloneNode(true);
+      row.append(swatch('dot', color), ...(label ? [drawn ?? label, ': '] : []), strong);
       tip.append(row);
     }
     tip.hidden = false;

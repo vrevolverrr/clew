@@ -4,7 +4,7 @@ import { type FigureHost, FigureView } from '@/renderer/figure/FigureView';
 
 type El = { type: string; props: Record<string, unknown>; children: unknown[] };
 const el = (type: string, props: Record<string, unknown> = {}, ...children: unknown[]): El => ({ type, props, children });
-const payload = (frames: { caption: string; root: El }[], params: Record<string, unknown> = {}): unknown => ({ params, frames });
+const payload = (frames: { caption: string; heading?: string; root: El }[], params: Record<string, unknown> = {}): unknown => ({ params, frames });
 
 let observers: { disconnected: boolean }[] = [];
 
@@ -124,13 +124,42 @@ describe('FigureView', () => {
     expect(steps.map((step) => step.classList.contains('is-current'))).toEqual([false, true]);
   });
 
-  it('keeps every caption in the stack, and keys only the tags whose mark does not explain itself', async () => {
+  it('lists every caption as a step, and keys only the tags whose mark does not explain itself', async () => {
     const markdown = host();
     const view = new FigureView(document.body, markdown, sandbox(() => linked));
     void view.run('src');
     await flush();
-    expect([...view.el.querySelectorAll('.clew-caption-sizes > .clew-caption')].map((caption) => caption.textContent)).toEqual(['**First**', '**Second**']);
+    expect([...view.el.querySelectorAll('.clew-step .clew-step-text')].map((caption) => caption.textContent)).toEqual(['**First**', '**Second**']);
     expect([...view.el.querySelectorAll('.clew-figure-key-mark')].map((mark) => (mark as HTMLElement).dataset.tag)).toEqual(['new']);
+  });
+
+  it('draws a step heading over its caption in the list', async () => {
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: 'a', heading: 'One', root: el('Node', { label: 'x' }) }, { caption: 'b', root: el('Node', { label: 'y' }) }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    expect([...view.el.querySelectorAll('.clew-step .clew-step-text')].map((text) => [...text.children].map((part) => `${part.className}:${part.textContent}`))).toEqual([
+      ['clew-step-heading:One', 'clew-step-caption:a'],
+      ['clew-step-caption:b'],
+    ]);
+  });
+
+  it('numbers the one caption of a figure too long to list with the current step', async () => {
+    const frames = Array.from({ length: 7 }, (_, i) => ({ caption: `c${i}`, root: el('Node', { label: String(i) }) }));
+    const view = new FigureView(document.body, host(), sandbox(() => payload(frames)));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    view.el.querySelector<HTMLButtonElement>('button[aria-label="Next"]')!.click();
+    expect(view.el.querySelector('.clew-captions > .clew-caption .clew-step-dot')!.textContent).toBe('2');
+    expect(view.el.querySelectorAll('.clew-step')).toHaveLength(0);
+  });
+
+  it('shows the step picked in the list and marks the ones before it done', async () => {
+    const markdown = host();
+    const view = new FigureView(document.body, markdown, sandbox(() => linked));
+    void view.run('src');
+    await flush();
+    const items = [...view.el.querySelectorAll<HTMLElement>('.clew-step')];
+    items[1].querySelector('button')!.click();
+    expect([...view.el.querySelectorAll('.clew-figure-step')].map((step) => step.classList.contains('is-current'))).toEqual([false, true]);
+    expect(items.map((item) => [item.classList.contains('is-done'), item.getAttribute('aria-current')])).toEqual([[true, null], [false, 'step']]);
   });
 
   it('writes a TeX anchor as a data attribute in its own step only', async () => {
@@ -256,6 +285,25 @@ describe('FigureView', () => {
     await expect(view.run('src')).resolves.toEqual({ drawn: true });
     style.remove();
     expect(view.el.querySelector<HTMLElement>('.clew-figure-canvas > .clew-figure-plot')!.style.width).toBe('446px');
+  });
+
+  it('typesets a Plot legend label once, and sets no SVG title the browser would show on hover', async () => {
+    const markdown = host();
+    const plot = el('Plot', { x: [0, 1] }, el('Shape', { pts: [[0, 0], [1, 1]], label: '$x^2$' }));
+    const view = new FigureView(document.body, markdown, sandbox(() => payload([{ caption: '', root: plot }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    expect(markdown.math).toEqual(['$x^2$']);
+    expect(view.el.querySelector('.clew-plot-key')!.textContent).toBe('x^2');
+    expect(view.el.querySelector('.clew-plot svg title')).toBeNull();
+  });
+
+  it('gives every step of a Diagram the same frame when only one step has a label past its edge', async () => {
+    const diagram = (label?: string): El => el('Diagram', { width: 4, height: 3 }, el('Segment', { from: [0, 3], to: [4, 3], ...(label ? { label } : {}) }), el('Segment', { from: [2, 0], to: [2, 3] }));
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: 'a', root: diagram('ceiling') }, { caption: 'b', root: diagram() }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    const frames = [...view.el.querySelectorAll('.clew-figure-step svg')].map((svg) => svg.getAttribute('viewBox'));
+    expect(frames).toHaveLength(2);
+    expect(frames[1]).toBe(frames[0]);
   });
 
   it('draws a Diagram whose only point is the origin', async () => {

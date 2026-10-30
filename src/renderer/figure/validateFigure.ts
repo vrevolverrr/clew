@@ -176,20 +176,24 @@ interface StepScope {
 function readStep(frame: unknown, index: number, count: number, figure: { elements: number }): Step {
   const path = `Step ${index + 1}`;
   if (!isObject(frame)) fail(path, 'a step must be an object');
-  onlyKeys(frame, ['caption', 'root'], path, 'a step');
+  onlyKeys(frame, ['caption', 'heading', 'root'], path, 'a step');
   const caption = own(frame, 'caption') ?? '';
   if (typeof caption !== 'string' && typeof caption !== 'number') fail(path, 'the caption must be text');
   const shown = typeof caption === 'number' ? formatFigure(caption) : caption;
   if (count > 1 && !shown.trim()) fail(path, 'a caption is required when a figure has two or more steps');
   const scope: StepScope = { ids: new Map(), targets: [], anchors: 0, elements: 0 };
   checkString(shown, path, 'the caption', scope, false);
+  const rawHeading = own(frame, 'heading') ?? '';
+  if (typeof rawHeading !== 'string' && typeof rawHeading !== 'number') fail(path, 'the heading must be text');
+  const heading = typeof rawHeading === 'number' ? formatFigure(rawHeading) : rawHeading.trim();
+  checkString(heading, path, 'the heading', scope, false);
   const root = readNode(own(frame, 'root'), path, 1, null, scope);
   for (const target of scope.targets) {
     if (!scope.ids.has(target.id)) fail(target.path, `${target.what} "${target.id}" names no element, row, item or node in this step`);
   }
   figure.elements += scope.elements;
   if (figure.elements > LIMITS.elementsPerFigure) fail('Figure', `more than ${n(LIMITS.elementsPerFigure)} elements; the limit is ${n(LIMITS.elementsPerFigure)}`);
-  return { caption: shown, root, ids: new Set(scope.ids.keys()) };
+  return { caption: shown, ...(heading ? { heading } : {}), root, ids: new Set(scope.ids.keys()) };
 }
 
 /** Checks the maths in a string; anchors join the step's ids when they can be pointed at. */

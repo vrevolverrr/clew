@@ -14,7 +14,7 @@ export default function ({ n }) {
 \`\`\`
 
 - The default export is a function of the parameters (an object; \`{}\` when there are none). It returns \`<Figure>\` or, for a static drawing, one element tree (drawn as a single step without playback).
-- \`<Figure steps caption render title?>\`: \`steps\` is an array of 1 to 64 plain values, one per step. \`render(step, i)\` returns the tree for that step. \`caption(step, i)\` returns the step's caption: Markdown with \`$...$\` maths, required when there are two or more steps. \`title\` is optional text over the figure.
+- \`<Figure steps caption heading? render title?>\`: \`steps\` is an array of 1 to 64 plain values, one per step. \`render(step, i)\` returns the tree for that step. \`caption(step, i)\` returns the step's caption: Markdown with \`$...$\` maths, required when there are two or more steps. \`heading(step, i)\` optionally names the step in a few words, shown bold over its caption. \`title\` is optional text over the figure.
 - Ordinary JavaScript: loops, local functions, arrays, \`Math\`, template strings. No imports, no DOM, no network, no React. The elements below exist already; nothing else does. The data the figure shows is written into the program as literals, and every number shown is computed by the program from them.
 - Name the step parameter \`step\` (not \`f\`, which models then reuse for a curve function). Do not declare a variable with an element's name.
 - Return the same structure in every step and change text and tags. Give an \`id\` to anything an arrow or pointer points at, anything tagged, and anything that should keep its place between steps.

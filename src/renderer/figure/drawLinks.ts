@@ -1,10 +1,8 @@
-import { div, svg } from '@/renderer/figure/dom';
+import { arrowHeads, div, svg } from '@/renderer/figure/dom';
 import type { FigureNode } from '@/renderer/figure/FigureData';
 
 export type Link = Extract<FigureNode, { type: 'Arrow' | 'Pointer' }>;
 type Box = { el: Element; l: number; t: number; r: number; b: number };
-
-let markerId = 0;
 
 /** Draws a step's arrows and pointers over it, from the boxes of the elements they name; call again after anything moves. */
 export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (el: HTMLElement, text: string | number) => void): void {
@@ -14,9 +12,7 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
   layer.setAttribute('aria-hidden', 'true');
   const frame = step.getBoundingClientRect();
   const drawing = svg('svg', { class: 'clew-figure-links-svg', width: frame.width, height: frame.height }, layer);
-  const marker = `clew-figure-link-arrow-${(markerId += 1)}`;
-  const head = svg('marker', { id: marker, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: 'auto-start-reverse' }, svg('defs', {}, drawing));
-  svg('path', { d: 'M0 0L10 5L0 10z', fill: 'context-stroke' }, head);
+  const head = arrowHeads(drawing, { markerWidth: 8, markerHeight: 8 })('var(--text-muted)');
   const box = (id: string): Box | null => {
     const el = step.querySelector(`[data-figure-id="${id}"]`);
     if (!el) return null;
@@ -24,6 +20,7 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
     return { el, l: r.left - frame.left, t: r.top - frame.top, r: r.right - frame.left, b: r.bottom - frame.top };
   };
   const stacked = new Map<string, number>();
+  const grow = new Map<HTMLElement, number>();
   for (const link of links) {
     if (link.type === 'Arrow') {
       const a = box(link.from);
@@ -35,7 +32,7 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
       else if (b.r <= a.l + 1) [start, end] = [[a.l, (a.t + a.b) / 2], [b.r, (b.t + b.b) / 2]];
       else if (b.t >= a.b - 1) [start, end] = [[(a.l + a.r) / 2, a.b], [(b.l + b.r) / 2, b.t]];
       else [start, end] = [[(a.l + a.r) / 2, a.t], [(b.l + b.r) / 2, b.b]];
-      const path = svg('path', { d: `M${start[0]} ${start[1]}L${end[0]} ${end[1]}`, class: 'clew-figure-link', 'marker-end': `url(#${marker})` }, drawing);
+      const path = svg('path', { d: `M${start[0]} ${start[1]}L${end[0]} ${end[1]}`, class: 'clew-figure-link', 'marker-end': head }, drawing);
       if (link.tag) path.dataset.tag = link.tag;
       if (link.label === undefined) continue;
       const label = layer.appendChild(div('clew-figure-link-label'));
@@ -63,10 +60,15 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
       pointer.style.left = `${left - 4}px`;
       pointer.style.top = `${(target.t + target.b) / 2 + k * 18}px`;
     } else if (tex) {
-      pointer.classList.add('is-right');
+      pointer.classList.add('is-right', 'is-tex');
       pointer.append(arrow('←'), name);
-      // Beside the formula itself: the Tex box also holds the room reserved for its pointers.
-      pointer.style.left = `${(target.el.closest('mjx-container') ?? tex).getBoundingClientRect().right - frame.left + 8}px`;
+      // Beside the typeset formula itself: its container spans the whole Tex box, which also holds the room reserved for pointers.
+      const container = target.el.closest('mjx-container');
+      const formula = container?.querySelector(':scope > mjx-math, :scope > svg') ?? container ?? tex;
+      pointer.style.left = `${formula.getBoundingClientRect().right - frame.left + 8}px`;
+      // The room reserved for pointers is estimated from their source; a typeset name can be wider, so the Tex box grows to hold it.
+      const over = pointer.getBoundingClientRect().right - tex.getBoundingClientRect().right + 4;
+      if (over > 0 && tex.instanceOf(HTMLElement)) grow.set(tex, Math.max(grow.get(tex) ?? 0, over));
       pointer.style.top = `${(target.t + target.b) / 2 + k * 18}px`;
     } else {
       pointer.append(arrow('↑'), name);
@@ -74,4 +76,5 @@ export function drawLinks(step: HTMLElement, links: readonly Link[], markdown: (
       pointer.style.top = `${target.b + 2 + k * 20}px`;
     }
   }
+  for (const [el, extra] of grow) el.style.paddingInline = `${parseFloat(getComputedStyle(el).paddingRight) + extra}px`;
 }

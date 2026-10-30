@@ -9,6 +9,7 @@ import { ChatPicker } from '@/chat/obsidian/ChatPicker';
 import { ChatStore } from '@/chat/ChatStore';
 import { ClewSettingTab, obsidianUserEnv } from '@/settings/obsidian/ClewSettingTab';
 import { highlightMarks } from '@/tour/obsidian/highlightMarks';
+import { playLayoutDemo } from '@/chat/obsidian/playLayoutDemo';
 import { playVisualsDemo } from '@/chat/obsidian/playVisualsDemo';
 import { playApprovalDemo } from '@/chat/obsidian/playApprovalDemo';
 import { playHighlightDemo } from '@/chat/obsidian/playHighlightDemo';
@@ -70,6 +71,11 @@ export default class ClewPlugin extends Plugin {
       id: 'play-visuals-demo',
       name: 'Play visuals demo',
       callback: () => void playVisualsDemo(this.app, () => this.openFreshChat()),
+    });
+    this.addCommand({
+      id: 'play-figure-layout-demo',
+      name: 'Play figure layout demo',
+      callback: () => void playLayoutDemo(this.app, () => this.openFreshChat()),
     });
     this.addCommand({
       id: 'play-approval-demo',

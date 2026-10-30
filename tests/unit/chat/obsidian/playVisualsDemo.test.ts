@@ -13,7 +13,7 @@ const figures = VISUALS_DEMO_TURNS.flatMap((turn) => splitReply(turn.reply, true
 describe('the visuals demo', () => {
   it('keeps each reply within the figures a reply draws, with one Mermaid fence', () => {
     for (const turn of VISUALS_DEMO_TURNS) expect(countFigures(turn.reply)).toBeLessThanOrEqual(LIMITS.figuresPerReply);
-    expect(figures).toHaveLength(6);
+    expect(figures).toHaveLength(7);
     expect(VISUALS_DEMO_TURNS.flatMap((turn) => splitReply(turn.reply, true)).filter((segment) => segment.kind === 'mermaid')).toHaveLength(1);
   });
 

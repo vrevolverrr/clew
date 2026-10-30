@@ -23,9 +23,10 @@ export class Playback {
   constructor(private readonly change: (value: number, forward: boolean) => void) {
     this.el.className = 'clew-player';
     const button = (label: string, shape: string, fill = 'currentColor') => {
+      const role = label.toLowerCase();
       const b = this.el.appendChild(createEl('button'));
       b.type = 'button';
-      b.className = 'clew-player-button';
+      b.className = `clew-player-button is-${role}`;
       b.title = label;
       b.setAttribute('aria-label', label);
       const icon = svg('svg', { viewBox: '0 0 16 16', 'aria-hidden': 'true' }, b);

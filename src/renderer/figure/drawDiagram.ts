@@ -1,5 +1,5 @@
 import { angleMark, dimensionMark, rightAngleMark, tickMarks } from '@/renderer/figure/diagram/marks';
-import { div, svg } from '@/renderer/figure/dom';
+import { arrowHeads, div, svg } from '@/renderer/figure/dom';
 import type { DiagramLayer, FigureNode, Point, Tag } from '@/renderer/figure/FigureData';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
@@ -8,11 +8,10 @@ type Diagram = Extract<FigureNode, { type: 'Diagram' }>;
 export type Markdown = (el: HTMLElement, text: string | number) => void;
 
 const PAD = 10;
-const MAX_HEIGHT = 340;
+const MAX_HEIGHT = 260;
 const CHAR_WIDTH = 7.5;
 /** More than the 2 px margin `placeLabels` counts a line crossing within. */
 const LABEL_GAP = 3;
-let markerId = 0;
 
 function pointsOf(layer: DiagramLayer): readonly Point[] {
   switch (layer.type) {
@@ -31,30 +30,30 @@ function pointsOf(layer: DiagramLayer): readonly Point[] {
 }
 
 export type Extent = readonly [number, number, number, number];
+/** Pixels a drawing reaches past its border on each side, for marks drawn off their points and labels pushed outside. */
+export type Room = Readonly<{ left: number; top: number; right: number; bottom: number }>;
 
 /**
- * What a Diagram shows, as [x0, y0, x1, y1]: what it drew, from the origin when nothing goes below zero, else around
- * it (a drawing centred on the origin); the model's width and height only when it drew nothing. `keep` is an extent
- * to keep, so a redraw stays anchored.
+ * What a Diagram shows, as [x0, y0, x1, y1]: what it drew, or the model's width and height when it drew nothing.
+ * `keep` is an extent to keep, so a redraw stays anchored.
  */
 export function diagramExtent(diagram: Diagram, keep?: Extent): Extent {
   const points = diagram.children.flatMap(pointsOf);
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
-  const anchored = points.every(([x, y]) => x >= -1e-9 && y >= -1e-9);
-  const [x0, y0, x1, y1] = !points.length
-    ? [0, 0, diagram.width, diagram.height]
-    : anchored
-      ? [0, 0, Math.max(...xs), Math.max(...ys)]
-      : [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const [x0, y0, x1, y1] = points.length ? [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] : [0, 0, diagram.width, diagram.height];
   // A single point has no size to scale to, so it gets a unit around it.
   const pad = x1 > x0 || y1 > y0 ? 0 : 1;
   const own: Extent = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
   return keep ? [Math.min(own[0], keep[0]), Math.min(own[1], keep[1]), Math.max(own[2], keep[2]), Math.max(own[3], keep[3])] : own;
 }
 
-/** Draws a Diagram showing `extent` within `available` pixels of width, y upwards, scaled to fit; call again after a resize. */
-export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, available: number, markdown: Markdown): void {
+/**
+ * Draws a Diagram showing `extent` within `available` pixels of width, y upwards, scaled to fit; call again after a resize.
+ * Returns the room past the border this drawing needs; it keeps at least `keep`, so every step of a figure can share the most
+ * any step needs and nothing moves between them.
+ */
+export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, available: number, markdown: Markdown, keep?: Room): Room {
   el.replaceChildren();
   el.classList.add('clew-figure-diagram');
   const [x0, y0, x1, y1] = extent;
@@ -66,9 +65,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
   const units = (pixels: number): number => pixels / scale;
 
   const root = svg('svg', { width, height, viewBox: `0 0 ${width} ${height}`, 'aria-hidden': 'true' }, el);
-  const marker = `clew-figure-diagram-arrow-${(markerId += 1)}`;
-  const head = svg('marker', { id: marker, viewBox: '0 0 10 10', refX: 9, refY: 5, markerUnits: 'userSpaceOnUse', markerWidth: 11, markerHeight: 11, orient: 'auto-start-reverse' }, svg('defs', {}, root));
-  svg('path', { d: 'M0 0L10 5L0 10z', fill: 'context-stroke' }, head);
+  const head = arrowHeads(root, { markerUnits: 'userSpaceOnUse', markerWidth: 11, markerHeight: 11 });
   const lines: [number, number][][] = [];
   const labels: (LabelBox & { box: HTMLElement })[] = [];
   const mark = (tag: string, attrs: Record<string, string | number>, layerTag?: Tag): SVGElement => {
@@ -89,6 +86,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
     if (text === undefined) continue;
     const box = el.appendChild(div('clew-figure-diagram-label'));
     if (layer.tag) box.style.color = `var(--clew-figure-tag-${layer.tag})`;
+    if (layer.type === 'Shape' && layer.closed) box.classList.add('is-inside');
     markdown(box, text);
     boxes.set(layer, { box, width: formatFigure(text).length * CHAR_WIDTH + 8, height: 18 });
   }
@@ -124,7 +122,7 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
       }
       case 'Vector':
       case 'Segment':
-        polyline([layer.from, layer.to], layer.tag, layer.type === 'Vector' ? { 'marker-end': `url(#${marker})`, class: 'is-vector' } : {});
+        polyline([layer.from, layer.to], layer.tag, layer.type === 'Vector' ? { 'marker-end': head(layer.tag ? `var(--clew-figure-tag-${layer.tag})` : 'var(--clew-figure-ink)'), class: 'is-vector' } : {});
         label([(layer.from[0] + layer.to[0]) / 2, (layer.from[1] + layer.to[1]) / 2], layer);
         break;
       case 'Points':
@@ -174,15 +172,30 @@ export function drawDiagram(el: HTMLElement, diagram: Diagram, extent: Extent, a
   const top = Math.max(0, PAD - Math.min(PAD, ...ys));
   const right = Math.max(0, Math.max(width - PAD, ...xs) - width + PAD);
   const bottom = Math.max(0, Math.max(height - PAD, ...ys) - height + PAD);
-  const frame = { x0: -left, y0: -top, x1: width + right, y1: height + bottom };
+  const marks = { x0: -left, y0: -top, x1: width + right, y1: height + bottom };
+  // A label pushed past the top or bottom (one on a line along the edge) grows the drawing instead of covering the line.
+  const spare = Math.max(0, ...labels.map((item) => item.height)) + LABEL_GAP * 2;
+  const placed = placeLabels(labels, { ...marks, y0: marks.y0 - spare, y1: marks.y1 + spare }, lines);
+  const needed: Room = {
+    left,
+    right,
+    top: Math.max(top, -Math.min(0, ...placed.map((at) => at.y))),
+    bottom: Math.max(bottom, Math.max(height, ...placed.map((at, i) => at.y + labels[i].height)) - height),
+  };
+  const frame = {
+    x0: -Math.max(needed.left, keep?.left ?? 0),
+    y0: -Math.max(needed.top, keep?.top ?? 0),
+    x1: width + Math.max(needed.right, keep?.right ?? 0),
+    y1: height + Math.max(needed.bottom, keep?.bottom ?? 0),
+  };
   for (const [name, value] of Object.entries({ width: frame.x1 - frame.x0, height: frame.y1 - frame.y0, viewBox: `${frame.x0} ${frame.y0} ${frame.x1 - frame.x0} ${frame.y1 - frame.y0}` })) root.setAttribute(name, String(value));
-
-  placeLabels(labels, frame, lines).forEach((at, i) => {
-    labels[i].box.style.left = `${at.x + left}px`;
-    labels[i].box.style.top = `${at.y + top}px`;
+  placed.forEach((at, i) => {
+    labels[i].box.style.left = `${at.x - frame.x0}px`;
+    labels[i].box.style.top = `${at.y - frame.y0}px`;
   });
-  const placed = new Set(labels.map((item) => item.box));
-  for (const { box } of boxes.values()) if (!placed.has(box)) box.remove();
+  const shown = new Set(labels.map((item) => item.box));
+  for (const { box } of boxes.values()) if (!shown.has(box)) box.remove();
   el.style.width = `${frame.x1 - frame.x0}px`;
   el.style.height = `${frame.y1 - frame.y0}px`;
+  return needed;
 }
