@@ -142,14 +142,21 @@ describe('FigureView', () => {
     ]);
   });
 
-  it('numbers the one caption of a figure too long to list with the current step', async () => {
+  it('shows a figure too long to list as one numbered caption that Tab skips', async () => {
     // Repeated captions still take each step's number.
     const frames = Array.from({ length: 7 }, (_, i) => ({ caption: 'same', root: el('Node', { label: String(i) }) }));
     const view = new FigureView(document.body, host(), sandbox(() => payload(frames)));
     await expect(view.run('src')).resolves.toEqual({ drawn: true });
     view.el.querySelector<HTMLButtonElement>('button[aria-label="Next"]')!.click();
-    expect(view.el.querySelector('.clew-captions > .clew-caption .clew-step-dot')!.textContent).toBe('2');
-    expect(view.el.querySelectorAll('.clew-step')).toHaveLength(0);
+    expect(view.el.querySelector('.clew-steps')!.classList.contains('is-single')).toBe(true);
+    expect(view.el.querySelector('.clew-step.is-current .clew-step-dot')!.textContent).toBe('2');
+    expect([...view.el.querySelectorAll<HTMLButtonElement>('.clew-step-button')].every((button) => button.tabIndex === -1)).toBe(true);
+  });
+
+  it('draws no step list for one step without a caption', async () => {
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root: el('Node', { label: 'x' }) }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    expect(view.el.querySelector('.clew-steps')).toBeNull();
   });
 
   it('shows the step picked in the list and marks the ones before it done', async () => {
@@ -305,6 +312,26 @@ describe('FigureView', () => {
     const frames = [...view.el.querySelectorAll('.clew-figure-step svg')].map((svg) => svg.getAttribute('viewBox'));
     expect(frames).toHaveLength(2);
     expect(frames[1]).toBe(frames[0]);
+  });
+
+  it('measures a hidden step\'s rendered label up front, so showing that step does not move the frame', async () => {
+    const markdown = host();
+    const diagram = (label?: string): El => el('Diagram', { width: 4, height: 3 }, el('Segment', { from: [0, 3], to: [4, 3], ...(label ? { label } : {}) }), el('Segment', { from: [2, 0], to: [2, 3] }));
+    const view = new FigureView(document.body, markdown, sandbox(() => payload([{ caption: 'a', root: diagram() }, { caption: 'b', root: diagram('**a much wider label**') }])));
+    const ran = view.run('src');
+    await flush();
+    const box = HTMLElement.prototype.getBoundingClientRect;
+    const rendered = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('clew-figure-diagram-label') ? ({ width: 900, height: 60 } as DOMRect) : box.call(this);
+    });
+    markdown.finish();
+    await expect(ran).resolves.toEqual({ drawn: true });
+    await flush();
+    const frame = (): string | null => view.el.querySelector('.clew-figure-step.is-current svg')!.getAttribute('viewBox');
+    const before = frame();
+    view.el.querySelector<HTMLButtonElement>('button[aria-label="Next"]')!.click();
+    rendered.mockRestore();
+    expect(frame()).toBe(before);
   });
 
   it('stacks pointers to two cells of one table row instead of drawing them on top of each other', async () => {

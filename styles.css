@@ -1200,27 +1200,6 @@
   color: var(--text-faint);
 }
 
-/* Stack all captions invisibly so wrapping and pane resizing preserve the tallest one's height. */
-.clew-captions:not([hidden]),
-.clew-caption-sizes {
-  display: grid;
-  overflow-wrap: break-word;
-}
-
-.clew-captions > *,
-.clew-caption-sizes > * {
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-
-.clew-caption-sizes {
-  visibility: hidden;
-}
-
-.clew-caption {
-  color: var(--text-normal);
-}
-
 /* Markdown tables share one presentation in prose and OpenUI text. */
 .clew-reply.markdown-rendered .table-wrapper {
   width: 100%;
@@ -2961,12 +2940,6 @@
   align-items: center;
 }
 
-/* A listed figure keeps both views of its steps and shows the list beside the drawing, the one caption under it. */
-.clew-figure-side.is-under > .clew-steps,
-.clew-figure-side.is-listed:not(.is-under) > .clew-captions {
-  display: none;
-}
-
 /* The full player is its own card, like the figure's, so its controls and track read as one object. */
 .clew-player:not(.is-play-only) {
   width: min(100%, 32em);
@@ -3091,22 +3064,11 @@
   color: var(--clew-step-done);
 }
 
-:is(.clew-step.is-current .clew-step-dot, .clew-step-dot.is-current) {
+.clew-step.is-current .clew-step-dot {
   border-color: var(--interactive-accent);
   background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
   color: var(--text-accent);
   font-weight: var(--font-semibold);
-}
-
-.clew-caption.is-numbered {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: var(--size-4-3);
-}
-
-.clew-caption.is-numbered > .clew-step-text {
-  flex: 0 1 auto;
 }
 
 /* Lifted so the lowercase text, not its line box, centres on the dot. */
@@ -3119,7 +3081,7 @@
 }
 
 /* Obsidian colours bold and italic text itself; here they follow the step's dimming. */
-.clew-figure :is(.clew-step-text, .clew-caption) :is(strong, b, em, i) {
+.clew-figure .clew-step-text :is(strong, b, em, i) {
   color: inherit;
 }
 
@@ -3138,8 +3100,50 @@
   line-height: 1.5;
 }
 
-:is(.clew-step.is-current, .clew-caption) .clew-step-heading + .clew-step-caption {
+.clew-step.is-current .clew-step-heading + .clew-step-caption {
   color: var(--text-muted);
+}
+
+/* One caption at a time: every step in one grid cell, so the tallest keeps its height, and only the current one shows. */
+.clew-steps.is-single > .clew-steps-list {
+  display: grid;
+}
+
+.clew-steps.is-single .clew-step {
+  grid-area: 1 / 1;
+  min-width: 0;
+  visibility: hidden;
+}
+
+.clew-steps.is-single .clew-step.is-current {
+  visibility: visible;
+}
+
+.clew-steps.is-single .clew-step::before {
+  display: none;
+}
+
+/* A step shown here was hidden a moment ago, so it must not fade in from the dimmed colours of a step not yet reached. */
+.clew-steps.is-single :is(.clew-step-button, .clew-step-dot) {
+  transition: none;
+}
+
+.clew-steps.is-single .clew-step-button {
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
+.clew-steps.is-single .clew-step:not(:only-child) > .clew-step-button {
+  justify-content: center;
+}
+
+.clew-steps.is-single .clew-step-text {
+  flex: 0 1 auto;
+}
+
+/* A one-step figure has nothing to count. */
+.clew-step:only-child .clew-step-dot {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3162,9 +3166,14 @@
   width: 100%;
 }
 
+/* Whatever a step draws is centred, so what is left of the pane's width falls on both sides. `safe` starts one wider than the
+   pane at its left edge, where it can scroll, instead of spilling past it. */
 .clew-figure-step {
   grid-area: 1 / 1;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: safe center;
   visibility: hidden;
   padding: 4px 0 8px;
 }
@@ -3187,20 +3196,17 @@
   align-self: stretch;
 }
 
-/* A step's outer Row is centred, so what is left of the pane's width falls on both sides, not all on the right. `safe` starts
-   one wider than the pane at its left edge, where it can scroll, instead of spilling past it. */
+/* A root Row wide enough to wrap fills the step, so its own lines are centred as well. */
 .clew-figure-step > .clew-figure-row {
   justify-content: safe center;
 }
 
-/* A lone drawing, strip, table or formula is centred the same way; auto margins fall back to the left edge when it overflows. */
-.clew-figure-step > :is(.clew-figure-canvas, .clew-figure-seq, .clew-figure-table),
-:is(.clew-figure-step, .clew-figure-column) > .clew-figure-tex {
+/* A formula in a column is centred too; auto margins fall back to the left edge when it overflows. */
+.clew-figure-column > .clew-figure-tex {
   margin-inline: auto;
 }
 
-.clew-figure-tex,
-.clew-figure-step > :is(.clew-figure-seq, .clew-figure-table) {
+.clew-figure-tex {
   width: fit-content;
 }
 

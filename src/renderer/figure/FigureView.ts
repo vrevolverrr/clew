@@ -1,4 +1,3 @@
-import { CaptionStack } from '@/renderer/figure/CaptionStack';
 import { div } from '@/renderer/figure/dom';
 import { diagramExtent, drawDiagram, type Extent, type Room, widen } from '@/renderer/figure/drawDiagram';
 import { drawGraph, layoutGraph } from '@/renderer/figure/drawGraph';
@@ -393,31 +392,29 @@ export class FigureView {
     const side = main.appendChild(div('clew-figure-side'));
     let playback: Playback | undefined;
     const listed = figure.steps.length > 1 && figure.steps.length <= MAX_LISTED;
-    const captions = new CaptionStack((el, text) => drawing.markdown(el, text));
-    captions.set(figure.steps);
-    let narrate = (index: number): void => captions.show(index);
+    let narrate: ((index: number) => void) | undefined;
     let placeSide: (() => void) | undefined;
-    if (listed) {
+    if (figure.steps.some((step) => step.caption || step.heading)) {
       const list = new StepList(figure.steps, (el, text) => drawing.markdown(el, text), (index) => {
         this.playback?.stop();
         this.show(index);
       });
+      list.single = !listed;
       side.append(list.el);
-      narrate = (index) => {
-        list.show(index);
-        captions.show(index);
-      };
+      narrate = (index) => list.show(index);
       // Under the drawing, a list would push the current step out of view; one caption with the full player stays beside it.
       // A wrapped side column starts at the drawing's left edge, whatever its height.
-      placeSide = () => {
-        // Measured without `is-under`, whose full-width basis would keep the column wrapped once the pane widens again.
-        side.classList.remove('is-under');
-        const under = side.offsetLeft <= scroll.offsetLeft + 1;
-        side.classList.toggle('is-under', under);
-        playback?.el.classList.toggle('is-play-only', !under);
-      };
+      if (listed) {
+        placeSide = () => {
+          // Measured without `is-under`, whose full-width basis would keep the column wrapped once the pane widens again.
+          side.classList.remove('is-under');
+          const under = side.offsetLeft <= scroll.offsetLeft + 1;
+          side.classList.toggle('is-under', under);
+          list.single = under;
+          playback?.el.classList.toggle('is-play-only', !under);
+        };
+      }
     }
-    side.append(captions.el);
     const explained = TAGS.filter((tag) => used.has(tag) && MEANING[tag]);
     if (explained.length) {
       const key = body.appendChild(div('clew-figure-key'));
@@ -436,7 +433,6 @@ export class FigureView {
       playback.el.classList.toggle('is-play-only', listed);
       side.append(playback.el);
     }
-    side.classList.toggle('is-listed', listed);
     side.classList.toggle('is-player', figure.steps.length > 1 && !listed);
 
     this.fitGraphs(body);
@@ -483,13 +479,12 @@ export class FigureView {
     }
   }
 
-  /** Places what depends on measured boxes again: reserved widths, links, and with `diagrams` the shown step's Diagram labels. */
+  /** Places what depends on measured boxes again: reserved widths, links, and with `diagrams` every step's Diagram labels. */
   private remeasure(markdown: Drawing['markdown'], diagrams: boolean): void {
     if (diagrams) {
-      this.steps.forEach((step, k) => {
-        if (k === this.current) step.diagrams.forEach((paint) => paint());
-        else if (step.diagrams.length) step.dirty = true;
-      });
+      // Hidden steps are laid out too, so every label is measured now and no step grows the room when it is first shown.
+      for (const step of this.steps) step.diagrams.forEach((paint) => paint());
+      for (const step of this.steps) if (step.dirty) this.repaint(step);
     }
     this.reserveWidths();
     for (const step of this.steps) drawLinks(step.el, step.links, markdown);
