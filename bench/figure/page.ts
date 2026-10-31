@@ -134,6 +134,12 @@ function clipper(el: Element, root: Element): Element | null {
   return null;
 }
 
+/** An SVG text turned nearer upright than flat, like a Plot's y-axis title. */
+function sideways(el: Element): boolean {
+  const m = el instanceof SVGGraphicsElement ? el.getCTM() : null;
+  return !!m && Math.abs(m.b) > Math.abs(m.a);
+}
+
 function geometry(root: HTMLElement, state: string, width: number): StateGeometry {
   const origin = root.getBoundingClientRect();
   const texts: TextBox[] = [];
@@ -151,6 +157,8 @@ function geometry(root: HTMLElement, state: string, width: number): StateGeometr
       fg: el instanceof SVGElement && style.fill !== 'none' && !el.closest('foreignObject') ? style.fill : style.color,
       bg: background(el instanceof SVGElement ? el.closest('svg')?.parentElement ?? el : el),
       px: parseFloat(style.fontSize),
+      muted: el.closest('.clew-step:not(.is-current)') ? true : undefined,
+      rotated: sideways(el) || undefined,
     });
   };
   const visit = (el: Element): void => {

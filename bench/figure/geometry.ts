@@ -11,6 +11,10 @@ export interface TextBox extends Rect {
   fg: string;
   bg: string;
   px: number;
+  /** Dimmed on purpose, as a step other than the current one is, so contrast is not checked. */
+  muted?: boolean;
+  /** Turned on its side, so its box's width is the text's height. */
+  rotated?: boolean;
 }
 
 export interface StateGeometry {

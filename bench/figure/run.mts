@@ -38,7 +38,8 @@ const widths = args.widths.split(',').map(Number);
 const themes = args.themes.split(',');
 const sources = new Set(args.source.split(','));
 
-interface Fixture { id: string; source: 'stress' | 'demo' | 'generated'; reply: string; caseId?: string }
+/** `expect` lists the 3D geometry checks a stress fixture trips by design, from its `// expect: check, check` first line. */
+interface Fixture { id: string; source: 'stress' | 'demo' | 'generated'; reply: string; caseId?: string; expect?: string[] }
 
 const fence = (kind: string, text: string) => `\`\`\`${kind}\n${text}\n\`\`\``;
 
@@ -57,7 +58,11 @@ async function demoFixtures(): Promise<Fixture[]> {
 
 async function stressFixtures(): Promise<Fixture[]> {
   const files = (await readdir(STRESS)).filter((name) => name.endsWith('.jsx')).sort();
-  return Promise.all(files.map(async (file): Promise<Fixture> => ({ id: `stress-${file.slice(0, -4)}`, source: 'stress', reply: fence('figure', (await readFile(path.join(STRESS, file), 'utf8')).trimEnd()) })));
+  return Promise.all(files.map(async (file): Promise<Fixture> => {
+    const text = (await readFile(path.join(STRESS, file), 'utf8')).trimEnd();
+    const expect = text.match(/^\/\/ expect: (.+)$/m)?.[1].split(/,\s*/);
+    return { id: `stress-${file.slice(0, -4)}`, source: 'stress', reply: fence('figure', text), ...(expect ? { expect } : {}) };
+  }));
 }
 
 async function generatedFixtures(): Promise<Fixture[]> {
@@ -109,7 +114,7 @@ async function main(): Promise<void> {
       const report = await checkPlots3(text);
       if (!report) continue;
       faces3.set(fixture.id, Math.max(faces3.get(fixture.id) ?? 0, report.faces));
-      rows.push({ fixture: fixture.id, source: fixture.source, visual: 0, kind: 'figure', theme: '-', width: 0, state: 'scene3', findings: report.findings });
+      rows.push({ fixture: fixture.id, source: fixture.source, visual: 0, kind: 'figure', theme: '-', width: 0, state: 'scene3', findings: report.findings.filter(({ check }) => !fixture.expect?.includes(check)) });
     }
   }
   if (faces3.size) process.stdout.write(`Checked the 3D geometry of ${faces3.size} fixtures\n`);

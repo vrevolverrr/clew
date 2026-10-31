@@ -4,7 +4,8 @@ export interface Finding { check: string; detail: string }
 
 const EDGE = 1;
 const OVERLAP = 2;
-const MIN_CONTRAST = 3;
+// Below WCAG's 3:1 for large text on purpose: tag colours on light themes sit near 2.7 and read well; text at 2.3 does not.
+const MIN_CONTRAST = 2.5;
 const MIN_TEXT_PX = 9;
 
 const quote = (box: TextBox) => JSON.stringify(box.text.slice(0, 40));
@@ -53,10 +54,10 @@ export function check(state: StateGeometry): Finding[] {
   for (const box of texts) {
     if (box.clip && !box.scrolls && outside(box, box.clip)) add('clipped', `${quote(box)} is cut off by its container`);
     else if (!box.scrolls && outside(box, frame)) add('overflow', `${quote(box)} runs past the visual's edge`);
-    if (box.kind !== 'math' && box.kind !== 'control' && (box.h < MIN_TEXT_PX || (box.kind !== 'svg' && box.px < MIN_TEXT_PX + 1))) {
+    if (box.kind !== 'math' && box.kind !== 'control' && ((box.rotated ? box.w : box.h) < MIN_TEXT_PX || (box.kind !== 'svg' && box.px < MIN_TEXT_PX + 1))) {
       add('tiny-text', `${quote(box)} is ${Math.round(box.h)} px tall`);
     }
-    const ratio = box.kind === 'svg' ? undefined : contrast(box.fg, box.bg);
+    const ratio = box.kind === 'svg' || box.muted ? undefined : contrast(box.fg, box.bg);
     if (ratio !== undefined && ratio < MIN_CONTRAST) add('low-contrast', `${quote(box)} has contrast ${ratio.toFixed(2)}`);
   }
   for (let i = 0; i < texts.length; i++) {
