@@ -18,19 +18,29 @@ export function escapeHTML(text: string): string {
  */
 export function escapeModelMarkdown(markdown: string): string {
   if (!markdown.includes('<') && !markdown.includes('![')) return markdown;
+  // A span the segmenter takes for maths, a destination or HTML may not be one to Obsidian, so each is rewritten too.
+  const keepFactorials = !REFERENCE_DEFINITION.test(markdown);
   return transformMarkdownSegments(markdown, {
-    rawHtml: (html) => {
-      const escaped = escapeHTML(html);
-      // Only where a link could follow, so escaped text such as `<![CDATA[` keeps its `!`.
-      return /\][([]/.test(escaped) ? imagesAsLinks(escaped) : escaped;
-    },
-    text: imagesAsLinks,
-    math: (math) => math,
+    rawHtml: (html) => imagesAsLinks(escapeHTML(html)),
+    text: (text) => imagesAsLinks(text),
+    destination: (destination) => imagesAsLinks(destination),
+    math: (math) => imagesAsLinks(math, keepFactorials),
   });
 }
 
-/** Drops the `!` of every `![` that is not backslash-escaped. */
-function imagesAsLinks(text: string): string {
+const REFERENCE_DEFINITION = /^ {0,3}\[[^\]]+\]:/m;
+
+/**
+ * Drops the `!` of every `![` that is not backslash-escaped. With `keepFactorials`, a factorial in maths (`n![x^n]`)
+ * keeps it when nothing link-shaped (`](` or `][`) follows on its line; the caller allows that only when the reply
+ * defines no reference link, so a shortcut image `![x]` cannot resolve.
+ */
+function imagesAsLinks(text: string, keepFactorials = false): string {
   if (!text.includes('![')) return text;
-  return text.replace(/(\\*)!\[/g, (match, slashes: string) => (slashes.length % 2 ? match : `${slashes}[`));
+  return text.replace(/(\\*)!\[/g, (match, slashes: string, at: number) => {
+    if (slashes.length % 2) return match;
+    const after = text.slice(at + match.length).split('\n', 1)[0];
+    const factorial = keepFactorials && !slashes && /[\w)}\]]/.test(text[at - 1] ?? '') && !/\][([]/.test(after);
+    return factorial ? match : `${slashes}[`;
+  });
 }

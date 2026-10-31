@@ -47,6 +47,7 @@ interface MarkdownSegment {
   fence?: MarkdownFenceOpening;
   rawHtml?: boolean;
   math?: boolean;
+  destination?: boolean;
   sealed?: boolean;
   wikilink?: MarkdownWikilink;
 }
@@ -189,6 +190,7 @@ function appendSegment(
   transformable: boolean,
   rawHtml = false,
   math = false,
+  destination = false,
 ): void {
   if (!text) {
     return;
@@ -199,11 +201,12 @@ function appendSegment(
     previous?.transformable === transformable
     && previous.rawHtml === rawHtml
     && !!previous.math === math
+    && !!previous.destination === destination
     && !previous.sealed
   ) {
     previous.text += text;
   } else {
-    segments.push({ text, transformable, rawHtml, math });
+    segments.push({ text, transformable, rawHtml, math, destination });
   }
 }
 
@@ -553,7 +556,7 @@ function splitInlineMarkdown(
         const destinationEnd = findLinkDestinationEnd(line, index + 1);
         if (destinationEnd !== null) {
           appendSegment(segments, line.slice(segmentStart, index + 1), true);
-          appendSegment(segments, line.slice(index + 1, destinationEnd + 1), false);
+          appendSegment(segments, line.slice(index + 1, destinationEnd + 1), false, false, false, true);
           segmentStart = destinationEnd + 1;
           index = destinationEnd;
         }
@@ -794,6 +797,8 @@ interface MarkdownTransforms {
   text?: (text: string) => string;
   /** `$…$` and `$$…$$` maths; defaults to `text`. */
   math?: (math: string) => string;
+  /** A link's `(destination "title")`, left unchanged by default. */
+  destination?: (destination: string) => string;
   rawHtml?: (text: string) => string;
   wikilink?: (wikilink: string, metadata: MarkdownWikilink) => string;
 }
@@ -813,6 +818,9 @@ export function transformMarkdownSegments(
       }
       if (segment.rawHtml) {
         return transforms.rawHtml?.(segment.text) ?? segment.text;
+      }
+      if (segment.destination) {
+        return transforms.destination?.(segment.text) ?? segment.text;
       }
       if (segment.math) {
         return (transforms.math ?? transforms.text)?.(segment.text) ?? segment.text;

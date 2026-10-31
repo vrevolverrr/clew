@@ -238,7 +238,6 @@ describe('markdownHtml', () => {
 
     it.each([
       ['comment', '<!--\n<meta-name>'],
-      ['CDATA section', '<![CDATA[\n<meta-name>'],
       ['processing instruction', '<?target\n<meta-name>'],
     ])('escapes an unclosed HTML %s through EOF', (_kind, markdown) => {
       expect(escapeModelMarkdown(markdown)).toBe(escapeHTML(markdown));
@@ -314,12 +313,20 @@ describe('markdownHtml', () => {
       expect(escapeModelMarkdown('\\![d](u) \\\\![e](https://x.test/e.png)')).toBe('\\![d](u) \\\\[e](https://x.test/e.png)');
     });
 
-    it('leaves maths alone', () => {
+    it('keeps a factorial in maths, unless a link could follow or the reply defines reference links', () => {
       expect(escapeModelMarkdown('$n![x^n]F(x)$ and $$k![t^k]G$$')).toBe('$n![x^n]F(x)$ and $$k![t^k]G$$');
+      expect(escapeModelMarkdown('$$\n\n![a](https://x.test/a.png)')).toBe('$$\n\n[a](https://x.test/a.png)');
+      expect(escapeModelMarkdown('$$ n![a](https://x.test/a.png)')).toBe('$$ n[a](https://x.test/a.png)');
+      expect(escapeModelMarkdown('$$ n![a]\n\n[a]: https://x.test/a.png')).toBe('$$ n[a]\n\n[a]: https://x.test/a.png');
     });
 
-    it('rewrites an image inside escaped raw HTML', () => {
-      expect(escapeModelMarkdown('<div>![a](https://x.test/a.png)</div>')).toBe('&lt;div&gt;[a](https://x.test/a.png)&lt;/div&gt;');
+    it('escapes an unclosed CDATA section through EOF, dropping its bang like any other', () => {
+      expect(escapeModelMarkdown('<![CDATA[\n<meta-name>')).toBe('&lt;[CDATA[\n&lt;meta-name&gt;');
+    });
+
+    it('rewrites an image inside escaped raw HTML and inside a link destination', () => {
+      expect(escapeModelMarkdown('<div>![a](https://x.test/a.png)</div> <b>![foo]</b>')).toBe('&lt;div&gt;[a](https://x.test/a.png)&lt;/div&gt; &lt;b&gt;[foo]&lt;/b&gt;');
+      expect(escapeModelMarkdown('[a](u ![b](https://x.test/b.png))')).toBe('[a](u [b](https://x.test/b.png))');
     });
   });
 });
