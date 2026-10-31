@@ -16,5 +16,5 @@
     "types": ["node", "jest"],
     "lib": ["DOM", "ES2023"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "bench/**/*.ts", "eval/**/*.ts", "eval/**/*.mts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "bench/**/*.ts", "bench/**/*.mts", "eval/**/*.ts", "eval/**/*.mts"]
 }

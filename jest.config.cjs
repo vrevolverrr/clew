@@ -18,9 +18,6 @@ module.exports = {
   projects: [
     { ...baseConfig, displayName: 'unit', testMatch: ['<rootDir>/tests/unit/**/*.test.ts'] },
     { ...baseConfig, displayName: 'integration', testMatch: ['<rootDir>/tests/integration/**/*.test.ts'] },
-    // bench/ is kept out of the public repo.
-    ...(require('node:fs').existsSync(`${__dirname}/bench`)
-      ? [{ ...baseConfig, displayName: 'bench', roots: ['<rootDir>/bench'], testMatch: ['<rootDir>/bench/figure/*.test.ts'] }]
-      : []),
+    { ...baseConfig, displayName: 'bench', roots: ['<rootDir>/bench'], testMatch: ['<rootDir>/bench/figure/*.test.ts'] },
   ],
 };

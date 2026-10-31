@@ -208,6 +208,7 @@ const providers = (['claude', 'codex'] as const)
 
 try {
   const result = await evaluate({
+    description: `Tutoring eval: ${providers.map((provider) => provider.id()).join(', ')}`,
     prompts: ['{{ chat.messages[chat.turn - 1] }}'],
     providers,
     tests: CASES,

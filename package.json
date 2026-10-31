@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:live": "tsx --test tests/live/agents.test.ts",
-    "bench": "tsx bench/bench.ts",
+    "bench": "tsx bench/latency/bench.ts",
     "bench:figures": "tsx bench/figure/run.mts",
     "eval:figures": "tsx bench/figure/eval.mts",
     "eval": "tsx eval/run.mts",
