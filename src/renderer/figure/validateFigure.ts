@@ -124,6 +124,8 @@ function readParams(raw: unknown): Param[] {
     const spec = raw[key];
     if (!isObject(spec)) fail(path, 'must be an object');
     const label = plainString(own(spec, 'label') ?? key, path, 'label');
+    const problem = label.includes('$') ? texProblems(label) : undefined;
+    if (problem) fail(path, problem);
     if (own(spec, 'text') === true) {
       onlyKeys(spec, ['label', 'value', 'text'], path, 'a text field');
       return { kind: 'text', key, label, value: plainString(own(spec, 'value') ?? '', path, 'value') };

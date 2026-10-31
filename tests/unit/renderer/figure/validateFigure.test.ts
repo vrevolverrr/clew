@@ -156,6 +156,10 @@ describe('validateFigure output', () => {
     expect(errorOf({ params: {}, frames: [{ caption: 'one', root: node() }, { caption: ' ', root: node() }] })).toBe('Step 2: a caption is required when a figure has two or more steps');
   });
 
+  it('refuses a forbidden TeX command in a param label', () => {
+    expect(errorOf(figure(node(), { params: { n: { label: '$\\style{color:red}{n}$', min: 0, max: 1 } } }))).toMatch(/^Figure > params\.n: .*\\style is not allowed/);
+  });
+
   it('refuses a forbidden TeX command a different pairing of $ signs would hide', () => {
     expect(errorOf({ params: {}, frames: [{ caption: 'pay $5 and $\\style{color:red}{x}$', root: node() }] })).toMatch(/\\style is not allowed/);
   });

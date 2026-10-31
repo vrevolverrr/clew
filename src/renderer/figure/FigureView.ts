@@ -354,7 +354,7 @@ export class FigureView {
 
     if (figure.params.length && !this.params?.isConnected) {
       this.params = this.el.appendChild(div('clew-figure-params'));
-      drawParams(this.params, figure.params, this.values, (key, value) => {
+      drawParams(this.params, figure.params, this.values, drawing.markdown, (key, value) => {
         this.values.set(key, value);
         void this.rerun();
       });

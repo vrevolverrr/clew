@@ -225,6 +225,20 @@ describe('FigureView', () => {
     expect(observers[0].disconnected).toBe(true);
   });
 
+  it('typesets maths in the labels of a slider, a choice and a text field', async () => {
+    const markdown = host();
+    const params = {
+      zeta: { label: 'Damping $\\zeta$', min: 0, max: 2, value: 0.3 },
+      mode: { label: 'Mode $m$', options: ['a', 'b'], value: 'a' },
+      name: { label: 'Name $n$', value: 'x', text: true },
+    };
+    const view = new FigureView(document.body, markdown, sandbox(() => payload([{ caption: '', root: el('Node', { id: 'a', label: 'a' }) }], params)));
+    void view.run('src');
+    await flush();
+    expect(markdown.math).toEqual(expect.arrayContaining(['$\\zeta$', '$m$', '$n$']));
+    expect(view.el.querySelector('.clew-figure-params')!.textContent).not.toContain('$');
+  });
+
   it('reruns once for a burst of param changes, with the latest value', async () => {
     const markdown = host();
     const runs = sandbox((params) => payload([{ caption: '', root: el('Node', { id: 'a', label: String(params.n ?? 3) }) }], { n: { label: 'n', min: 1, max: 9, step: 1, value: 3 } }));
