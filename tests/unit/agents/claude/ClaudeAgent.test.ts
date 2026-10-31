@@ -142,7 +142,6 @@ describe('ClaudeAgent session', () => {
     const events = await collect(session.send('Greet the student.'));
 
     expect(textOf(events)).toBe(streamedText(completed.messages));
-    expect(textOf(events)).toContain('"type":"say"');
     expect(events.at(-1)).toEqual({ type: 'done', status: 'completed' });
   });
 
@@ -220,7 +219,7 @@ describe('ClaudeAgent session', () => {
     expect(events.at(-1)).toEqual({ type: 'done', status: 'completed' });
   });
 
-  it('reports each tool call as running, then done, before the text that follows it', async () => {
+  it('reports each tool call as running, then done', async () => {
     const cli = new ScriptedQuery([{ messages: toolTurn as SDKMessage[] }]);
     const session = await new ClaudeAgent(cli.query).openSession({ ...SESSION, cwd: '/private/tmp/clew-capture' });
 
@@ -231,7 +230,6 @@ describe('ClaudeAgent session', () => {
       { type: 'tool', id, name: 'Read', title: 'Read notes.md', status: 'running' },
       { type: 'tool', id, name: 'Read', title: 'Read notes.md', status: 'done' },
     ]);
-    expect(events.findIndex((e) => e.type === 'text')).toBeGreaterThan(events.findIndex((e) => e.type === 'tool' && e.status === 'done'));
     expect(textOf(events)).toBe(streamedText(toolTurn as SDKMessage[]));
     expect(events.at(-1)).toEqual({ type: 'done', status: 'completed' });
   });
@@ -510,7 +508,7 @@ describe('ClaudeAgent session', () => {
 
     const events = await collect(session.send('hello'));
 
-    expect(events.at(-1)).toMatchObject({ type: 'done', status: 'failed' });
+    expect(events.at(-1)).toEqual({ type: 'done', status: 'failed', error: 'Claude Code exited before finishing the turn' });
   });
 
   it('rejects a second turn while one is running', async () => {

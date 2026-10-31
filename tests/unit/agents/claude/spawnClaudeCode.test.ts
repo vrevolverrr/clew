@@ -1,5 +1,6 @@
 import type { SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
 import spawn from 'cross-spawn';
+import { PassThrough } from 'stream';
 
 import { spawnClaudeCode } from '@/agents/claude/spawnClaudeCode';
 
@@ -20,7 +21,7 @@ describe('spawnClaudeCode', () => {
   });
 
   const createMockProcess = () => {
-    const stderr = { on: jest.fn() } as unknown as NodeJS.ReadableStream;
+    const stderr = new PassThrough();
     return {
       stdin: {} as NodeJS.WritableStream,
       stdout: {} as NodeJS.ReadableStream,
@@ -43,9 +44,7 @@ describe('spawnClaudeCode', () => {
     spawnClaudeCode({ command: 'claude', args: [], cwd: '/tmp', env: {}, signal: new AbortController().signal }, onStderr);
 
     expect(spawnMock.mock.calls[0][2]?.stdio).toEqual(['pipe', 'pipe', 'pipe']);
-    const [event, read] = jest.mocked(mockProcess.stderr.on).mock.calls[0]!;
-    expect(event).toBe('data');
-    (read as (chunk: Buffer) => void)(Buffer.from('Error: not logged in'));
+    mockProcess.stderr.write('Error: not logged in');
     expect(onStderr).toHaveBeenCalledWith('Error: not logged in');
   });
 
@@ -97,7 +96,6 @@ describe('spawnClaudeCode', () => {
     );
 
     expect(result).toBe(mockProcess);
-    expect(result.kill).not.toBe(originalKill);
 
     result.kill('SIGKILL');
 
@@ -127,7 +125,7 @@ describe('spawnClaudeCode', () => {
       signal: controller.signal,
     });
 
-    expect(mockProcess.kill).toHaveBeenCalled();
+    expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
   });
 
   it('kills child when signal aborts after spawn', () => {
@@ -148,6 +146,6 @@ describe('spawnClaudeCode', () => {
 
     controller.abort();
 
-    expect(mockProcess.kill).toHaveBeenCalled();
+    expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
   });
 });

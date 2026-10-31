@@ -9,16 +9,15 @@ const baseConfig = {
   setupFilesAfterEnv: ['<rootDir>/tests/setupWindow.ts', '<rootDir>/tests/setupDom.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^figure-worker$': '<rootDir>/tests/figureWorker.js',
   },
 };
 
 module.exports = {
+  globalSetup: '<rootDir>/tests/globalSetup.js',
   projects: [
     { ...baseConfig, displayName: 'unit', testMatch: ['<rootDir>/tests/unit/**/*.test.ts'] },
     { ...baseConfig, displayName: 'integration', testMatch: ['<rootDir>/tests/integration/**/*.test.ts'] },
-    // bench/ is kept out of the public repo.
-    ...(require('node:fs').existsSync(`${__dirname}/bench`)
-      ? [{ ...baseConfig, displayName: 'bench', roots: ['<rootDir>/bench'], testMatch: ['<rootDir>/bench/visuals/*.test.ts'] }]
-      : []),
+    { ...baseConfig, displayName: 'bench', roots: ['<rootDir>/bench'], testMatch: ['<rootDir>/bench/figure/*.test.ts'] },
   ],
 };

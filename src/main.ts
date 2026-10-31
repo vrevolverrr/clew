@@ -9,6 +9,7 @@ import { ChatPicker } from '@/chat/obsidian/ChatPicker';
 import { ChatStore } from '@/chat/ChatStore';
 import { ClewSettingTab, obsidianUserEnv } from '@/settings/obsidian/ClewSettingTab';
 import { highlightMarks } from '@/tour/obsidian/highlightMarks';
+import { playLayoutDemo } from '@/chat/obsidian/playLayoutDemo';
 import { playVisualsDemo } from '@/chat/obsidian/playVisualsDemo';
 import { playApprovalDemo } from '@/chat/obsidian/playApprovalDemo';
 import { playHighlightDemo } from '@/chat/obsidian/playHighlightDemo';
@@ -18,6 +19,7 @@ import { VaultFileIndex } from '@/attachments/obsidian/VaultFileIndex';
 import { vaultChatFiles } from '@/chat/obsidian/vaultChatFiles';
 import { VaultAttachments } from '@/attachments/obsidian/VaultAttachments';
 import { ChatView, VIEW_TYPE_CHAT } from '@/chat/obsidian/ChatView';
+import { figureSandbox } from '@/renderer/figure/FigureSandbox';
 
 const AUTH_LABELS: Record<AuthState, string> = {
   'logged-in': 'signed in',
@@ -71,6 +73,11 @@ export default class ClewPlugin extends Plugin {
       callback: () => void playVisualsDemo(this.app, () => this.openFreshChat()),
     });
     this.addCommand({
+      id: 'play-figure-layout-demo',
+      name: 'Play figure layout demo',
+      callback: () => void playLayoutDemo(this.app, () => this.openFreshChat()),
+    });
+    this.addCommand({
       id: 'play-approval-demo',
       name: 'Play approval demo',
       callback: () => void playApprovalDemo(() => this.openFreshChat()),
@@ -91,6 +98,7 @@ export default class ClewPlugin extends Plugin {
 
   onunload(): void {
     this.stage.destroy();
+    figureSandbox.destroy();
   }
 
   /** Waits for the workspace so the CLI processes do not slow Obsidian's startup. */
@@ -164,6 +172,6 @@ export default class ClewPlugin extends Plugin {
   private async reportAuthState(): Promise<void> {
     const agents = Object.values(this.agents);
     const states = await Promise.all(agents.map((agent) => agent.authState()));
-    new Notice(agents.map((agent, i) => `${PROVIDERS[agent.id].name}: ${AUTH_LABELS[states[i]!]}`).join('\n'));
+    new Notice(agents.map((agent, i) => `${PROVIDERS[agent.id].name}: ${AUTH_LABELS[states[i]]}`).join('\n'));
   }
 }

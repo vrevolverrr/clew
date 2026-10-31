@@ -307,6 +307,10 @@
   object-fit: cover;
 }
 
+.clew-folding {
+  overflow: hidden;
+}
+
 .clew-input-wrap {
   position: relative;
   margin: 8px 4px 0;
@@ -332,6 +336,7 @@
 .clew-input {
   position: relative;
   display: block;
+  height: auto;
   background: transparent;
   color: transparent;
   caret-color: var(--text-normal);
@@ -652,21 +657,23 @@
   cursor: default;
 }
 
-.clew-reply-openui {
+.clew-reply-figure {
   position: relative;
   margin: var(--size-4-2) 0;
   line-height: var(--line-height-normal);
 }
 
-/* A visual has no card of its own; figures that read better framed carry one. */
-.clew-reply-openui .clew-plot,
-.clew-reply-openui .clew-step-figure,
-.clew-reply-openui .clew-diagram-card {
-  box-sizing: border-box;
-  padding: var(--size-4-4);
+.clew-reply-figure .clew-diagram-card,
+.clew-figure-canvas {
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-l);
   background: var(--background-primary);
+}
+
+/* FigureView reads this padding and border to size what it draws inside. */
+.clew-figure-canvas {
+  width: fit-content;
+  padding: var(--size-4-3);
 }
 
 .clew-mermaid {
@@ -686,8 +693,8 @@
 }
 
 .clew-reply-mermaid,
-.clew-reply-openui .clew-diagram-card,
-.clew-network .clew-step-scroll,
+.clew-reply-figure .clew-diagram-card,
+.clew-figure-canvas.is-graph,
 .modal.clew-diagram-modal {
   background:
     radial-gradient(circle, color-mix(in srgb, var(--background-modifier-border) 55%, transparent) 0.9px, transparent 1.4px) 0 0 / 16px 16px,
@@ -705,7 +712,7 @@
 }
 
 .clew-reply-mermaid.is-drawing,
-.clew-reply-openui.is-drawing {
+.clew-reply-figure.is-drawing {
   min-height: 160px;
   overflow: hidden;
   isolation: isolate;
@@ -718,6 +725,7 @@
 .clew-diagram-card {
   position: absolute;
   inset: 0;
+  box-sizing: border-box;
   overflow: hidden;
   z-index: 1;
   display: flex;
@@ -779,9 +787,16 @@
   }
 }
 
+/* Pele fits the drawing to the pane's width. Past three quarters of its own size the text drops under 10 px, so a wider
+   diagram scrolls instead. The modal sets no width and zooms. */
 .clew-mermaid > svg {
   display: block;
+  min-width: calc(var(--clew-diagram-width, 0px) * 0.75);
   margin-inline: auto;
+}
+
+.clew-mermaid:not(.clew-diagram-modal .clew-mermaid) {
+  overflow-x: auto;
 }
 
 .clew-mermaid-header {
@@ -789,7 +804,7 @@
   align-items: center;
   gap: var(--size-2-1);
   margin: calc(-1 * var(--size-2-3)) calc(-1 * var(--size-2-3)) var(--size-4-2) 0;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-ui-smaller);
   font-weight: var(--font-medium);
   line-height: var(--line-height-tight);
@@ -882,18 +897,18 @@
 
 /* The figure lays out at full width under the card, and shows once the card fades. */
 .clew-reply-mermaid.is-drawing .clew-diagram,
-.clew-reply-openui.is-drawing .clew-openui-body {
+.clew-reply-figure.is-drawing .clew-figure {
   position: absolute;
   inset-inline: var(--size-4-4);
   visibility: hidden;
 }
 
-.clew-reply-openui.is-drawing .clew-openui-body {
+.clew-reply-figure.is-drawing .clew-figure {
   inset-inline: 0;
 }
 
 .clew-reply-mermaid:not(.is-drawing) .clew-diagram,
-.clew-reply-openui:not(.is-drawing) .clew-openui-body {
+.clew-reply-figure:not(.is-drawing) .clew-figure {
   animation: clew-fade-in 320ms ease 80ms both;
 }
 
@@ -917,143 +932,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.clew-stack {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--size-4-1) var(--size-4-2);
-}
-
-/* Every block takes a full row, except Stats: consecutive Stats share a row and wrap. */
-.clew-stack > * {
-  flex: 1 1 100%;
-  min-width: 0;
-}
-
-.clew-stack > .clew-stat {
-  flex: 1 1 220px;
-  max-width: 360px;
-}
-
-/* A slider shares its row with the Stats written right after it, which are usually what it drives. */
-.clew-stack > .clew-slider {
-  flex: 2 1 280px;
-}
-
-.clew-reply.markdown-rendered ol.clew-sequence {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: clew-sequence;
-}
-
-.clew-reply.markdown-rendered ol.clew-sequence > li {
-  position: relative;
-  min-inline-size: 0;
-  min-block-size: 1.75em;
-  margin: 0;
-  padding-inline-start: calc(1.75em + var(--size-4-3));
-  counter-increment: clew-sequence;
-}
-
-.clew-reply.markdown-rendered ol.clew-sequence > li:not(:last-child) {
-  padding-block-end: var(--size-4-5);
-}
-
-.clew-sequence > li::before {
-  content: counter(clew-sequence);
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  inline-size: 1.75em;
-  block-size: 1.75em;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 50%;
-  background: var(--background-secondary);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.clew-sequence > li:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0.875em;
-  inset-block-start: calc(1.75em + var(--size-4-1));
-  inset-block-end: var(--size-4-1);
-  border-inline-start: 1px solid var(--background-modifier-border);
-}
-
-/* Controls and figures in a reply visual. They use Obsidian's own tokens, so they follow the vault's theme and accent. */
-.clew-stat {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--size-4-3);
-  box-sizing: border-box;
-  padding: var(--size-4-3);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
-  background: var(--background-primary);
-  line-height: var(--line-height-tight);
-}
-
 .clew-control-row {
   color: var(--text-muted);
   font-size: var(--font-ui-small);
 }
 
-.clew-stat-label {
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-}
-
-.clew-stat-value {
-  color: var(--text-normal);
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-semibold);
-  text-align: right;
-}
-
-.clew-stat.is-text .clew-stat-value {
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-normal);
-}
-
-.clew-stat-mark {
-  margin-right: var(--size-2-2);
-}
-
-.clew-stat-mark:empty {
-  display: none;
-}
-
-.clew-reply-openui .clew-stack {
-  gap: var(--size-4-2) var(--size-4-4);
-}
-
-.clew-callout > .callout {
-  margin: 0;
-}
-
-/* Inline math overhangs its line box; Obsidian's scrolling callout content turns that into a scroll offset that clips the text. */
-.clew-callout .callout-content {
-  overflow: visible;
-}
-
-.clew-reply-openui .clew-text :is(h1, h2, h3, h4, h5, h6) {
-  margin-block: 0 var(--size-4-1);
-}
-
-.clew-reply-openui .clew-text :is(h1, h2, h3, h4, h5, h6) + * {
-  margin-block-start: 0;
-}
-
 /* The stack's gap alone spaces the blocks, so the paragraph margins at a text block's edges would double it. */
-.clew-text > :first-child,
-.clew-text > :first-child > :first-child,
 .clew-quiz-question > :first-child,
 .clew-quiz-question > :first-child > :first-child,
 .clew-quiz-feedback > :first-child,
@@ -1061,21 +945,11 @@
   margin-top: 0;
 }
 
-.clew-text > :last-child,
-.clew-text > :last-child > :last-child,
 .clew-quiz-question > :last-child,
 .clew-quiz-question > :last-child > :last-child,
 .clew-quiz-feedback > :last-child,
 .clew-quiz-feedback > :last-child > :last-child {
   margin-bottom: 0;
-}
-
-.clew-stat-mark.is-good {
-  color: var(--text-success);
-}
-
-.clew-stat-mark.is-bad {
-  color: var(--text-error);
 }
 
 .clew-slider,
@@ -1183,19 +1057,6 @@
   display: flex;
   align-items: center;
   gap: var(--size-2-1);
-  padding-top: var(--size-4-4);
-  border-top: 1px solid var(--background-modifier-border);
-  order: 1;
-}
-
-/* Inside a figure's card the player is divided off by a rule; on its own in a Stack it is a card like a Stat. */
-.clew-stack > .clew-player {
-  box-sizing: border-box;
-  margin-top: var(--size-4-1);
-  padding: var(--size-4-2) var(--size-4-3);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
-  background: var(--background-primary);
 }
 
 /* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
@@ -1278,31 +1139,6 @@
   white-space: nowrap;
 }
 
-.clew-step-figure {
-  display: flex;
-  flex-direction: column;
-  gap: var(--size-4-2);
-  min-width: 0;
-  max-width: 100%;
-}
-
-.clew-step-scroll {
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.clew-step-surface {
-  position: relative;
-  flex: none;
-  isolation: isolate;
-  font-family: var(--font-monospace);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.clew-board-region,
-.clew-board-slot,
-.clew-board-block,
 .clew-network-node,
 .clew-network-edge-label {
   position: absolute;
@@ -1312,24 +1148,6 @@
   border-radius: var(--radius-s);
 }
 
-.clew-board-region {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.clew-board-region-label {
-  box-sizing: border-box;
-  padding: 8px 12px;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.clew-board-slot {
-  border: 1px dashed var(--background-modifier-border);
-}
-
-.clew-board-block,
 .clew-network-node,
 .clew-network-edge-label {
   display: flex;
@@ -1343,7 +1161,6 @@
   background: var(--background-primary);
 }
 
-.clew-board-block,
 .clew-network-node {
   border: 1px solid var(--text-muted);
   z-index: 2;
@@ -1361,14 +1178,6 @@
   background: var(--background-primary);
 }
 
-.clew-network .clew-step-scroll {
-  border-radius: var(--radius-m);
-}
-
-.clew-network .clew-step-surface {
-  margin-inline: auto;
-}
-
 .clew-network-edges {
   position: absolute;
   inset: 0;
@@ -1379,12 +1188,6 @@
   stroke-width: 2;
 }
 
-.clew-step-surface [data-tag='active'] {
-  color: var(--interactive-accent);
-  font-weight: var(--font-semibold);
-}
-
-.clew-board-block[data-tag='active'],
 .clew-network-node[data-tag='active'] {
   border: 2px solid var(--interactive-accent);
 }
@@ -1398,138 +1201,10 @@
   stroke-dasharray: 7 4;
 }
 
-.clew-step-surface [data-tag='dim'] {
-  opacity: 0.45;
-}
-
 /* Fade only the text, so the label still covers the dot grid. */
 .clew-network-edge-label[data-tag='dim'] {
   opacity: 1;
   color: var(--text-faint);
-}
-
-.clew-step-figure .clew-caption {
-  overflow-wrap: anywhere;
-  color: var(--text-normal);
-}
-
-.clew-visual-error {
-  color: var(--text-error);
-  overflow-wrap: anywhere;
-}
-
-.clew-step-figure [hidden] {
-  display: none;
-}
-
-.clew-step-figure .clew-player {
-  flex: none;
-}
-
-.clew-visual-source pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.clew-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--size-4-2);
-}
-
-.clew-grid-scroll {
-  overflow-x: auto;
-}
-
-.clew-grid-table {
-  display: grid;
-  gap: 1px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  background: var(--background-modifier-border);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--line-height-tight);
-  overflow: hidden;
-}
-
-.clew-grid-row {
-  display: contents;
-}
-
-.clew-grid-head,
-.clew-grid-cell {
-  display: grid;
-  align-content: center;
-  min-width: 2.75em;
-  padding: var(--size-4-2) var(--size-4-3);
-  background: var(--background-primary);
-  text-align: center;
-  transition: background-color 0.2s ease;
-}
-
-.clew-grid-head {
-  background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
-  color: var(--text-muted);
-  font-size: var(--font-ui-small);
-  font-weight: var(--font-semibold);
-}
-
-/* A cell no step has reached yet is tinted, so an empty one reads as waiting, not missing. */
-.clew-grid-cell.is-pending {
-  background: color-mix(in srgb, var(--text-normal) 2.5%, var(--background-primary));
-}
-
-.clew-grid-cell.is-source {
-  background: color-mix(in srgb, var(--color-orange) 14%, var(--background-primary));
-}
-
-.clew-grid-cell.is-new {
-  background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary));
-  outline: 2px solid var(--interactive-accent);
-  outline-offset: -2px;
-  font-weight: var(--font-semibold);
-}
-
-/* Invisible finished values reserve cell size before a step reveals them. */
-.clew-grid-cell::before {
-  content: attr(data-value);
-  visibility: hidden;
-  font-weight: var(--font-semibold);
-}
-
-.clew-grid-cell::before,
-.clew-grid-cell > span {
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-
-/* Stack all captions invisibly so wrapping and pane resizing preserve the tallest one's height. */
-.clew-captions:not([hidden]),
-.clew-caption-sizes {
-  display: grid;
-}
-
-.clew-captions > *,
-.clew-caption-sizes > * {
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-
-.clew-caption-sizes {
-  visibility: hidden;
-}
-
-.clew-caption {
-  color: var(--text-muted);
-}
-
-.clew-caption > :first-child,
-.clew-caption > :first-child > :first-child {
-  margin: 0;
-}
-
-.clew-grid .clew-caption {
-  font-size: var(--font-ui-small);
 }
 
 /* Markdown tables share one presentation in prose and OpenUI text. */
@@ -1544,28 +1219,28 @@
   width: 100%;
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) table {
+.clew-reply.markdown-rendered .clew-reply-prose table {
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
   line-height: var(--line-height-tight);
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) th,
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) td {
+.clew-reply.markdown-rendered .clew-reply-prose th,
+.clew-reply.markdown-rendered .clew-reply-prose td {
   padding: var(--size-4-2) var(--size-4-3);
   vertical-align: middle;
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) th {
+.clew-reply.markdown-rendered .clew-reply-prose th {
   background: var(--background-secondary);
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) td {
+.clew-reply.markdown-rendered .clew-reply-prose td {
   background: var(--background-primary);
 }
 
-.clew-reply.markdown-rendered :is(.clew-reply-prose, .clew-text) tbody tr:hover > td {
+.clew-reply.markdown-rendered .clew-reply-prose tbody tr:hover > td {
   background: var(--background-modifier-hover);
 }
 
@@ -1599,6 +1274,8 @@
   box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
+  line-height: var(--line-height-normal);
+  white-space: normal;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
@@ -1606,6 +1283,7 @@
 
 .clew-quiz .clew-quiz-option > span {
   flex: 1;
+  min-width: 0;
 }
 
 /* A round mark in front of each option. Picked, it fills with a dot; marked, it becomes a tick or a cross. */
@@ -1847,6 +1525,34 @@
   font-weight: var(--font-semibold);
 }
 
+/* A label with Markdown or maths, which SVG text cannot typeset, drawn like `.clew-plot-label` over the plot. */
+.clew-plot-rich-label {
+  position: absolute;
+  padding: 0 2px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--background-primary) 85%, transparent);
+  color: var(--text-normal);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.clew-plot-rich-label.is-strong {
+  font-weight: var(--font-semibold);
+}
+
+.clew-plot-rich-label.is-title {
+  padding: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  transform: translate(-50%, -50%);
+}
+
+.clew-plot-rich-label.is-vertical {
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
 .clew-plot-grid,
 .clew-plot-axis {
   stroke: var(--background-modifier-border);
@@ -1877,9 +1583,44 @@
   stroke-width: 2;
 }
 
-.clew-plot-marker {
-  stroke: var(--background-primary);
-  stroke-width: 1.5;
+/* A 3D plot's height colours (viridis), its cell edges and its box. The dark ramp lifts the low end off the background. */
+.clew-plot3 {
+  --clew-surface-1: #440154;
+  --clew-surface-2: #3b528b;
+  --clew-surface-3: #21918c;
+  --clew-surface-4: #5ec962;
+  --clew-surface-5: #fde725;
+  --clew-surface-edge: rgb(0 0 0 / 22%);
+  --clew-surface-box: var(--text-faint);
+}
+
+.theme-dark .clew-plot3 {
+  --clew-surface-1: #5b2a86;
+  --clew-surface-2: #41609a;
+}
+
+.clew-plot3-frame {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.clew-plot3-frame:active {
+  cursor: grabbing;
+}
+
+.clew-plot3-frame:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.clew-plot3-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.clew-plot3-svg {
+  position: relative;
 }
 
 .clew-plot-cross {
@@ -1934,6 +1675,17 @@
 .clew-reply-text > :last-child > :last-child,
 .clew-reply-text > .clew-reply-prose:last-child > :last-child > :last-child {
   margin-bottom: 0;
+}
+
+/* A heading sits closer to its section than to the one before. Each block renders in its own div, so app.css's wider
+   gap above a heading after a paragraph never matches here, and a vault snippet may widen the gap below with !important. */
+.clew-reply.markdown-rendered .clew-reply-prose :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.25em !important;
+  margin-bottom: var(--size-4-2) !important;
+}
+
+.clew-reply.markdown-rendered .clew-reply-text > .clew-reply-prose:first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0 !important;
 }
 
 /* As tall as a line of reply text, so a line that replaces another lands in the same spot. */
@@ -2979,7 +2731,12 @@
   }
 }
 
+/* The tour's stepper keeps the tour's purple, and its dots sit inside each row's padding. */
 .clew-walkthrough {
+  --clew-step-accent: var(--clew-accent);
+  --clew-step-accent-text: var(--clew-accent);
+  --clew-step-x: 8px;
+  --clew-step-y: 7px;
   display: flex;
   flex-direction: column;
   margin: 8px 0;
@@ -3018,22 +2775,6 @@
   outline-offset: -2px;
 }
 
-/* A line from each number to the next, so the stops read as one path. It sits above the next row's background, which would hide its end. */
-.clew-walkthrough .clew-walk-step:not(:last-child)::before {
-  content: '';
-  position: absolute;
-  z-index: 1;
-  top: 31px;
-  bottom: -7px;
-  left: 18px;
-  width: 2px;
-  background: var(--background-modifier-border);
-}
-
-.clew-walkthrough .clew-walk-step.is-seen:not(:last-child)::before {
-  background: color-mix(in srgb, var(--clew-accent) 55%, transparent);
-}
-
 /* A play mark on hover says a click starts the tour here. */
 .clew-walkthrough .clew-walk-step::after {
   content: '';
@@ -3054,31 +2795,13 @@
   opacity: 0.9;
 }
 
-.clew-walk-num {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  flex: none;
-  place-items: center;
-  box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid var(--background-modifier-border);
-  border-radius: 50%;
-  background: var(--background-primary);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  font-variant-numeric: tabular-nums;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-
 .clew-walk-body {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
-  padding-top: 1px;
+  padding-top: 2px;
 }
 
 .clew-walk-comment {
@@ -3112,33 +2835,21 @@
   font-size: var(--font-ui-smaller);
 }
 
-.clew-walkthrough .clew-walk-step.is-seen .clew-walk-num {
-  border-color: var(--clew-accent);
-  color: var(--clew-accent);
-}
-
-.clew-walkthrough .clew-walk-step.is-active {
+.clew-walkthrough .clew-walk-step.is-current {
   background: color-mix(in srgb, var(--clew-accent) 13%, transparent);
-}
-
-.clew-walkthrough .clew-walk-step.is-active .clew-walk-num {
-  border-color: var(--clew-accent);
-  background: var(--clew-accent);
-  color: #fff;
 }
 
 .clew-walkthrough .clew-walk-step.is-missed {
   opacity: 0.55;
 }
 
-.clew-walkthrough .clew-walk-step.is-missed .clew-walk-num {
+.clew-walkthrough .clew-walk-step.is-missed .clew-step-dot {
   border-style: dashed;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .clew-walkthrough .clew-walk-step,
-  .clew-walkthrough .clew-walk-step::after,
-  .clew-walk-num {
+  .clew-walkthrough .clew-walk-step::after {
     transition: none;
   }
 }
@@ -3158,4 +2869,844 @@
 .clew-env-problems {
   color: var(--text-error);
   font-size: var(--font-ui-smaller);
+}
+
+/* Figures: model-written programs drawn with the host's own layout. Tag colours are per surface, never one rule for every [data-tag]. */
+.clew-figure {
+  --clew-figure-tex-size: 1.3em;
+  --clew-figure-ink: color-mix(in srgb, var(--text-normal) 80%, var(--background-primary));
+  --clew-figure-tag-active: var(--interactive-accent);
+  --clew-figure-tag-done: var(--text-muted);
+  --clew-figure-tag-match: var(--color-cyan);
+  --clew-figure-tag-new: var(--color-yellow);
+  --clew-figure-tag-dim: var(--text-faint);
+  --clew-figure-tag-good: var(--color-green);
+  --clew-figure-tag-bad: var(--color-red);
+  --clew-figure-fill-active: color-mix(in srgb, var(--interactive-accent) 22%, var(--background-primary));
+  --clew-figure-fill-done: var(--background-secondary);
+  --clew-figure-fill-match: color-mix(in srgb, var(--color-cyan) 24%, var(--background-primary));
+  --clew-figure-fill-new: color-mix(in srgb, var(--color-yellow) 30%, var(--background-primary));
+  --clew-figure-fill-dim: var(--background-secondary);
+  --clew-figure-fill-good: color-mix(in srgb, var(--color-green) 22%, var(--background-primary));
+  --clew-figure-fill-bad: color-mix(in srgb, var(--color-red) 22%, var(--background-primary));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.clew-figure-title {
+  font-weight: var(--font-semibold);
+}
+
+.clew-figure-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-2) var(--size-4-4);
+}
+
+.clew-figure-param-error:empty {
+  display: none;
+}
+
+.clew-figure-param-error,
+.clew-figure-error-message {
+  color: var(--text-error);
+  overflow-wrap: anywhere;
+}
+
+.clew-figure-error pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* On screen but invisible: Chromium starves the process of a display:none cross-origin frame, and its workers with it. */
+.clew-figure-sandbox {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* A redraw lays out hidden over the drawing on screen until it can take its place. */
+.clew-figure-body.is-pending {
+  position: absolute;
+  inset-inline: 0;
+  visibility: hidden;
+}
+
+.clew-figure-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  min-width: 0;
+}
+
+/* The caption sits beside a drawing narrow enough to leave it room, and wraps under one that is not. */
+.clew-figure-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2) var(--size-4-6);
+}
+
+/* The side column takes nearly all the spare width on a shared line, so the drawing stays its own size there; alone on its line after a wrap, the drawing takes the full width. */
+.clew-figure-side {
+  display: flex;
+  flex: 1000 1 18em;
+  flex-direction: column;
+  gap: var(--size-4-3);
+  font-size: calc(var(--font-ui-medium) - 1px);
+}
+
+.clew-figure-side:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+/* With the full player, the caption and player always sit under the figure, centred, and the player is wide enough to scrub. */
+.clew-figure-side:is(.is-player, .is-under) {
+  flex-basis: 100%;
+  min-width: 0;
+  align-items: center;
+}
+
+/* The full player is its own card, like the figure's, so its controls and track read as one object. */
+.clew-player:not(.is-play-only) {
+  width: min(100%, 32em);
+  padding: var(--size-4-1) var(--size-4-3) var(--size-4-1) var(--size-4-1);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background: var(--background-primary);
+}
+
+.clew-player.is-play-only :is(input[type='range'], .clew-player-count, .is-back, .is-next) {
+  display: none;
+}
+
+/* Play sits in the stepper's column, drawn like one of its dots. */
+.clew-player.is-play-only .clew-player-button {
+  width: 24px;
+  height: 24px;
+  min-height: 0;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border-hover);
+  color: var(--text-muted);
+}
+
+.clew-player.is-play-only .clew-player-button:hover {
+  border-color: var(--interactive-accent);
+  background: none;
+  color: var(--text-accent);
+}
+
+.clew-player.is-play-only .clew-player-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* A vertical stepper, for a figure's steps and a tour's stops: numbered dots joined by a line that fills in as the steps pass. */
+.clew-steps {
+  --clew-step-accent: var(--interactive-accent);
+  --clew-step-accent-text: var(--text-accent);
+}
+
+:is(.clew-steps, .clew-walkthrough) {
+  --clew-step-done: color-mix(in srgb, var(--clew-step-accent) 50%, var(--background-primary));
+}
+
+.clew-step {
+  position: relative;
+}
+
+/* From each dot's bottom edge to the next one's top, so it never shows through a faded dot. It sits above the next row's
+   background, which would hide its end. */
+.clew-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--clew-step-y, 0px) + 24px);
+  bottom: calc(-1 * var(--clew-step-y, 0px));
+  left: calc(var(--clew-step-x, 0px) + 11.5px);
+  width: 1px;
+  background: var(--background-modifier-border);
+  transition: background-color 0.25s ease;
+}
+
+.clew-step.is-done::before {
+  background: var(--clew-step-done);
+}
+
+/* Doubled up so Obsidian's own button styles (background, shadow, height) do not win. */
+.clew-steps .clew-step-button {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--size-4-3);
+  width: 100%;
+  height: auto;
+  padding: 0 0 var(--size-4-5);
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-faint);
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.clew-step:last-child .clew-step-button {
+  padding-bottom: 0;
+}
+
+.clew-steps .clew-step-button:hover {
+  color: var(--text-muted);
+}
+
+.clew-step.is-current .clew-step-button {
+  color: var(--text-normal);
+}
+
+.clew-steps .clew-step-button:focus-visible {
+  outline: none;
+}
+
+.clew-steps .clew-step-button:focus-visible .clew-step-dot {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.clew-step-dot {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--background-modifier-border-hover);
+  border-radius: 50%;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.clew-step.is-done .clew-step-dot {
+  border-color: var(--clew-step-done);
+  color: var(--clew-step-done);
+}
+
+.clew-step.is-current .clew-step-dot {
+  border-color: var(--clew-step-accent);
+  background: color-mix(in srgb, var(--clew-step-accent) 10%, var(--background-primary));
+  color: var(--clew-step-accent-text);
+  font-weight: var(--font-semibold);
+}
+
+/* Lifted so the lowercase text, not its line box, centres on the dot. */
+.clew-step-text {
+  flex: 1;
+  min-width: 0;
+  margin-top: -1px;
+  line-height: 24px;
+  overflow-wrap: break-word;
+}
+
+/* Obsidian colours bold and italic text itself; here they follow the step's dimming. */
+.clew-figure .clew-step-text :is(strong, b, em, i) {
+  color: inherit;
+}
+
+:is(.clew-step-heading, .clew-step-caption) > * {
+  margin: 0;
+}
+
+/* With a heading, the caption is the detail under it: smaller, and muted while its step is current. */
+.clew-step-heading {
+  font-weight: var(--font-semibold);
+}
+
+.clew-step-heading + .clew-step-caption {
+  margin-top: 2px;
+  font-size: calc(var(--font-ui-medium) - 3px);
+  line-height: 1.5;
+}
+
+.clew-step.is-current .clew-step-heading + .clew-step-caption {
+  color: var(--text-muted);
+}
+
+/* One caption at a time: every step in one grid cell, so the tallest keeps its height, and only the current one shows. */
+.clew-steps.is-single > .clew-steps-list {
+  display: grid;
+}
+
+.clew-steps.is-single .clew-step {
+  grid-area: 1 / 1;
+  min-width: 0;
+  visibility: hidden;
+}
+
+.clew-steps.is-single .clew-step.is-current {
+  visibility: visible;
+}
+
+.clew-steps.is-single .clew-step::before {
+  display: none;
+}
+
+/* A step shown here was hidden a moment ago, so it must not fade in from the dimmed colours of a step not yet reached. */
+.clew-steps.is-single :is(.clew-step-button, .clew-step-dot) {
+  transition: none;
+}
+
+.clew-steps.is-single .clew-step-button {
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
+.clew-steps.is-single .clew-step:not(:only-child) > .clew-step-button {
+  justify-content: center;
+}
+
+.clew-steps.is-single .clew-step-text {
+  flex: 0 1 auto;
+}
+
+/* A one-step figure has nothing to count. */
+.clew-steps .clew-step:only-child .clew-step-dot {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clew-step::before,
+  .clew-steps .clew-step-button,
+  .clew-step-dot {
+    transition: none;
+  }
+}
+
+.clew-figure-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.clew-figure-stack {
+  display: grid;
+  width: 100%;
+}
+
+/* Whatever a step draws is centred, so what is left of the pane's width falls on both sides. `safe` starts one wider than the
+   pane at its left edge, where it can scroll, instead of spilling past it. */
+.clew-figure-step {
+  grid-area: 1 / 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: safe center;
+  visibility: hidden;
+  padding: 4px 0 8px;
+}
+
+.clew-figure-step.is-current {
+  visibility: visible;
+}
+
+.clew-figure-row {
+  display: flex;
+  flex-flow: row wrap;
+}
+
+.clew-figure-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.clew-figure-row > .clew-figure-node {
+  align-self: stretch;
+}
+
+/* A Quiz is read, not looked at: it keeps the step's full width. */
+.clew-figure-step > .clew-figure-quiz {
+  align-self: stretch;
+}
+
+/* A root Row wide enough to wrap fills the step, so its own lines are centred as well. */
+.clew-figure-step > .clew-figure-row {
+  justify-content: safe center;
+}
+
+/* A formula in a column is centred too; auto margins fall back to the left edge when it overflows. */
+.clew-figure-column > .clew-figure-tex {
+  margin-inline: auto;
+}
+
+.clew-figure-tex {
+  width: fit-content;
+}
+
+/* A column of cards takes the widest card's width. */
+.clew-figure .clew-figure-column:not(:has(> :not(.clew-figure-node))) {
+  align-items: stretch;
+}
+
+.clew-figure .is-gap-sm { gap: 6px; }
+.clew-figure .is-gap-md { gap: 14px; }
+.clew-figure .is-gap-lg { gap: 28px; }
+.clew-figure .is-align-start { align-items: flex-start; }
+.clew-figure .is-align-center { align-items: center; }
+.clew-figure .is-align-end { align-items: flex-end; }
+
+.clew-figure-panel {
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+.clew-figure-panel-title,
+.clew-figure-title:not(:first-child),
+.clew-figure-table > .clew-figure-title,
+.clew-figure-seq > .clew-figure-title {
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-weight: var(--font-semibold);
+}
+
+.clew-figure p {
+  margin: 0;
+}
+
+/* The frame is the table's own and the lines are the cells', by class: Obsidian and vault table rules on bare cells cannot reach them. */
+.clew-figure .clew-figure-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  background: var(--background-primary);
+}
+
+/* A vault snippet may size every Markdown table cell with !important; a figure's table keeps the figure's size. */
+.clew-figure .clew-figure-table .clew-figure-cell {
+  padding: 4px 10px !important;
+  font-size: var(--font-ui-small) !important;
+  line-height: 1.5 !important;
+  /* Translucent, so a gridline still shows across a tag's fill, which the theme's border grey matches in brightness. */
+  border: 0 solid color-mix(in srgb, var(--text-normal) 12%, transparent);
+  border-width: 1px 0 0 1px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.clew-figure .clew-figure-table .clew-figure-cell:first-child {
+  border-left-width: 0;
+}
+
+.clew-figure .clew-figure-table thead .clew-figure-cell {
+  border-top-width: 0;
+  color: var(--text-muted);
+  font-weight: var(--font-semibold);
+  background: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.clew-figure-seq-items {
+  display: flex;
+}
+
+.clew-figure-seq-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.clew-figure-seq-index {
+  height: 16px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.clew-figure-seq-cell {
+  min-width: 32px;
+  margin-left: -1px;
+  padding: 6px 8px;
+  border: 1px solid var(--text-muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  background: var(--background-primary);
+}
+
+.clew-figure-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 6px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  text-align: center;
+  background: var(--background-primary);
+}
+
+.clew-figure-node.is-circle {
+  min-height: 48px;
+  border-radius: 999px;
+}
+
+.clew-figure-node-sub,
+.clew-network-node-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* A Tex element is often the figure itself (a matrix, a derivation), so it is set larger than the figure's UI text. Its
+   formula sits between an empty column and its pointers' column, which share the spare width equally, so the formula stays
+   centred; short of room, the formula keeps its width first and the pointer names wrap, down to their longest word. */
+.clew-figure-tex {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(min-content, 1fr);
+  font-size: var(--clew-figure-tex-size);
+}
+
+.clew-figure-tex-math {
+  grid-column: 2;
+  min-width: 0;
+}
+
+/* Doubled up to outrank MathJax's own spacing around display maths. */
+.clew-figure .clew-figure-tex mjx-container[display='true'] {
+  margin: 0;
+}
+
+.clew-figure-tex-lane {
+  position: relative;
+  grid-column: 3;
+}
+
+/* Every step's pointer names, laid over each other unseen, so the column takes the widest in any step and keeps it. */
+.clew-figure-tex-sizes {
+  display: grid;
+  height: 0;
+  visibility: hidden;
+}
+
+.clew-figure-tex-sizes > .clew-figure-pointer {
+  grid-area: 1 / 1;
+  position: static;
+  justify-self: start;
+  margin-left: 8px;
+  transform: none;
+}
+
+.clew-figure-tex-lane > .clew-figure-pointer {
+  left: 8px;
+  transform: translateY(-50%);
+}
+
+/* A formula's pointers are larger than other pointers, as the formula is, but smaller than the formula itself. */
+.clew-figure-tex .clew-figure-pointer {
+  font-size: var(--font-ui-medium);
+  white-space: normal;
+}
+
+.clew-figure-text {
+  max-width: 60ch;
+}
+
+.clew-figure-graph {
+  position: relative;
+  flex: none;
+  isolation: isolate;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.clew-figure-graph .clew-network-node {
+  flex-direction: column;
+  padding: 4px 8px;
+}
+
+.clew-figure-plot {
+  max-width: 100%;
+}
+
+.clew-figure-diagram {
+  position: relative;
+  max-width: 100%;
+}
+
+.clew-figure-diagram svg {
+  display: block;
+}
+
+.clew-figure-mark {
+  color: var(--clew-figure-ink);
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.clew-figure-mark.is-closed {
+  fill: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.clew-figure-mark.is-point {
+  fill: currentColor;
+  stroke: none;
+}
+
+.clew-figure-mark.is-dimension {
+  stroke-width: 1;
+}
+
+.clew-figure-diagram-label {
+  position: absolute;
+  padding: 0 4px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--background-primary) 85%, transparent);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.clew-figure-diagram-label.is-inside {
+  background: none;
+}
+
+.clew-figure-links,
+.clew-plot-rich {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.clew-figure-links-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+
+.clew-figure-link {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.clew-figure-link-label {
+  position: absolute;
+  padding: 0 4px;
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+}
+
+.clew-figure-pointer {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-active);
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  font-size: 12px;
+  font-weight: var(--font-medium);
+  line-height: 20px;
+  white-space: nowrap;
+  background: var(--background-secondary);
+  transform: translateX(-50%);
+}
+
+.clew-figure-pointer-mark {
+  color: var(--clew-figure-pointer-ink);
+  font-weight: var(--font-semibold);
+}
+
+.clew-figure-pointer p,
+.clew-figure-link-label p {
+  display: inline;
+}
+
+.clew-figure-pointer.is-left {
+  transform: translate(-100%, -50%);
+}
+
+/* Under the drawing whose marks it explains. `contain` keeps a long key from widening the drawing's column; it wraps instead. */
+.clew-figure-key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  contain: inline-size;
+  gap: 4px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.clew-figure-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clew-figure-key-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-s);
+  font-size: 10px;
+  background: var(--background-primary);
+}
+
+.clew-figure-probe {
+  position: absolute;
+  visibility: hidden;
+}
+
+
+/* Tags, one rule per surface: boxes (nodes, cells, key marks), lines (edges, links) and text (edge labels, pointers). A table cell's rule outranks Obsidian's striped columns. */
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='active'] {
+  outline: 2px solid var(--clew-figure-tag-active);
+  outline-offset: -2px;
+  font-weight: var(--font-semibold);
+}
+.clew-figure-table tr[data-tag='active'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='active'] {
+  font-weight: var(--font-semibold);
+  background: var(--clew-figure-fill-active);
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='active'] {
+  stroke: var(--clew-figure-tag-active);
+  stroke-width: 3;
+}
+.clew-network-edge-label[data-tag='active'] {
+  color: var(--clew-figure-tag-active);
+}
+.clew-figure-pointer[data-tag='active'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-active);
+}
+
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='done'],
+.clew-figure-table tr[data-tag='done'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='done'] {
+  color: var(--clew-figure-tag-done);
+  background: var(--clew-figure-fill-done);
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='done'] {
+  stroke: var(--clew-figure-tag-done);
+  stroke-dasharray: 7 4;
+}
+.clew-network-edge-label[data-tag='done'] {
+  color: var(--clew-figure-tag-done);
+}
+.clew-figure-pointer[data-tag='done'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-done);
+}
+
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='match'],
+.clew-figure-table tr[data-tag='match'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='match'] {
+  background: var(--clew-figure-fill-match);
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='match'] {
+  stroke: var(--clew-figure-tag-match);
+  stroke-width: 3;
+}
+.clew-network-edge-label[data-tag='match'] {
+  color: var(--clew-figure-tag-match);
+}
+.clew-figure-pointer[data-tag='match'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-match);
+}
+
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='new'],
+.clew-figure-table tr[data-tag='new'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='new'] {
+  background: var(--clew-figure-fill-new);
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='new'] {
+  stroke: var(--clew-figure-tag-new);
+  stroke-width: 3;
+}
+.clew-network-edge-label[data-tag='new'] {
+  color: var(--text-normal);
+}
+.clew-figure-pointer[data-tag='new'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-new);
+}
+
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='dim'],
+.clew-figure-table tr[data-tag='dim'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='dim'] {
+  opacity: 0.45;
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='dim'] {
+  opacity: 0.35;
+}
+.clew-network-edge-label[data-tag='dim'] {
+  color: var(--clew-figure-tag-dim);
+}
+.clew-figure-pointer[data-tag='dim'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-dim);
+}
+
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='good'],
+.clew-figure-table tr[data-tag='good'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='good'] {
+  color: var(--clew-figure-tag-good);
+  outline: 1.5px solid var(--clew-figure-tag-good);
+  outline-offset: -2px;
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='good'] {
+  stroke: var(--clew-figure-tag-good);
+  stroke-width: 3;
+}
+.clew-network-edge-label[data-tag='good'] {
+  color: var(--clew-figure-tag-good);
+}
+.clew-figure-pointer[data-tag='good'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-good);
+}
+
+:is(.clew-figure-node, .clew-network-node, .clew-figure-panel, .clew-figure-cell, .clew-figure-seq-cell, .clew-figure-key-mark)[data-tag='bad'],
+.clew-figure-table tr[data-tag='bad'] > td.clew-figure-cell,
+.clew-figure-table td.clew-figure-cell[data-tag='bad'] {
+  color: var(--clew-figure-tag-bad);
+  outline: 1.5px solid var(--clew-figure-tag-bad);
+  outline-offset: -2px;
+}
+:is(.clew-network-edge, .clew-figure-link)[data-tag='bad'] {
+  stroke: var(--clew-figure-tag-bad);
+  stroke-width: 3;
+}
+.clew-network-edge-label[data-tag='bad'] {
+  color: var(--clew-figure-tag-bad);
+}
+.clew-figure-pointer[data-tag='bad'] {
+  --clew-figure-pointer-ink: var(--clew-figure-tag-bad);
 }

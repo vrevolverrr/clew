@@ -1,6 +1,5 @@
 import { type AgentAdapter, type AgentSession, ConversationNotFoundError, type PermissionPolicy, type SkillOption } from '@/agents/types';
 import { buildSystemPrompt } from '@/context/systemPrompt';
-import { loadPackTool } from '@/tools/LoadPackTool';
 import type { ModelChoice } from '@/chat/ChatDefaults';
 
 /** The chat's warm agent session for one agent, opened on first use and resuming the chat's earlier conversation when it has one. */
@@ -54,11 +53,9 @@ export class ChatSession {
     const { agent } = this;
     const { cwd, resume: saved, onLost, permissionPolicy } = this.options;
     const open = (resume?: string): Promise<AgentSession> => {
-      // An agent that cannot add tools to a resumed conversation may not have this one, so it gets every component in the prompt.
-      const tools = !resume || agent.toolsOnResume ? [loadPackTool] : [];
-      const systemPrompt = buildSystemPrompt(tools.length > 0);
+      const systemPrompt = buildSystemPrompt();
       this.promptId = promptHash(systemPrompt);
-      return agent.openSession({ systemPrompt, tools, model, effort, cwd, resume, permissionPolicy });
+      return agent.openSession({ systemPrompt, model, effort, cwd, resume, permissionPolicy });
     };
     if (!saved) return open();
     try {

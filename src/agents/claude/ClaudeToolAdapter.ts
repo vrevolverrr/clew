@@ -58,7 +58,7 @@ export class ClaudeToolAdapter implements AgentToolAdapter<SDKMessage> {
 }
 
 function toolTitle(name: string, input: Record<string, unknown>, cwd: string): string {
-  const field = (key: string): string => (typeof input[key] === 'string' ? input[key] as string : '');
+  const field = (key: string): string => (typeof input[key] === 'string' ? input[key] : '');
   const file = (key: string): string => displayPath(field(key), cwd);
   switch (name) {
     case 'Read': return `Read ${file('file_path')}`;
@@ -66,7 +66,7 @@ function toolTitle(name: string, input: Record<string, unknown>, cwd: string): s
     case 'Edit':
     case 'MultiEdit': return `Edited ${file('file_path')}`;
     case 'NotebookEdit': return `Edited ${file('notebook_path')}`;
-    case 'Bash': return `Ran ${displayCommand(field('command').split('\n')[0]!, cwd)}`;
+    case 'Bash': return `Ran ${displayCommand(field('command').split('\n')[0], cwd)}`;
     case 'Glob': return `Found files matching ${field('pattern')}`;
     case 'Grep': return `Searched for ${field('pattern')}`;
     case 'WebSearch': return `Searched the web for ${field('query')}`;

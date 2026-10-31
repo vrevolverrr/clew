@@ -90,13 +90,14 @@ describe('runTurn', () => {
 
   it('keeps the quote on the turn and tells the caller once the session has the turn', async () => {
     const view = viewOf();
+    view.sent.mockImplementation(() => view.calls.push('sent'));
     const quote = { text: 'Rayleigh', path: 'optics.md' };
     const selection = { ...quote, key: 'Rayleigh' };
 
     const { turn } = await runTurn(async () => sessionOf([{ type: 'done', status: 'completed' }]), { ...request, context: { ...context, selection } }, view);
 
     expect(turn.quote).toEqual(quote);
-    expect(view.sent).toHaveBeenCalledTimes(1);
+    expect(view.calls).toEqual(['sent', 'finish:completed']);
   });
 
   it('records the attachments on the turn and hands the agent the images as files', async () => {
@@ -193,7 +194,7 @@ describe('runTurn', () => {
 
     expect(named.calls.filter((call) => call.startsWith('act:'))).toEqual(['act:notes/b.md:one two', 'act:a.md:three four']);
     expect(bare.calls.filter((call) => call.startsWith('act:'))).toEqual(['act:notes/b.md:one two']);
-    expect(result.turn.parts).toHaveLength(1);
+    expect(result.turn.parts).toEqual([{ type: 'highlight', step: { path: 'notes/b.md', quote: 'one two', comment: 'x' } }]);
   });
 
   it('prefers the title the agent reports over one written in the reply, and ignores the reply on later turns', async () => {

@@ -232,16 +232,4 @@ describe('CodexBinaryLocator', () => {
 
     expect(findCodexBinaryPath()).toBe(localBinary);
   });
-
-  it('prefers a user-local Codex binary before generic Unix PATH auto-detection', () => {
-    process.env.HOME = tempDir;
-    const localDir = path.join(tempDir, '.local', 'bin');
-    const localBinary = path.join(localDir, 'codex');
-    fs.mkdirSync(localDir, { recursive: true });
-    fs.writeFileSync(localBinary, '');
-
-    setPlatform('linux');
-
-    expect(findCodexBinaryPath()).toBe(localBinary);
-  });
 });

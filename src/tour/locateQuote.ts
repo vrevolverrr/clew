@@ -4,7 +4,7 @@ interface QuoteSpan {
 }
 
 /** Markdown emphasis, code ticks, math dollars, escapes and zero-width characters: a quote may leave them out or add them. */
-const IGNORED = /[*_`~$\\​-‍﻿]/;
+const IGNORED = /[*_`~$\\\u200B-\u200D\uFEFF]/;
 /** What starts a quoted, bulleted, numbered or heading line, with a callout's `[!type]`; a quote that spans lines leaves it out. */
 const LINE_MARKER = /(?:>\s*)+(?:\[![^\]\s]*\][+-]?\s*)?|[-+*]\s|#{1,6}\s|\d{1,3}[.)]\s/y;
 const SWAPPED: Record<string, string> = { '‘': "'", '’': "'", '“': '"', '”': '"', '–': '-', '—': '-', '−': '-', '…': '...' };
@@ -26,7 +26,7 @@ function fold(source: string, lower: boolean): Folded {
   // The start of the text is the start of a line, so a quote may begin with a marker too.
   let broke = true;
   for (let i = 0; i < source.length; i++) {
-    const char = source[i]!;
+    const char = source[i];
     if (/\s/.test(char)) {
       gap = true;
       broke ||= char === '\n';
@@ -72,8 +72,8 @@ export function quoteMatches(content: string, quote: string, wholeWords = false)
     const spans: QuoteSpan[] = [];
     for (let from = haystack.text.indexOf(needle); from !== -1; from = haystack.text.indexOf(needle, from + 1)) {
       const to = from + needle.length;
-      if (wholeWords && ((WORD.test(needle[0]!) && !edge(from - 1)) || (WORD.test(needle.at(-1)!) && !edge(to)))) continue;
-      spans.push({ start: haystack.at[from]!, end: haystack.at[to - 1]! + 1 });
+      if (wholeWords && ((WORD.test(needle[0]) && !edge(from - 1)) || (WORD.test(needle.at(-1)!) && !edge(to)))) continue;
+      spans.push({ start: haystack.at[from], end: haystack.at[to - 1] + 1 });
     }
     if (spans.length) return spans;
   }
@@ -112,5 +112,5 @@ export function inCallout(content: string, pos: number): boolean {
   let index = content.slice(0, pos).split('\n').length - 1;
   if (!isQuoted(lines[index])) return false;
   while (isQuoted(lines[index - 1])) index--;
-  return CALLOUT_START.test(lines[index]!);
+  return CALLOUT_START.test(lines[index]);
 }

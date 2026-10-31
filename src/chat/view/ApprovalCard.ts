@@ -136,12 +136,12 @@ export class ApprovalCard {
     let current = 0;
     const update = (): void => {
       next.setText(current < panes.length - 1 ? 'Next' : 'Submit');
-      next.disabled = !panes[current]!.read().length;
+      next.disabled = !panes[current].read().length;
     };
     const show = (index: number): void => {
       current = index;
       panes.forEach((pane, i) => { pane.body.hidden = i !== index; });
-      this.el.setAttribute('aria-labelledby', panes[index]!.labelId);
+      this.el.setAttribute('aria-labelledby', panes[index].labelId);
       update();
     };
     show(0);
@@ -152,7 +152,7 @@ export class ApprovalCard {
       event.preventDefault();
       if (current === panes.length - 1) return answer(panes.map((pane) => pane.read()));
       show(current + 1);
-      panes[current]!.body.querySelector('input')?.focus();
+      panes[current].body.querySelector('input')?.focus();
     });
     skip.addEventListener('click', () => answer(undefined));
   }

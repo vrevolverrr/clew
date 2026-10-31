@@ -9,12 +9,8 @@ import { normalizeConfiguredCLIPath, parsePathEntries } from '@/agents/process/c
 const isWindows = process.platform === 'win32';
 
 describe('parsePathEntries', () => {
-  it('returns empty array for undefined', () => {
-    expect(parsePathEntries(undefined)).toEqual([]);
-  });
-
-  it('returns empty array for empty string', () => {
-    expect(parsePathEntries('')).toEqual([]);
+  it.each([undefined, ''])('returns empty array for %p', (value) => {
+    expect(parsePathEntries(value)).toEqual([]);
   });
 
   it('splits on platform separator', () => {
@@ -29,33 +25,18 @@ describe('parsePathEntries', () => {
     expect(result).toEqual(isWindows ? ['A:', 'B:'] : ['/a', '/b']);
   });
 
-  it('filters out $PATH placeholder', () => {
+  it.each(['$PATH', '${PATH}', '%PATH%'])('filters out %s placeholder', (placeholder) => {
     const sep = isWindows ? ';' : ':';
-    const result = parsePathEntries(`/a${sep}$PATH${sep}/b`);
+    const result = parsePathEntries(`/a${sep}${placeholder}${sep}/b`);
     expect(result).toEqual(isWindows ? ['A:', 'B:'] : ['/a', '/b']);
   });
 
-  it('filters out ${PATH} placeholder', () => {
+  it.each([
+    ['double', '"/quoted/path"'],
+    ['single', "'/quoted/path'"],
+  ])('strips surrounding %s quotes', (_kind, quoted) => {
     const sep = isWindows ? ';' : ':';
-    const result = parsePathEntries(`/a${sep}\${PATH}${sep}/b`);
-    expect(result).toEqual(isWindows ? ['A:', 'B:'] : ['/a', '/b']);
-  });
-
-  it('filters out %PATH% placeholder', () => {
-    const sep = isWindows ? ';' : ':';
-    const result = parsePathEntries(`/a${sep}%PATH%${sep}/b`);
-    expect(result).toEqual(isWindows ? ['A:', 'B:'] : ['/a', '/b']);
-  });
-
-  it('strips surrounding double quotes', () => {
-    const sep = isWindows ? ';' : ':';
-    const result = parsePathEntries(`"/quoted/path"${sep}/normal`);
-    expect(result[0]).toBe('/quoted/path');
-  });
-
-  it('strips surrounding single quotes', () => {
-    const sep = isWindows ? ';' : ':';
-    const result = parsePathEntries(`'/quoted/path'${sep}/normal`);
+    const result = parsePathEntries(`${quoted}${sep}/normal`);
     expect(result[0]).toBe('/quoted/path');
   });
 
@@ -66,24 +47,14 @@ describe('parsePathEntries', () => {
 });
 
 describe('normalizeConfiguredCLIPath', () => {
-  it('strips surrounding double quotes from a path containing a space', () => {
-    expect(normalizeConfiguredCLIPath('"/opt/my cli/claude"')).toBe('/opt/my cli/claude');
-  });
-
-  it('strips surrounding single quotes', () => {
-    expect(normalizeConfiguredCLIPath("'/opt/claude'")).toBe('/opt/claude');
-  });
-
-  it('leaves an unquoted path unchanged', () => {
-    expect(normalizeConfiguredCLIPath('/opt/my cli/claude')).toBe('/opt/my cli/claude');
-  });
-
-  it('leaves a path with only a leading quote unchanged', () => {
-    expect(normalizeConfiguredCLIPath('"/opt/claude')).toBe('"/opt/claude');
-  });
-
-  it('trims surrounding whitespace before unquoting', () => {
-    expect(normalizeConfiguredCLIPath('  "/opt/claude"  ')).toBe('/opt/claude');
+  it.each([
+    ['strips surrounding double quotes from a path containing a space', '"/opt/my cli/claude"', '/opt/my cli/claude'],
+    ['strips surrounding single quotes', "'/opt/claude'", '/opt/claude'],
+    ['leaves an unquoted path unchanged', '/opt/my cli/claude', '/opt/my cli/claude'],
+    ['leaves a path with only a leading quote unchanged', '"/opt/claude', '"/opt/claude'],
+    ['trims surrounding whitespace before unquoting', '  "/opt/claude"  ', '/opt/claude'],
+  ])('%s', (_name, input, expected) => {
+    expect(normalizeConfiguredCLIPath(input)).toBe(expected);
   });
 
   it('expands environment variables after unquoting', () => {

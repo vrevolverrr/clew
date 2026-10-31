@@ -184,7 +184,7 @@ export class Composer {
 
   /** Fits the input to its text, redraws the mirror behind it, and enables Send to match. */
   refresh(): void {
-    this.inputEl.style.height = 'auto';
+    this.inputEl.style.removeProperty('height');
     this.inputEl.style.height = `${Math.min(this.inputEl.scrollHeight, MAX_INPUT_HEIGHT)}px`;
     this.mirrorEl.empty();
     // A zero-width character gives a trailing newline its line, as in the textarea.

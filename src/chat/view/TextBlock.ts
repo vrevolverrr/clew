@@ -1,15 +1,18 @@
 import { parser } from '@lezer/markdown';
 
 import type { ReplySegment } from '@/chat/splitReply';
-import { splitReply } from '@/chat/splitReply';
-import { OpenUIRenderer } from '@/renderer/openui/OpenUIRenderer';
-import { library } from '@/renderer/openui/library';
+import { fenceFor, splitReply } from '@/chat/splitReply';
+import { LIMITS } from '@/renderer/figure/FigureData';
+import { figureSandbox } from '@/renderer/figure/FigureSandbox';
+import { type FigureHost, FigureView } from '@/renderer/figure/FigureView';
 import { canAnimate } from '@/shared/view/iconButtons';
 
-/** What a reply needs to draw Markdown; the chat pane provides it. `diagrams` also draws its Mermaid fences. */
+/** What a reply needs to draw Markdown and maths; the chat pane provides it. `diagrams` also draws its Mermaid fences. */
 export interface MarkdownTarget {
   render(el: HTMLElement, markdown: string, options?: { diagrams?: boolean }): Promise<void>;
   release(container?: HTMLElement): void;
+  renderMath(tex: string, display: boolean): HTMLElement;
+  finishRenderMath(): Promise<void>;
 }
 
 /** Grows the card from its drawing height to the diagram's while the drawing card fades out. */
@@ -55,7 +58,7 @@ class Prose {
   set(text: string): void {
     const end = lastBlockStart(text, this.settled);
     if (end > this.settled) {
-      const block = this.el.insertBefore(document.createElement('div'), this.tail);
+      const block = this.el.insertBefore(createDiv(), this.tail);
       void this.markdown.render(block, text.slice(this.settled, end));
       this.settled = end;
     }
@@ -82,14 +85,28 @@ function lastBlockStart(text: string, from: number): number {
   return start;
 }
 
+/** The figures of one reply, across its text blocks, numbered in order from 0. */
+export class ReplyFigures {
+  /** One for each figure that has started to run, resolved once it has drawn or failed. */
+  readonly outcomes: Promise<void>[] = [];
+  /** Failures of a live reply that a repair may fix, by figure number. */
+  readonly held = new Map<number, { error: string; showError(): void }>();
+  /** Once set, a failure shows its error card at once instead of being held. */
+  settled = false;
+
+  /** `live` is false for a saved reply drawn again, which never asks for a repair. `send` sends a Quiz answer. */
+  constructor(readonly live: boolean, readonly send?: (message: string) => boolean) {}
+}
+
 type Part =
   | { kind: 'prose'; el: HTMLElement; prose: Prose }
   | { kind: 'mermaid'; el: HTMLElement; drawn: boolean }
-  | { kind: 'openui'; el: HTMLElement; renderer: OpenUIRenderer; drawn: boolean; pending: Promise<void>[] };
+  /** `view` is absent for a figure past the reply's limit, which shows as code. */
+  | { kind: 'figure'; el: HTMLElement; view?: FigureView; drawn: boolean; ordinal: number };
 
 /**
- * A stretch of reply text: prose through the chat Markdown renderer, each OpenUI fence through its own renderer.
- * A Mermaid or OpenUI fence shows a drawing card until it closes, then draws once in the same card.
+ * A stretch of reply text: prose through the chat Markdown renderer, each figure fence through a `FigureView`.
+ * A Mermaid or figure fence shows a drawing card until it closes, then draws once in the same card.
  */
 export class TextBlock {
   private readonly parts: Part[] = [];
@@ -97,10 +114,12 @@ export class TextBlock {
   private complete = false;
   private frame: number | null = null;
 
+  /** `first` is the number of this block's first figure in the reply. */
   constructor(
     private readonly el: HTMLElement,
     private readonly markdown: MarkdownTarget,
-    private readonly ask?: (message: string) => boolean,
+    private readonly figures: ReplyFigures,
+    private readonly first: number,
   ) {}
 
   /** Renders the text so far, at most once per frame. */
@@ -131,20 +150,21 @@ export class TextBlock {
 
   private render(): void {
     const segments = splitReply(this.source, this.complete);
+    let figures = 0;
     segments.forEach((segment, index) => {
       let part = this.parts[index];
       if (part?.kind !== segment.kind) {
         this.removeFrom(index);
-        part = this.createPart(segment);
+        part = this.createPart(segment, this.first + figures);
         this.parts.push(part);
       }
-      if (part.kind === 'openui' && segment.kind === 'openui') {
-        // A half-streamed program draws a half-built figure, so the figure waits for its closing fence and draws once.
+      if (part.kind === 'figure' && segment.kind === 'figure') {
+        figures += 1;
+        // A half-written program cannot run, so the figure waits for its closing fence and draws once.
         if (!part.drawn && (segment.closed || this.complete)) {
           part.drawn = true;
-          part.renderer.set(segment.text, true);
-          // Markdown inside the figure renders async, so its height is known only once those renders settle.
-          void Promise.allSettled(part.pending.splice(0)).then(() => reveal(part.el));
+          if (part.view) this.figures.outcomes.push(this.drawFigure(part, part.view, segment.text));
+          else this.drawAsCode(part, segment.text);
         }
       } else if (part.kind === 'mermaid' && segment.kind === 'mermaid') {
         this.drawDiagram(part, segment.text, segment.closed || this.complete);
@@ -155,38 +175,64 @@ export class TextBlock {
     this.removeFrom(segments.length);
   }
 
+  /** Runs the figure under the drawing card. A live failure a repair may fix keeps the card and is held; any other shows its error card. */
+  private async drawFigure(part: Extract<Part, { kind: 'figure' }>, view: FigureView, source: string): Promise<void> {
+    const showError = (error: string): void => {
+      view.showError(error, source);
+      reveal(part.el);
+    };
+    try {
+      const outcome = await view.run(source, { whenVisible: !this.figures.live });
+      if (outcome.drawn) return reveal(part.el);
+      if (!this.figures.live || !outcome.repairable || this.figures.settled) return showError(outcome.error);
+      this.figures.held.set(part.ordinal, { error: outcome.error, showError: () => showError(outcome.error) });
+    } catch (error) {
+      console.error('Clew: a figure failed to draw', error);
+      showError('The figure could not be drawn');
+    }
+  }
+
+  private drawAsCode(part: Extract<Part, { kind: 'figure' }>, source: string): void {
+    const target = part.el.createDiv({ cls: 'clew-figure-code' });
+    const fence = fenceFor(source);
+    const shown = this.markdown.render(target, `${fence}js\n${source}\n${fence}`);
+    target.createDiv({ cls: 'clew-figure-note', text: 'Only four figures are drawn per reply' });
+    void shown.finally(() => reveal(part.el));
+  }
+
   /** Renders the diagram under the drawing card, which fades once the render settles, so its source never shows. */
   private drawDiagram(part: Extract<Part, { kind: 'mermaid' }>, source: string, closed: boolean): void {
     if (part.drawn || !closed) return;
     part.drawn = true;
     const target = part.el.createDiv({ cls: 'clew-diagram' });
-    // A fence longer than any backtick run in the source, so no line of it closes the fence early.
-    const fence = '`'.repeat(Math.max(3, ...(source.match(/`+/g) ?? []).map((run) => run.length + 1)));
+    const fence = fenceFor(source);
     void this.markdown.render(target, `${fence}mermaid\n${source}\n${fence}`, { diagrams: true }).finally(() => reveal(part.el));
   }
 
-  private createPart(segment: ReplySegment): Part {
+  private createPart(segment: ReplySegment, ordinal: number): Part {
     const el = this.el.createDiv({ cls: `clew-reply-${segment.kind}` });
     if (segment.kind === 'prose') return { kind: 'prose', el, prose: new Prose(el, this.markdown) };
-    const drawing = segment.kind === 'mermaid' || !(segment.closed || this.complete);
-    if (drawing) el.addClass('is-drawing');
+    el.addClass('is-drawing');
     if (segment.kind === 'mermaid') {
       addDrawingCard(el, 'Drawing diagram');
       return { kind: 'mermaid', el, drawn: false };
     }
-    if (drawing) addDrawingCard(el, 'Drawing visual');
-    const pending: Promise<void>[] = [];
-    const renderMarkdown = (target: HTMLElement, markdown: string) => {
-      const render = this.markdown.render(target, markdown, { diagrams: true });
-      if (el.hasClass('is-drawing')) pending.push(render);
+    addDrawingCard(el, 'Drawing visual');
+    if (ordinal >= LIMITS.figuresPerReply) return { kind: 'figure', el, drawn: false, ordinal };
+    figureSandbox.warm();
+    // A label in a figure is not a diagram, so its fences never draw as Mermaid.
+    const host: FigureHost = {
+      renderMarkdown: (target, markdown) => this.markdown.render(target, markdown, { diagrams: false }),
+      renderMath: (tex, display) => this.markdown.renderMath(tex, display),
+      finishRenderMath: () => this.markdown.finishRenderMath(),
+      send: this.figures.send,
     };
-    const body = el.createDiv({ cls: 'clew-openui-body' });
-    return { kind: 'openui', el, renderer: new OpenUIRenderer(body, library, renderMarkdown, this.ask), drawn: false, pending };
+    return { kind: 'figure', el, view: new FigureView(el, host), drawn: false, ordinal };
   }
 
   private removeFrom(index: number): void {
     for (const part of this.parts.splice(index)) {
-      if (part.kind === 'openui') part.renderer.destroy();
+      if (part.kind === 'figure') part.view?.destroy();
       this.markdown.release(part.el);
       part.el.remove();
     }

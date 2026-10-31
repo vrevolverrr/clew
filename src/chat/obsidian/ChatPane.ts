@@ -101,6 +101,8 @@ export class ChatPane extends Component {
     this.replyMarkdown = {
       render: (el, text, options) => markdown.render(el, text, options?.diagrams ? diagrams : undefined),
       release: (container) => markdown.release(container),
+      renderMath,
+      finishRenderMath,
     };
     this.registerDomEvent(this.messagesEl, 'click', (event) => this.openInternalLink(event));
     this.approvals = new ApprovalCard(root, () => this.refreshTab());
@@ -191,14 +193,14 @@ export class ChatPane extends Component {
   private ask(message: string): boolean {
     if (this.chat.busy || this.closed) return false;
     const { note } = this.composer.document.read();
-    this.start(this.run({ message, attachments: [], ...(note ? { note } : {}) }));
+    void this.start(this.run({ message, attachments: [], ...(note ? { note } : {}) }));
     return true;
   }
 
   private send(): void {
     if ((!this.composer.message && !this.composer.hasAttachments) || this.chat.busy || this.closed) return;
     const message = this.composer.message;
-    this.start(this.run({ message, attachments: this.composer.take(), ...this.composer.document.read() }));
+    void this.start(this.run({ message, attachments: this.composer.take(), ...this.composer.document.read() }));
   }
 
   /** Runs one turn on `context`, drawn as it streams. */
@@ -211,7 +213,7 @@ export class ChatPane extends Component {
 
   /** Keeps live replies and scripted demos on the same display lifecycle. */
   private async displayTurn(context: ChatContext, send: (view: TurnView) => Promise<unknown>, sent = (): void => undefined): Promise<void> {
-    const { turnEl, replyEl, reply } = this.addTurn(context.message, quoteOf(context.selection), context.attachments);
+    const { turnEl, replyEl, reply } = this.addTurn(context.message, quoteOf(context.selection), context.attachments, true);
     this.messagesEl.scrollTo({ top: turnEl.offsetTop, behavior: 'smooth' });
     const view = this.turnView(replyEl, reply, this.chat.record.turns.length, sent);
     this.composer.setStreaming(true);
@@ -264,7 +266,8 @@ export class ChatPane extends Component {
     });
   }
 
-  private addTurn(message: string, quote?: NoteQuote, attachments: readonly ChatAttachment[] = []): { turnEl: HTMLElement; replyEl: HTMLElement; reply: ReplyView } {
+  /** `live` is true for a turn being run, false for a saved one drawn again. */
+  private addTurn(message: string, quote?: NoteQuote, attachments: readonly ChatAttachment[] = [], live = false): { turnEl: HTMLElement; replyEl: HTMLElement; reply: ReplyView } {
     const turnEl = this.messagesEl.createDiv({ cls: 'clew-turn' });
     const chipped = attachments.filter((attachment) => !isMention(attachment));
     if (chipped.length) {
@@ -292,7 +295,7 @@ export class ChatPane extends Component {
       if (bubble.querySelector('.math, mjx-container')) finishRenderMath().catch(() => undefined);
     }
     const replyEl = turnEl.createDiv({ cls: 'clew-reply markdown-rendered' });
-    const reply = new ReplyView(replyEl, this.replyMarkdown, this.walkthrough, (message) => this.ask(message));
+    const reply = new ReplyView(replyEl, this.replyMarkdown, this.walkthrough, (message) => this.ask(message), live);
     this.replies.add(reply);
     return { turnEl, replyEl, reply };
   }

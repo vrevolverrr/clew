@@ -17,7 +17,7 @@ export function skillLeads(message: string, syntax: SkillSyntax): boolean {
 /** The skill name being typed at the cursor. */
 export function skillTrigger(text: string, cursor: number, syntax: SkillSyntax): SkillTrigger | null {
   const match = new RegExp(`${skillStart(syntax)}(${SKILL_NAME}*)$`).exec(text.slice(0, cursor));
-  return match ? { start: match.index, query: match[1]! } : null;
+  return match ? { start: match.index, query: match[1] } : null;
 }
 
 /**

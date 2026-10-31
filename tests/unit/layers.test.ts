@@ -7,8 +7,8 @@ const SRC = join(__dirname, '../../src');
  * Where a file sits in the dependency hierarchy. Host code, which may use the Obsidian API and the editor, is exactly the
  * code in an `obsidian/` folder (and `main.ts`). A module (`attachments/`, `tour/`, `settings/`, `renderer/markdown/`,
  * `renderer/mermaid/`) is split into `module` (its root: no host, no DOM), `module/view` (DOM widgets) and `module/obsidian`.
- * Modules sit above the chat model and context, which never import one. `renderer/openui/` is the `renderer` zone, at the
- * bottom, since context and tools describe its language. Each zone lists the zones it may import; anything else fails.
+ * Modules sit above the chat model and context, which never import one. `renderer/figure/` is the `renderer` zone, at the
+ * bottom, since context describes its language. Each zone lists the zones it may import; anything else fails.
  */
 type Zone =
   | 'main'
@@ -24,13 +24,12 @@ type Zone =
   | 'chat'
   | 'context'
   | 'renderer'
-  | 'tools'
   | 'agents';
 
 const SHARED: Zone[] = ['shared', 'shared/view', 'shared/obsidian'];
 
 const ALLOWED: Record<Zone, Zone[]> = {
-  main: ['main', 'chat/obsidian', 'chat/view', 'module', 'module/view', 'module/obsidian', ...SHARED, 'context/obsidian', 'chat', 'context', 'renderer', 'tools', 'agents'],
+  main: ['main', 'chat/obsidian', 'chat/view', 'module', 'module/view', 'module/obsidian', ...SHARED, 'context/obsidian', 'chat', 'context', 'renderer', 'agents'],
   'chat/obsidian': ['chat/obsidian', 'chat/view', 'module', 'module/view', 'module/obsidian', ...SHARED, 'context/obsidian', 'chat', 'context', 'renderer', 'agents'],
   'chat/view': ['chat/view', 'module', 'module/view', 'shared', 'shared/view', 'chat', 'context', 'renderer', 'agents'],
   'module/obsidian': ['module', 'module/view', 'module/obsidian', ...SHARED, 'chat', 'context', 'agents'],
@@ -40,17 +39,16 @@ const ALLOWED: Record<Zone, Zone[]> = {
   'shared/view': ['shared/view', 'shared'],
   'shared/obsidian': ['shared/obsidian', 'shared'],
   'context/obsidian': ['context/obsidian', 'shared/obsidian', 'shared', 'context'],
-  chat: ['chat', 'context', 'shared', 'agents', 'renderer', 'tools'],
+  chat: ['chat', 'context', 'shared', 'agents', 'renderer'],
   context: ['context', 'shared', 'agents', 'renderer'],
   renderer: ['renderer'],
-  tools: ['tools', 'agents', 'renderer'],
   agents: ['agents'],
 };
 
 const HOST: Zone[] = ['main', 'chat/obsidian', 'module/obsidian', 'shared/obsidian', 'context/obsidian'];
 /** The one file outside the host zones that imports Obsidian, for its icon set. */
 const ICONS = 'shared/view/icon.ts';
-const NO_DOM: Zone[] = ['chat', 'context', 'shared', 'module', 'tools'];
+const NO_DOM: Zone[] = ['chat', 'context', 'shared', 'module'];
 const MODULES = new Set(['attachments', 'tour', 'settings', 'renderer/markdown', 'renderer/mermaid']);
 
 function sources(): string[] {

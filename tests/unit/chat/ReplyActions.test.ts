@@ -14,9 +14,24 @@ function run(chunks: string[]): { text: string; titles: string[] } {
 const reply = 'The slope is wrong.\n\nWhich factor is missing?\n@Title("Chain rule slope")\n';
 
 describe('parseActionLine', () => {
-  it('reads a complete call of a known action', () => {
-    expect(parseActionLine('@Title("Rayleigh scattering")')).toEqual({ name: 'Title', params: { text: 'Rayleigh scattering' } });
-    expect(parseActionLine('  @Title("a \\"quoted\\" word")  ')).toEqual({ name: 'Title', params: { text: 'a "quoted" word' } });
+  it.each([
+    ['a complete call of a known action', '@Title("Rayleigh scattering")', { name: 'Title', params: { text: 'Rayleigh scattering' } }],
+    ['a padded call with escaped quotes', '  @Title("a \\"quoted\\" word")  ', { name: 'Title', params: { text: 'a "quoted" word' } }],
+    ['a highlight', '@Highlight("the slope")', { name: 'Highlight', params: { quote: 'the slope' } }],
+    ['a highlight with every argument', '@Highlight("the slope", "Check this", "notes/optics.md", 42)', {
+      name: 'Highlight',
+      params: { quote: 'the slope', comment: 'Check this', path: 'notes/optics.md', line: 42 },
+    }],
+    ['a highlight, dropping a line number that is no use', '@Highlight("the slope", "Check this", "notes/optics.md", 4.5)', {
+      name: 'Highlight',
+      params: { quote: 'the slope', comment: 'Check this', path: 'notes/optics.md' },
+    }],
+    ['null as a left-out argument', '@Highlight("the slope", null, "notes/optics.md")', { name: 'Highlight', params: { quote: 'the slope', path: 'notes/optics.md' } }],
+    ['an exponent line number and a trailing comma', '@Highlight("the slope", null, null, 1e1,)', { name: 'Highlight', params: { quote: 'the slope', line: 10 } }],
+    ['a line number with no leading digit, dropped as no use', '@Highlight("the slope", null, null, .5)', { name: 'Highlight', params: { quote: 'the slope' } }],
+    ['a blank comment as none', '@Highlight("the slope", "  ")', { name: 'Highlight', params: { quote: 'the slope' } }],
+  ])('reads %s', (_, line, want) => {
+    expect(parseActionLine(line)).toEqual(want);
   });
 
   it.each([
@@ -40,20 +55,7 @@ describe('parseActionLine', () => {
     expect(parseActionLine(line)).toBe('invalid');
   });
 
-  it('reads a highlight, and drops a line number that is no use without dropping the highlight', () => {
-    expect(parseActionLine('@Highlight("the slope")')).toEqual({ name: 'Highlight', params: { quote: 'the slope' } });
-    expect(parseActionLine('@Highlight("the slope", "Check this", "notes/optics.md", 42)')).toEqual({
-      name: 'Highlight',
-      params: { quote: 'the slope', comment: 'Check this', path: 'notes/optics.md', line: 42 },
-    });
-    expect(parseActionLine('@Highlight("the slope", "Check this", "notes/optics.md", 4.5)')).toEqual({
-      name: 'Highlight',
-      params: { quote: 'the slope', comment: 'Check this', path: 'notes/optics.md' },
-    });
-  });
-
-  it('reads a blank comment as none, and cuts one that is too long', () => {
-    expect(parseActionLine('@Highlight("the slope", "  ")')).toEqual({ name: 'Highlight', params: { quote: 'the slope' } });
+  it('cuts a comment that is too long', () => {
     const long = parseActionLine(`@Highlight("the slope", "${'a'.repeat(200)}")`);
     expect(long).toMatchObject({ name: 'Highlight', params: { comment: 'a'.repeat(160) } });
   });
@@ -98,23 +100,16 @@ describe('ReplyActions', () => {
     ]);
   });
 
-  it('keeps a @ line that is not a known action as prose, once it ends', () => {
-    expect(run(['@alice thinks so\n', '@Underline("x")\n'])).toEqual({ text: '@alice thinks so\n@Underline("x")\n', titles: [] });
-  });
+  const fenced = 'Example:\n```text\n@Title("not a title")\n```\n````md\n```\n@Title("nor this")\n```\n````\n';
 
-  it('drops a call of a known action with bad arguments instead of showing it', () => {
-    expect(run(['Hi.\n@Highlight()\n@Title(3)\n@Title("Fine")\n'])).toEqual({ text: 'Hi.\n', titles: ['Fine'] });
-    expect(run(['Hi.\n@Highlight()'])).toEqual({ text: 'Hi.\n', titles: [] });
-  });
-
-  it('keeps a @ line inside a code fence as code', () => {
-    const text = 'Example:\n```text\n@Title("not a title")\n```\n````md\n```\n@Title("nor this")\n```\n````\n';
-
-    expect(run([text])).toEqual({ text, titles: [] });
-  });
-
-  it('reads an action again after a fence closes', () => {
-    expect(run(['```js\nx\n```\n@Title("After")\n'])).toEqual({ text: '```js\nx\n```\n', titles: ['After'] });
+  it.each([
+    ['keeps a @ line that is not a known action as prose, once it ends', ['@alice thinks so\n', '@Underline("x")\n'], { text: '@alice thinks so\n@Underline("x")\n', titles: [] }],
+    ['drops a call of a known action with bad arguments instead of showing it', ['Hi.\n@Highlight()\n@Title(3)\n@Title("Fine")\n'], { text: 'Hi.\n', titles: ['Fine'] }],
+    ['drops a bad call on a last line with no newline', ['Hi.\n@Highlight()'], { text: 'Hi.\n', titles: [] }],
+    ['keeps a @ line inside a code fence as code', [fenced], { text: fenced, titles: [] }],
+    ['reads an action again after a fence closes', ['```js\nx\n```\n@Title("After")\n'], { text: '```js\nx\n```\n', titles: ['After'] }],
+  ])('%s', (_, chunks, want) => {
+    expect(run(chunks)).toEqual(want);
   });
 
   it('ends a reply whose last line has no newline', () => {

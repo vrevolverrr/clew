@@ -96,7 +96,7 @@ export class ChatPicker extends Modal {
       else this.setActive(this.active + (event.key === 'ArrowDown' ? 1 : -1));
     } else if (event.key === 'Enter' && this.rows[this.active]) {
       event.preventDefault();
-      this.choose(this.rows[this.active]!.chat);
+      this.choose(this.rows[this.active].chat);
     }
   }
 
@@ -105,7 +105,7 @@ export class ChatPicker extends Modal {
     if (!this.rows.length) return;
     this.rows[this.active]?.el.removeClass('is-active');
     this.active = Math.min(Math.max(index, 0), this.rows.length - 1);
-    const { el } = this.rows[this.active]!;
+    const { el } = this.rows[this.active];
     el.addClass('is-active');
     el.scrollIntoView({ block: 'nearest' });
   }
@@ -138,7 +138,7 @@ export class ChatPicker extends Modal {
     const now = Date.now();
     const end = Math.min(this.drawn + count, this.entries.length);
     for (; this.drawn < end; this.drawn++) {
-      const { chat, label } = this.entries[this.drawn]!;
+      const { chat, label } = this.entries[this.drawn];
       if (label !== this.lastLabel) {
         this.listEl.createDiv({ cls: 'clew-chat-group', text: label });
         this.lastLabel = label;
@@ -214,7 +214,7 @@ export class ChatPicker extends Modal {
 
 function fold(el: HTMLElement): Promise<unknown> {
   const { paddingTop, paddingBottom } = getComputedStyle(el);
-  el.style.overflow = 'hidden';
+  el.addClass('clew-folding');
   return el.animate(
     [
       { height: `${el.offsetHeight}px`, paddingTop, paddingBottom, opacity: 1 },

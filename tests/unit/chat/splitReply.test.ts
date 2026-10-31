@@ -1,8 +1,8 @@
-import { splitReply } from '@/chat/splitReply';
+import { countFigures, replaceFigures, splitReply } from '@/chat/splitReply';
 
 const reply = [
   'The slope is wrong.',
-  '```openui-lang',
+  '```figure',
   'root = Stack([t])',
   't = TextContent("Inner function")',
   '```',
@@ -10,10 +10,10 @@ const reply = [
 ].join('\n');
 
 describe('splitReply', () => {
-  it('splits prose and openui fences in order', () => {
+  it('splits prose and figure fences in order', () => {
     expect(splitReply(reply, true)).toEqual([
       { kind: 'prose', text: 'The slope is wrong.' },
-      { kind: 'openui', text: 'root = Stack([t])\nt = TextContent("Inner function")', closed: true },
+      { kind: 'figure', text: 'root = Stack([t])\nt = TextContent("Inner function")', closed: true },
       { kind: 'prose', text: 'Which factor is missing?' },
     ]);
   });
@@ -21,27 +21,31 @@ describe('splitReply', () => {
   it('never shows fence syntax as prose at any chunk boundary', () => {
     for (let end = 1; end <= reply.length; end += 1) {
       const prose = splitReply(reply.slice(0, end), false).filter((s) => s.kind === 'prose');
-      for (const segment of prose) expect(segment.text).not.toMatch(/``|openui-lang|root =/);
+      for (const segment of prose) expect(segment.text).not.toMatch(/``|figure|root =/);
     }
   });
 
-  it('drops blank prose between and after fences', () => {
-    expect(splitReply('```openui-lang\nroot = Stack([])\n```\n\n', true)).toEqual([
-      { kind: 'openui', text: 'root = Stack([])', closed: true },
-    ]);
+  it.each([
+    ['drops blank prose between and after fences', '```figure\nroot = Stack([])\n```\n\n', [
+      { kind: 'figure', text: 'root = Stack([])', closed: true },
+    ]],
+    ['leaves other code fences in prose, including a figure line inside them', '````md\n```figure\nroot = Stack([])\n```\n````\nDone.', [
+      { kind: 'prose', text: '````md\n```figure\nroot = Stack([])\n```\n````\nDone.' },
+    ]],
+    ['closes a fence only with a matching marker', '~~~figure\nroot = Stack([t])\n```\n~~~\nAfter.', [
+      { kind: 'figure', text: 'root = Stack([t])\n```', closed: true },
+      { kind: 'prose', text: 'After.' },
+    ]],
+    ['keeps a jsx fence as code', '```jsx\n<Row />\n```', [{ kind: 'prose', text: '```jsx\n<Row />\n```' }]],
+  ])('%s', (_, text, want) => {
+    expect(splitReply(text, true)).toEqual(want);
   });
 
   it('keeps an unclosed fence open, with its partial last line', () => {
-    expect(splitReply('Look:\n```openui-lang\nroot = Stack([t', false)).toEqual([
+    expect(splitReply('Look:\n```figure\nroot = Stack([t', false)).toEqual([
       { kind: 'prose', text: 'Look:' },
-      { kind: 'openui', text: 'root = Stack([t', closed: false },
+      { kind: 'figure', text: 'root = Stack([t', closed: false },
     ]);
-  });
-
-  it('leaves other code fences in prose, including an openui-lang line inside them', () => {
-    const text = '````md\n```openui-lang\nroot = Stack([])\n```\n````\nDone.';
-
-    expect(splitReply(text, true)).toEqual([{ kind: 'prose', text }]);
   });
 
   it('splits out a mermaid fence, open until its closing line arrives, without showing a cut-off closer', () => {
@@ -57,13 +61,23 @@ describe('splitReply', () => {
       { kind: 'prose', text: 'After.' },
     ]);
   });
+});
 
-  it('closes a fence only with a matching marker', () => {
-    const text = '~~~openui-lang\nroot = Stack([t])\n```\n~~~\nAfter.';
+describe('countFigures and replaceFigures', () => {
+  const reply = ['Intro.', '```figure', 'one', '```', '```mermaid', 'flowchart LR', '```', '```jsx', '<Row />', '```', '```figure', 'two', '```', 'End.'].join('\n');
 
-    expect(splitReply(text, true)).toEqual([
-      { kind: 'openui', text: 'root = Stack([t])\n```', closed: true },
-      { kind: 'prose', text: 'After.' },
-    ]);
+  it('count figures, not other fences', () => {
+    expect(countFigures(reply)).toBe(2);
+  });
+
+  it('replace only the figure numbered in the fixes', () => {
+    expect(replaceFigures(reply, new Map([[4, 'fixed']]), 3)).toBe(reply.replace('two', 'fixed'));
+  });
+
+  it('count an unclosed last figure, and close it when it is replaced', () => {
+    const open = 'Look:\n```figure\nbroken(';
+    expect(countFigures(open)).toBe(1);
+    expect(replaceFigures(open, new Map([[0, 'fixed']]), 0)).toBe('Look:\n```figure\nfixed\n```');
   });
 });
+

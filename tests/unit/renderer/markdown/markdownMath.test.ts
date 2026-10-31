@@ -20,14 +20,6 @@ describe('markdownMath', () => {
       ].join('\n'));
     });
 
-    it('preserves existing dollars and unmatched or escaped LaTeX delimiters', () => {
-      expect(
-        normalizeLatexMathDelimiters('Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).')
-      ).toBe(
-        'Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).'
-      );
-    });
-
     it('preserves delimiters in inline, fenced, and indented code', () => {
       const markdown = [
         '`inline \\(code\\)` and \\(math\\)',
@@ -76,15 +68,10 @@ describe('markdownMath', () => {
       ['keeps unmatched inline openers with padding', 'Keep \\( x + y.', 'Keep \\( x + y.'],
       ['keeps display expression padding', 'Display \\[  x + y  \\].', 'Display $$  x + y  $$.'],
       ['keeps padded inline delimiters in protected Markdown', '`\\(  x  \\)` and [label](https://host/a\\(  x  \\)) and <span title="\\(  x  \\)">ok</span>', '`\\(  x  \\)` and [label](https://host/a\\(  x  \\)) and <span title="\\(  x  \\)">ok</span>'],
+      ['preserves existing dollars and unmatched or escaped LaTeX delimiters', 'Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).', 'Keep $x$ and $$y$$. Unmatched \\(z. Escaped \\\\(x\\\\).'],
+      ['preserves raw HTML bodies', '<pre>\n\\(literal\\)\n</pre>\n\\(visible\\)', '<pre>\n\\(literal\\)\n</pre>\n$visible$'],
     ])('%s', (_name, markdown, expected) => {
       expect(normalizeLatexMathDelimiters(markdown)).toBe(expected);
-    });
-
-    it('preserves raw HTML bodies', () => {
-      const markdown = '<pre>\n\\(literal\\)\n</pre>\n\\(visible\\)';
-      expect(normalizeLatexMathDelimiters(markdown)).toBe(
-        '<pre>\n\\(literal\\)\n</pre>\n$visible$'
-      );
     });
   });
 });

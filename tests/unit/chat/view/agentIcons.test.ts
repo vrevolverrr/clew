@@ -11,5 +11,7 @@ it('uses a generic icon for a provider without custom artwork', () => {
   expect(icon.getAttribute('data-agent')).toBe('unbranded');
   expect(icon.getAttribute('aria-hidden')).toBe('true');
   expect(icon.getAttribute('viewBox')).toBe('0 0 24 24');
-  expect(icon.querySelector('path')?.getAttribute('d')).toBeTruthy();
+  const claude = document.createElement('div');
+  appendAgentIcon(claude, 'claude');
+  expect(icon.querySelector('path')?.getAttribute('d')).not.toBe(claude.querySelector('path')!.getAttribute('d'));
 });

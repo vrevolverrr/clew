@@ -92,7 +92,7 @@ export function displayCommand(command: string, cwd: string): string {
 /** Puts an approval event on the turn's stream and waits for the answer, or for `signal` to end the request. */
 export interface AgentApprovalContext {
   signal: AbortSignal;
-  push(event: AgentEvent): void;
+  push: (event: AgentEvent) => void;
 }
 
 /** Native requests enter; normalized approval events and once-only decisions leave. */
