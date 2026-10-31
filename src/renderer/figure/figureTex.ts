@@ -72,7 +72,7 @@ export function drawTex(tex: string, colour: TagColour): string {
       const tag = name.trim();
       return !model && isTag(tag) ? `\\${command}[RGB]{${colour(tag, command !== 'color').join(',')}}` : whole;
     })
-    // \bbox splits on commas and # is TeX's parameter character, so its colour is a style with neither.
+    // \bbox splits its options on commas, so its colour is a style with a space-separated rgb().
     .replace(BBOX, (_, args: string) => `\\bbox[${args.split(',').map((part) => (isTag(part.trim()) ? `background-color:rgb(${colour(part.trim() as Tag, true).join(' ')})` : part)).join(',')}]`)
     .replace(ANCHOR, (_, name: string) => `\\data{figure-id=${name.trim()}}`);
 }
