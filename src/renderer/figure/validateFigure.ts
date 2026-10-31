@@ -269,10 +269,10 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
         if (!Array.isArray(row) || row.length !== columns.length) fail(path, `row ${r + 1} must have ${columns.length} cells, one per column`);
         return row.map((cell) => (cell === null ? null : read.text(cell, 'a cell')));
       });
-      const rowIds = read.list('rowIds', 0, LIMITS.tableRows, 'rowIds', (rowId) => claim(rowId, path, scope));
-      if (rowIds.length !== rows.length) fail(path, `${rows.length} rows but ${rowIds.length} rowIds; give one id per row`);
-      for (const rowId of rowIds) for (let c = 0; c < columns.length; c += 1) claim(`${rowId}.${c}`, path, scope);
-      return { type, ...id, ...read.optional('title', (v) => read.string(v, 'title')), columns, rows, rowIds, tags: read.tags() };
+      const rowIds = read.optional('rowIds', () => read.list('rowIds', 0, LIMITS.tableRows, 'rowIds', (rowId) => claim(rowId, path, scope)));
+      if (rowIds.rowIds && rowIds.rowIds.length !== rows.length) fail(path, `${rows.length} rows but ${rowIds.rowIds.length} rowIds; give one id per row`);
+      for (const rowId of rowIds.rowIds ?? []) for (let c = 0; c < columns.length; c += 1) claim(`${rowId}.${c}`, path, scope);
+      return { type, ...id, ...read.optional('title', (v) => read.string(v, 'title')), columns, rows, ...rowIds, tags: read.tags() };
     }
     case 'Seq': {
       const items = read.list('items', 0, LIMITS.seqItems, 'items', (item) => {

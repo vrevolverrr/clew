@@ -360,6 +360,13 @@ describe('FigureView', () => {
     expect(tops[1]).not.toBe(tops[0]);
   });
 
+  it('draws a Table without rowIds, its cells unaddressed', async () => {
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root: el('Table', { columns: ['a', 'b'], rows: [[1, 2]] }) }])));
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    expect(view.el.querySelectorAll('td.clew-figure-cell')).toHaveLength(2);
+    expect(view.el.querySelector('td[data-figure-id]')).toBeNull();
+  });
+
   it('draws a Diagram whose only point is the origin', async () => {
     const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: '', root: el('Diagram', { width: 1, height: 1 }, el('Points', { pts: [[0, 0]] })) }])));
     await expect(view.run('src')).resolves.toEqual({ drawn: true });

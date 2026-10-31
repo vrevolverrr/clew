@@ -70,7 +70,7 @@ export type Align = 'start' | 'center' | 'end';
 export type FigureNode =
   | { type: 'Row' | 'Column'; id?: string; gap?: Gap; align?: Align; children: readonly FigureNode[] }
   | { type: 'Panel'; id?: string; title?: string; tag?: Tag; children: readonly FigureNode[] }
-  | { type: 'Table'; id?: string; title?: string; columns: readonly Text[]; rows: readonly (readonly (Text | null)[])[]; rowIds: readonly string[]; tags: Tags }
+  | { type: 'Table'; id?: string; title?: string; columns: readonly Text[]; rows: readonly (readonly (Text | null)[])[]; rowIds?: readonly string[]; tags: Tags }
   | { type: 'Seq'; id?: string; title?: string; items: readonly { id: string; label: Text }[]; index?: true | readonly Text[]; tags: Tags }
   | { type: 'Node'; id?: string; label: Text; sub?: Text; shape?: 'box' | 'circle'; tag?: Tag }
   | { type: 'Text'; id?: string; text: string }

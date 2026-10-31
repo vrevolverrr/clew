@@ -17,6 +17,7 @@ export default function ({ n }) {
 - \`<Figure steps caption heading? render title?>\`: \`steps\` is an array of 1 to 64 plain values, one per step. \`render(step, i)\` returns the tree for that step. \`caption(step, i)\` returns the step's caption: Markdown with \`$...$\` maths, required when there are two or more steps. \`heading(step, i)\` optionally names the step in a few words, shown bold over its caption. \`title\` is optional text over the figure.
 - Ordinary JavaScript: loops, local functions, arrays, \`Math\`, template strings. No imports, no DOM, no network, no React. The elements below exist already; nothing else does. The data the figure shows is written into the program as literals, and every number shown is computed by the program from them.
 - Name the step parameter \`step\` (not \`f\`, which models then reuse for a curve function). Do not declare a variable with an element's name.
+- Group several elements without a box, in a \`.map\` callback or a \`Plot\` or \`Diagram\`, with a fragment: \`<>...</>\`.
 - Return the same structure in every step and change text and tags. Give an \`id\` to anything an arrow or pointer points at, anything tagged, and anything that should keep its place between steps.
 - Any string prop is Markdown and may hold \`$maths$\`. Numbers are printed with up to six significant digits, so \`0.1 + 0.2\` reads \`0.3\`; format money yourself.
 - An error stops the figure: check every array you index, and that a function you call exists in the step it is called in.
@@ -31,7 +32,7 @@ Layout:
 
 Objects (all take \`id\`; \`title\`, \`label\` and cells are text):
 
-- \`<Table id title columns={[...]} rows={[[...]]} rowIds={[...]} tags={{rowId: tag}} />\`: one row per \`rowId\`, each row one cell per column; a cell is text, a number or \`null\`. A cell has the id \`rowId.column\` (0-based column), so a tag, \`Arrow\` or \`Pointer\` can address one cell: a DP table, a Punnett square or a pipeline marks \`{ 'r2.3': 'active' }\`.
+- \`<Table id title columns={[...]} rows={[[...]]} rowIds={[...]} tags={{rowId: tag}} />\`: each row one cell per column; a cell is text, a number or \`null\`. \`rowIds\` is optional: give it, one id per row, only when a tag, \`Arrow\` or \`Pointer\` names a row or cell. A cell then has the id \`rowId.column\` (0-based column): a DP table, a Punnett square or a pipeline marks \`{ 'r2.3': 'active' }\`.
 - \`<Seq id title items={[{id, label}]} index tags={{itemId: tag}} />\`: a strip of cells for an array, queue or string. \`index\` shows 0, 1, 2… above the cells, or an array of labels.
 - \`<Node id label sub shape="box|circle" tag />\`: one labelled box or circle, with an optional second smaller line; also the stat tile (\`label\` the value, \`sub\` what it is).
 - \`<Text>...</Text>\` or \`<Text text />\`: a paragraph. \`<Tex tex />\`: a displayed formula. Matrices, derivations and determinants are \`Tex\` in each step; there is no matrix element. All TeX follows the TeX rule below.
@@ -43,7 +44,7 @@ Links, placed anywhere in the tree and attached by id:
 - \`<Arrow from to label tag />\`: an arrow between any two elements, rows, items or nodes.
 - \`<Pointer to name tag />\`: a named marker under a Seq item, left of a Table row, or beside any element. Keep \`name\` short (a variable, an index, a row operation): it takes room beside what it marks.
 
-Two drawings, each holding layers in its own coordinates:
+Two drawings, each holding layers in its own coordinates. A \`Plot\` or \`Diagram\` holds only its layers, never a \`Row\`, \`Column\`, \`Panel\`, \`Text\`, \`Table\` or \`Node\`; put those beside the drawing, both in a \`Row\` or \`Column\`:
 
 - \`<Plot id x={[lo, hi]} y={[lo, hi]} xLabel yLabel equal>\`: axes in data coordinates, \`x\` required, \`y\` fitted when absent. \`equal\` draws one unit as long on both axes, so a circle stays round; it is on when \`x\` and \`y\` span the same length, and \`equal={false}\` turns it off.
 - \`<Diagram id width height>\`: a free drawing in the model's own units (metres, grid cells), y upwards, scaled by the host to fit the pane; \`width\` and \`height\` are the extent of the drawing in its units.
@@ -54,7 +55,9 @@ Plot only: \`<Fn id f={x => ...} from to label tag />\` (sampled by the host; th
 
 Diagram only, geometry marks placed and sized by the host: \`<Angle at from to label tag />\` (the arc of the angle at \`at\` from the ray towards \`from\` to the ray towards \`to\`, label outside the arc), \`<RightAngle at from to />\` (the square mark), \`<Tick on={[a, b]} n tag />\` (\`n\` equal-length ticks across segment a–b) and \`<Dimension from to label />\` (a measured length with end bars, offset from the drawing).
 
-Construction functions, in scope like \`Math\`, so points are computed rather than guessed: \`intersect(lineA, lineB)\` (a line is \`[p, q]\`; returns the point or \`null\` when parallel), \`foot(p, line)\` (the foot of the perpendicular), \`rotate(p, about, degrees)\` (counter-clockwise), \`along(a, b, t)\` (the point a + t·(b − a)), \`circleThrough(a, b, c)\` (returns \`{at, r}\`), \`dist(a, b)\`. They are plain JavaScript defined before the program and are not elements.
+Construction functions, in scope like \`Math\`, so points are computed rather than guessed: \`intersect(lineA, lineB)\` (a line is \`[p, q]\`; returns the point or \`null\` when parallel), \`foot(p, line)\` (the foot of the perpendicular), \`rotate(p, about, degrees)\` (counter-clockwise), \`along(a, b, t)\` (the point a + t·(b − a)), \`circleThrough(a, b, c)\` (returns \`{at, r}\`), \`dist(a, b)\`, \`project([x, y, z], view?)\` (a 3D point seen from \`view = { azimuth: 30, elevation: 25, zScale: 1 }\`, angles in degrees, z upwards and multiplied by \`zScale\`, as \`[x, y]\`) and \`surface(f, [x0, x1], [y0, y1], { n: 12, ...view }?)\` (the wireframe of z = f(x, y): a list of point lists, one \`Shape\` each). They are plain JavaScript defined before the program and are not elements.
+
+A 3D surface or solid is a \`Diagram\` of projected \`Shape\`s: build \`const mesh = surface(...)\` once, outside \`render\`, and draw \`mesh.map((pts, i) => <Shape id={'w' + i} pts={pts} />)\` in each step, with axes as \`Vector\`s from \`project([0, 0, 0])\` and labels at projected points. When z spans much more or less than x and y, set \`zScale\` to about (x span) / (z span) and pass the same view to every \`surface\` and \`project\` call, so a point on the surface lands on it. Tag the wireframe \`dim\` and what moves on it (a path, a point) \`active\` or \`new\`, or it is lost in the mesh.
 
 Parameters the student can change, declared by \`export const params\`, one entry per control, read as the argument of the default export:
 
@@ -74,7 +77,11 @@ A tag marks state; the host shows what each means in a key under the figure, so 
 
 ### TeX in figures
 
-Write ordinary MathJax wherever TeX appears: \`Tex\`, captions, \`Text\`, and \`$...$\` in any label or cell. Two things are the host's:
+Write ordinary MathJax wherever TeX appears: \`Tex\`, captions, \`Text\`, and \`$...$\` in any label or cell.
+
+Backslashes: in a quoted JSX attribute, write TeX as it is: \`label="$A \\cap B$"\`. Everywhere else (a string or template in JavaScript, a prop in \`{...}\`, a caption function) write it with \`String.raw\`: \`\` caption={step => String.raw\`$\\frac{\${step.a}}{2}$\`} \`\`. A plain \`'$\\cap$'\` loses the backslash and shows "cap"; \`"\\\\cap"\` in an attribute keeps both, which TeX reads as a line break.
+
+Two things are the host's:
 
 - Colour. In \`\\rowcolor{c}\`, \`\\cellcolor{c}\`, \`\\colorbox{c}{...}\`, \`\\bbox[c]{...}\` and \`\\color{c}{...}\`, the colour \`c\` is one of the seven tag names. The host replaces it with the current theme's colour for that tag and redraws on a theme change. Any other colour (\`red\`, \`#d0453a\`, \`rgb(...)\`) and \`\\definecolor\` fail validation with the allowed tags named.
 - Anchors. \`\\cssId{name}{...}\` marks a part of a formula as an anchor: \`name\` joins the step's ids, follows the id rules, and an \`Arrow\` or \`Pointer\` can target it. \`\\class\` and \`\\data\` are the host's and fail validation.

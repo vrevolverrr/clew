@@ -2,7 +2,7 @@
 // Nothing here is trusted by the host, which validates what this posts; this only samples functions and makes the tree plain.
 import { transform } from 'sucrase';
 
-import { along, circleThrough, dist, foot, intersect, rotate } from '@/renderer/figure/diagram/construct';
+import { along, circleThrough, dist, foot, intersect, project, rotate, surface } from '@/renderer/figure/diagram/construct';
 import { ELEMENT_PROPS, LIMITS } from '@/renderer/figure/FigureData';
 
 declare const self: { onmessage: ((event: { data: unknown }) => void) | null; postMessage(message: unknown): void; __run?: (module: unknown, exports: unknown) => void; __probe?: number };
@@ -130,7 +130,7 @@ function defineGlobals(): void {
   const scope = self as unknown as Record<string, unknown>;
   for (const name of [...NAMES, 'Fragment']) scope[name === 'Fragment' ? '__F' : name] = Object.freeze({ [ELEMENT]: name });
   scope.__h = h;
-  Object.assign(scope, { intersect, foot, rotate, along, circleThrough, dist });
+  Object.assign(scope, { intersect, foot, rotate, along, circleThrough, dist, project, surface });
   // Seeded and fixed, so a saved figure draws the same on every open.
   let seed = 0x9e3779b9;
   Math.random = () => {

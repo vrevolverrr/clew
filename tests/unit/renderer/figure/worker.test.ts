@@ -46,6 +46,25 @@ describe('the figure worker', () => {
     expect(result.ok ? 'ok' : result.error).toBe('ok');
   });
 
+  it('keeps one TeX backslash in a quoted attribute and in String.raw, as the prompt says', async () => {
+    const reply = await run(String.raw`export default () => <Column><Text text="$A \cap B$" /><Text text={String.raw` + '`$\\frac{${1}}{2}$`' + String.raw`} /></Column>;`);
+    expect(reply.frames![0].root.children.map((child) => (child as { props: { text: string } }).props.text)).toEqual(['$A \\cap B$', '$\\frac{1}{2}$']);
+  });
+
+  it('gives programs project and surface, and still lets a program declare its own project', async () => {
+    const own = await run('const project = (p) => [p[0], p[1]];\nexport default () => <Diagram width={1} height={1}><Points pts={[project([1, 2, 3])]} /></Diagram>;');
+    expect(own.error).toBeUndefined();
+    const reply = await run('export default () => <Diagram width={1} height={1}>{surface((x, y) => x * y, [0, 1], [0, 1], { n: 2 }).map((pts, i) => <Shape id={"w" + i} pts={pts} />)}</Diagram>;');
+    expect(reply.frames![0].root.children).toHaveLength(6);
+    expect(validateFigure(reply).ok).toBe(true);
+  });
+
+  it('splices a fragment inside a Diagram, so a map can return two layers', async () => {
+    const reply = await run('export default () => <Diagram width={2} height={1}>{[0, 1].map(x => <><Segment from={[x, 0]} to={[x, 1]} /><Points pts={[[x, 1]]} /></>)}</Diagram>;');
+    expect(reply.frames![0].root.children.map((child) => (child as { type: string }).type)).toEqual(['Segment', 'Points', 'Segment', 'Points']);
+    expect(validateFigure(reply).ok).toBe(true);
+  });
+
   it('reads declared params, and the values the host sends', async () => {
     const source = `export const params = { n: { label: 'n', min: 1, max: 8, step: 1, value: 3 } };
 export default function ({ n }) {

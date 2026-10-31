@@ -602,7 +602,7 @@ export class FigureView {
         ordinals.set(node.type, n + 1);
         const key = laneKey(node, n);
         if (node.type === 'Seq') for (const item of node.items) owner.set(item.id, key);
-        if (node.type === 'Table') for (const row of node.rowIds) for (let c = -1; c < node.columns.length; c += 1) owner.set(c < 0 ? row : `${row}.${c}`, key);
+        if (node.type === 'Table') for (const row of node.rowIds ?? []) for (let c = -1; c < node.columns.length; c += 1) owner.set(c < 0 ? row : `${row}.${c}`, key);
         if (node.type === 'Tex') for (const id of [node.id, ...texAnchors(node.tex)]) if (id) owner.set(id, key);
       });
       walk(step.root, (node) => {
@@ -676,10 +676,10 @@ export class FigureView {
         for (const column of node.columns) drawing.markdown(head.appendChild(Object.assign(createEl('th'), { className: 'clew-figure-cell' })), column);
         const rows = table.createTBody();
         node.rows.forEach((cells, r) => {
-          const rowId = node.rowIds[r];
+          const rowId = node.rowIds?.[r];
           const row = mark(rows.insertRow(), rowId);
           cells.forEach((cell, c) => {
-            const td = mark(row.insertCell(), `${rowId}.${c}`);
+            const td = mark(row.insertCell(), rowId && `${rowId}.${c}`);
             td.classList.add('clew-figure-cell');
             if (cell === null) td.textContent = '–';
             else drawing.markdown(td, cell);

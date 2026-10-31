@@ -94,6 +94,11 @@ describe('validateFigure on adversarial clones', () => {
 });
 
 describe('validateFigure ids', () => {
+  it('accepts a Table without rowIds', () => {
+    expectOk(figure(el('Table', { columns: ['a', 'b'], rows: [[1, 2]] })));
+    expectOk(figure(el('Table', { id: 't', columns: ['a'], rows: [[1]], tags: { t: 'active' } })));
+  });
+
   it('rejects an id used by a Seq item and a Node', () => {
     expect(errorOf(figure(el('Row', {}, el('Seq', { items: [{ id: 'a', label: 1 }] }), node('a'))))).toContain('id "a" is used twice in this step');
   });
