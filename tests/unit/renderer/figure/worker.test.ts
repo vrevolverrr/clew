@@ -51,15 +51,6 @@ describe('the figure worker', () => {
     expect(reply.frames![0].root.children.map((child) => (child as { props: { text: string } }).props.text)).toEqual(['$A \\cap B$', '$\\frac{1}{2}$']);
   });
 
-  it('gives programs project and surface, and still lets a program declare its own project', async () => {
-    const own = await run('const project = (p) => [p[0], p[1]];\nexport default () => <Diagram width={1} height={1}><Points pts={[project([1, 2, 3])]} /></Diagram>;');
-    expect(own.error).toBeUndefined();
-    expect((own.frames![0].root.children[0] as { props: { pts: unknown } }).props.pts).toEqual([[1, 2]]);
-    const reply = await run('export default () => <Diagram width={1} height={1}>{surface((x, y) => x * y, [0, 1], [0, 1], { n: 2 }).map((pts, i) => <Shape id={"w" + i} pts={pts} />)}</Diagram>;');
-    expect(reply.frames![0].root.children).toHaveLength(6);
-    expect(validateFigure(reply).ok).toBe(true);
-  });
-
   it('splices a fragment inside a Diagram, so a map can return two layers', async () => {
     const reply = await run('export default () => <Diagram width={2} height={1}>{[0, 1].map(x => <><Segment from={[x, 0]} to={[x, 1]} /><Points pts={[[x, 1]]} /></>)}</Diagram>;');
     expect(reply.frames![0].root.children.map((child) => (child as { type: string }).type)).toEqual(['Segment', 'Points', 'Segment', 'Points']);
@@ -81,6 +72,62 @@ export default function ({ n }) {
     expect(pts.pts).toHaveLength(161);
     expect(pts.pts[80]).toEqual([0, null]);
     expect(pts.f).toBeUndefined();
+  });
+
+  describe('a function of two variables', () => {
+    const fnProps = async (fn: string, plot = 'x={[0, 1]} y={[0, 2]}'): Promise<Record<string, unknown>> => {
+      const reply = await run(`export default () => <Plot ${plot}>${fn}</Plot>;`);
+      if (reply.error) throw new Error(reply.error.message);
+      return (reply.frames![0].root.children[0] as { props: Record<string, unknown> }).props;
+    };
+    const errorOf = async (fn: string): Promise<string | undefined> => (await run(`export default () => <Plot x={[0, 1]} y={[0, 1]}>${fn}</Plot>;`)).error?.message;
+
+    it('samples a graph on a 49 × 49 grid over the box, x along a row, with null in its holes', async () => {
+      const { zs, pts } = await fnProps('<Fn f={(x, y) => x * y} />') as { zs: (number | null)[]; pts?: unknown };
+      expect(pts).toBeUndefined();
+      expect(zs).toHaveLength(49 * 49);
+      expect([zs[0], zs[48], zs[48 * 49], zs.at(-1)]).toEqual([0, 0, 0, 2]);
+      expect(zs[49 + 48]).toBeCloseTo(2 / 48);
+      const holes = await fnProps('<Fn f={(x, y) => 1 / (x * x + y * y)} />', 'x={[-1, 1]} y={[-1, 1]}') as { zs: (number | null)[] };
+      expect(holes.zs[24 * 49 + 24]).toBeNull();
+      expect(holes.zs.filter((z) => z === null)).toHaveLength(1);
+    });
+
+    it('narrows a graph to from and to', async () => {
+      const { zs } = await fnProps('<Fn f={(x, y) => x} from={0.5} to={1} />') as { zs: number[] };
+      expect([zs[0], zs[48]]).toEqual([0.5, 1]);
+    });
+
+    it('counts plain parameters only, so a default value makes a curve', async () => {
+      const props = await fnProps('<Fn f={(x, y = 0) => x + y} />');
+      expect((props.pts as unknown[]).length).toBe(161);
+    });
+
+    it('is parametric when its first finite sample is a point, and keeps a sphere whole at its poles and seam', async () => {
+      const sphere = await fnProps('<Fn id="s" u={[0, 2 * Math.PI]} v={[0, Math.PI]} f={(u, v) => [Math.cos(u) * Math.sin(v), Math.sin(u) * Math.sin(v), Math.cos(v)]} />', '') as { pts: [number, number, number][]; u: number[] };
+      expect(sphere.pts).toHaveLength(49 * 49);
+      expect(sphere.u).toEqual([0, 2 * Math.PI]);
+      for (let i = 0; i <= 48; i += 1) {
+        expect(sphere.pts[i][2]).toBeCloseTo(1);
+        expect(sphere.pts[48 * 49 + i][2]).toBeCloseTo(-1);
+      }
+      for (let j = 0; j <= 48; j += 1) sphere.pts[j * 49].forEach((c, k) => expect(sphere.pts[j * 49 + 48][k]).toBeCloseTo(c));
+      const holed = await fnProps('<Fn u={[0, 1]} v={[0, 1]} f={(u, v) => u < 0.5 ? NaN : [u, v, 0]} />') as { pts: unknown[] };
+      expect(holed.pts[0]).toBeNull();
+      expect(holed.pts[48]).toEqual([1, 0, 0]);
+    });
+
+    it('names the Fn whose samples mix numbers and points', async () => {
+      expect(await errorOf('<Fn id="m" f={(x, y) => x < 0.5 ? x : [x, y, 0]} />')).toMatch(/^Fn `m` returned a point at \(0\.5, 0\) after returning numbers/);
+      expect(await errorOf('<Fn id="m" f={(x, y) => x < 0.5 ? [x, y, 0] : 1} />')).toMatch(/^Fn `m` returned a number at \(0\.5, 0\) after returning points/);
+      expect(await errorOf('<Fn f={(x, y) => [x, y]} />')).toMatch(/^Fn returned a point with 2 coordinates/);
+    });
+
+    it('drops pts and zs the program wrote', async () => {
+      const props = await fnProps('<Fn f={x => x} zs={[1]} pts={[[0, 9]]} />');
+      expect(props.zs).toBeUndefined();
+      expect((props.pts as unknown[]).length).toBe(161);
+    });
   });
 
   it('reports the line of a syntax error and of a runtime error', async () => {

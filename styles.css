@@ -1583,6 +1583,46 @@
   stroke-width: 2;
 }
 
+/* A 3D plot's height colours (viridis), its cell edges and its box. The dark ramp lifts the low end off the background. */
+.clew-plot3 {
+  --clew-surface-1: #440154;
+  --clew-surface-2: #3b528b;
+  --clew-surface-3: #21918c;
+  --clew-surface-4: #5ec962;
+  --clew-surface-5: #fde725;
+  --clew-surface-edge: rgb(0 0 0 / 22%);
+  --clew-surface-box: var(--text-faint);
+}
+
+.theme-dark .clew-plot3 {
+  --clew-surface-1: #5b2a86;
+  --clew-surface-2: #41609a;
+}
+
+.clew-plot3-frame {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.clew-plot3-frame:active {
+  cursor: grabbing;
+}
+
+.clew-plot3-frame:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.clew-plot3-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.clew-plot3-svg {
+  position: relative;
+}
+
 .clew-plot-cross {
   stroke: var(--text-faint);
   stroke-width: 1;
@@ -2934,6 +2974,7 @@
 /* With the full player, the caption and player always sit under the figure, centred, and the player is wide enough to scrub. */
 .clew-figure-side:is(.is-player, .is-under) {
   flex-basis: 100%;
+  min-width: 0;
   align-items: center;
 }
 
@@ -3339,10 +3380,10 @@
 
 /* A Tex element is often the figure itself (a matrix, a derivation), so it is set larger than the figure's UI text. Its
    formula sits between an empty column and its pointers' column, which share the spare width equally, so the formula stays
-   centred; short of room, the empty column gives way first, so a long pointer name does not count twice. */
+   centred; short of room, the formula keeps its width first and the pointer names wrap, down to their longest word. */
 .clew-figure-tex {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(min-content, 1fr);
   font-size: var(--clew-figure-tex-size);
 }
 
@@ -3384,6 +3425,7 @@
 /* A formula's pointers are larger than other pointers, as the formula is, but smaller than the formula itself. */
 .clew-figure-tex .clew-figure-pointer {
   font-size: var(--font-ui-medium);
+  white-space: normal;
 }
 
 .clew-figure-text {

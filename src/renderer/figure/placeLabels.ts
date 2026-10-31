@@ -13,10 +13,11 @@ export interface Box { x0: number; y0: number; x1: number; y1: number }
 const GAP = 6;
 
 /**
- * Top-left corners for labels in drawing pixels: each beside its point in the corner fewest lines cross, then pushed
- * apart from the others along the axis that needs the shorter move, then kept inside `box`.
+ * Top-left corners for labels in drawing pixels: each beside its point in the corner fewest lines cross and clear of
+ * the `fixed` boxes (text already drawn, such as ticks), then pushed apart from the others and off the fixed boxes along
+ * the axis that needs the shorter move, then kept inside `box`.
  */
-export function placeLabels(labels: readonly LabelBox[], box: Box, avoid: readonly (readonly [number, number])[][]): { x: number; y: number }[] {
+export function placeLabels(labels: readonly LabelBox[], box: Box, avoid: readonly (readonly [number, number])[][], fixed: readonly Box[] = []): { x: number; y: number }[] {
   const middle = (box.x0 + box.x1) / 2;
   const placed = labels.map((label) => {
     const right = { x: label.x + GAP, y: 0 };
@@ -31,7 +32,8 @@ export function placeLabels(labels: readonly LabelBox[], box: Box, avoid: readon
     let best = corners[0];
     let fewest = Infinity;
     for (const corner of corners) {
-      const crossings = crossingsOf(corner.x, corner.y, label.width, label.height, avoid);
+      const covered = fixed.filter((f) => corner.x < f.x1 && f.x0 < corner.x + label.width && corner.y < f.y1 && f.y0 < corner.y + label.height).length;
+      const crossings = crossingsOf(corner.x, corner.y, label.width, label.height, avoid) + 100 * covered;
       if (crossings < fewest) [best, fewest] = [corner, crossings];
     }
     return { ...best };
@@ -58,7 +60,18 @@ export function placeLabels(labels: readonly LabelBox[], box: Box, avoid: readon
         }
       }
     }
-    for (let i = 0; i < placed.length; i += 1) clamp(placed[i], labels[i], box);
+    for (let i = 0; i < placed.length; i += 1) {
+      const p = placed[i];
+      for (const f of fixed) {
+        const dx = Math.min(p.x + labels[i].width, f.x1) - Math.max(p.x, f.x0);
+        const dy = Math.min(p.y + labels[i].height, f.y1) - Math.max(p.y, f.y0);
+        if (dx <= 0 || dy <= 0) continue;
+        moved = true;
+        if (dx < dy) p.x += p.x + labels[i].width / 2 < (f.x0 + f.x1) / 2 ? -(dx + 1) : dx + 1;
+        else p.y += p.y + labels[i].height / 2 < (f.y0 + f.y1) / 2 ? -(dy + 1) : dy + 1;
+      }
+      clamp(p, labels[i], box);
+    }
     if (!moved) break;
   }
   return placed;

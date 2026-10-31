@@ -1,9 +1,10 @@
 import {
-  ELEMENT_PROPS, ID, LIMITS, TAGS,
-  type DiagramLayer, type FigureData, type FigureNode, type GraphEdge, type GraphNode, type Param, type PlotLayer, type Point, type Step, type Tag, type Tags, type Text,
+  clampElevation, DEFAULT_VIEW, ELEMENT_PROPS, ID, LIMITS, TAGS,
+  type DiagramLayer, type FigureData, type FigureNode, type GraphEdge, type GraphNode, type Param, type Plot3Layer, type PlotLayer, type Point, type Point3, type Range, type Step, type Tag, type Tags, type Text, type View,
 } from '@/renderer/figure/FigureData';
 import { texAnchors, texIn, texProblems } from '@/renderer/figure/figureTex';
 import { formatFigure } from '@/renderer/figure/formatFigure';
+import { niceDomain } from '@/renderer/figure/plot/plotMath';
 
 class Invalid extends Error {}
 
@@ -224,12 +225,16 @@ function claim(id: unknown, path: string, scope: StepScope): string {
   return id;
 }
 
-type Host = null | 'Plot' | 'Diagram';
+type Host = null | 'Plot' | 'Plot3' | 'Diagram';
+
+const SURFACE_SAMPLES = (LIMITS.surfaceCells + 1) ** 2;
+const ONLY_PARAMETRIC = 'u and v are only for a parametric surface, f={(u, v) => [x, y, z]}';
 
 function readNode(raw: unknown, parent: string, depth: number, host: Host, scope: StepScope): FigureNode;
 function readNode(raw: unknown, parent: string, depth: number, host: 'Plot', scope: StepScope): PlotLayer;
 function readNode(raw: unknown, parent: string, depth: number, host: 'Diagram', scope: StepScope): DiagramLayer;
-function readNode(raw: unknown, parent: string, depth: number, host: Host, scope: StepScope): FigureNode | PlotLayer | DiagramLayer {
+function readNode(raw: unknown, parent: string, depth: number, host: 'Plot3', scope: StepScope, why: string): Plot3Layer;
+function readNode(raw: unknown, parent: string, depth: number, host: Host, scope: StepScope, why?: string): FigureNode | PlotLayer | DiagramLayer | Plot3Layer {
   if (!isObject(raw) || typeof own(raw, 'type') !== 'string') fail(parent, 'expected an element');
   onlyKeys(raw, ['type', 'props', 'children'], parent, 'an element');
   const type = raw.type as string;
@@ -249,12 +254,13 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
   const isShared = (SHARED as readonly string[]).includes(type);
   const isLayer = isShared || (PLOT_ONLY as readonly string[]).includes(type) || (DIAGRAM_ONLY as readonly string[]).includes(type);
   if (host === null && isLayer) fail(path, `${type} is a layer and goes only inside a Plot or a Diagram`);
-  if (host === 'Plot' && !isShared && !(PLOT_ONLY as readonly string[]).includes(type)) fail(path, `${type} cannot go inside a Plot`);
+  if ((host === 'Plot' || host === 'Plot3') && !isShared && !(PLOT_ONLY as readonly string[]).includes(type)) fail(path, `${type} cannot go inside a Plot`);
+  if (host === 'Plot3' && type === 'Region') fail(path, `Region is 2D only; this Plot is 3D because ${why}`);
   if (host === 'Diagram' && !isShared && !(DIAGRAM_ONLY as readonly string[]).includes(type)) fail(path, `${type} cannot go inside a Diagram`);
   if (isLayer && children.length) fail(path, `${type} takes no children`);
   if (!isLayer && !(LAYOUT as readonly string[]).includes(type) && type !== 'Text' && type !== 'Plot' && type !== 'Diagram' && children.length) fail(path, `${type} takes no children`);
 
-  const read = new Reader(props, path, scope);
+  const read = new Reader(props, path, scope, why);
   const id = rawId === undefined ? {} : { id: claim(rawId, path, scope) };
 
   switch (type) {
@@ -335,7 +341,12 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
     case 'Pointer':
       return { type, to: read.target('to'), name: read.text(own(props, 'name'), 'name'), ...read.tag() };
     case 'Plot': {
+      const reason = threeD(children);
+      if (reason) return { type: 'Plot3', ...id, ...readPlot3(read, children, path, depth, scope, reason) };
+      for (const key of ['z', 'zLabel', 'view']) if (own(props, key) !== undefined) fail(path, `${key} is for a 3D Plot, one that holds an Fn of two variables or points with three coordinates`);
       const layers = drawingLayers(children, path, depth, 'Plot', scope);
+      const curve = layers.find((layer) => layer.type === 'Fn');
+      if (curve && own(props, 'x') === undefined) fail(path, `x is required: ${layerName('Fn', curve.id)} takes x as input`);
       const fns = new Set(layers.flatMap((layer) => (layer.type === 'Fn' && layer.id ? [layer.id] : [])));
       for (const layer of layers) {
         if (layer.type !== 'Region') continue;
@@ -344,7 +355,7 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
           if (typeof value === 'string' && !fns.has(value)) fail(path, `Region "${key}" names no Fn of this Plot: "${value}"`);
         }
       }
-      return { type, ...id, x: read.range('x'), ...read.optional('y', () => read.range('y')), ...read.optional('xLabel', (v) => read.string(v, 'xLabel')), ...read.optional('yLabel', (v) => read.string(v, 'yLabel')), ...read.optional('equal', (v) => read.boolean(v, 'equal')), children: layers };
+      return { type, ...id, x: own(props, 'x') === undefined ? fit(layers.flatMap((layer) => coordinates(layer, 0))) : read.range('x'), ...read.optional('y', () => read.range('y')), ...read.optional('xLabel', (v) => read.string(v, 'xLabel')), ...read.optional('yLabel', (v) => read.string(v, 'yLabel')), ...read.optional('equal', (v) => read.boolean(v, 'equal')), children: layers };
     }
     case 'Diagram':
       return { type, ...id, width: read.positive('width'), height: read.positive('height'), children: drawingLayers(children, path, depth, 'Diagram', scope) };
@@ -360,6 +371,9 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
     case 'Label':
       return { type, ...id, at: read.point('at'), text: read.text(own(props, 'text'), 'text'), ...read.tag() };
     case 'Fn': {
+      if (host === 'Plot3') return readSurface(read, props, path, id, why!);
+      if (own(props, 'u') !== undefined || own(props, 'v') !== undefined) fail(path, ONLY_PARAMETRIC);
+      if (own(props, 'zs') !== undefined) fail(path, 'zs is sampled by the host');
       const pts = read.list('pts', 0, LIMITS.fnSamples, 'samples', (sample): readonly [number, number | null] => {
         if (!Array.isArray(sample) || sample.length !== 2 || typeof sample[0] !== 'number' || (sample[1] !== null && typeof sample[1] !== 'number')) fail(path, 'Fn samples must be [x, y]');
         return [sample[0], sample[1] as number | null];
@@ -395,14 +409,153 @@ function blocks(children: unknown[], path: string, depth: number, scope: StepSco
 
 function drawingLayers(children: unknown[], path: string, depth: number, host: 'Plot', scope: StepScope): PlotLayer[];
 function drawingLayers(children: unknown[], path: string, depth: number, host: 'Diagram', scope: StepScope): DiagramLayer[];
-function drawingLayers(children: unknown[], path: string, depth: number, host: 'Plot' | 'Diagram', scope: StepScope): (PlotLayer | DiagramLayer)[] {
+function drawingLayers(children: unknown[], path: string, depth: number, host: 'Plot3', scope: StepScope, why: string): Plot3Layer[];
+function drawingLayers(children: unknown[], path: string, depth: number, host: 'Plot' | 'Plot3' | 'Diagram', scope: StepScope, why = ''): (PlotLayer | DiagramLayer | Plot3Layer)[] {
   if (children.length > LIMITS.layers) fail(path, over(children.length, 'layers', LIMITS.layers));
-  return children.map((child) => (host === 'Plot' ? readNode(child, path, depth + 1, host, scope) : readNode(child, path, depth + 1, host, scope)));
+  return children.map((child) => (host === 'Plot' ? readNode(child, path, depth + 1, host, scope) : host === 'Plot3' ? readNode(child, path, depth + 1, host, scope, why) : readNode(child, path, depth + 1, host, scope)));
+}
+
+const layerName = (type: string, id: unknown): string => (typeof id === 'string' ? `\`${type}\` \`${id}\`` : `a \`${type}\``);
+
+/** Why a Plot is 3D, read from its raw layers before any is checked: an Fn of two variables, or a point with three coordinates. */
+function threeD(children: readonly unknown[]): string | undefined {
+  for (const child of children) {
+    if (!isObject(child) || !isObject(own(child, 'props'))) continue;
+    const type = own(child, 'type');
+    const props = own(child, 'props') as Plain;
+    const triple = (value: unknown): boolean => Array.isArray(value) && value.length === 3;
+    if (type === 'Fn') {
+      const pts = own(props, 'pts');
+      if (own(props, 'zs') !== undefined || (Array.isArray(pts) && pts.some(triple))) return `${layerName('Fn', own(props, 'id'))} takes two variables`;
+      continue;
+    }
+    const pts = own(props, 'pts');
+    if ((Array.isArray(pts) && pts.some(triple)) || ['at', 'from', 'to'].some((key) => triple(own(props, key)))) return `${layerName(String(type), own(props, 'id'))} has a point with three coordinates`;
+  }
+  return undefined;
+}
+
+/** Past this a fitted span can overflow to Infinity; data that large is left out of the fit. */
+const HUGE = 1e300;
+
+/**
+ * A range with round ends for an axis the Plot does not give: around every value in `values`, and the bulk of the
+ * surface samples in `spread`. Samples more than the 5–95% spread past it are cut at the box, so a spike such as
+ * 1/(x² + y²) does not flatten the rest of its surface.
+ */
+function fit(values: readonly number[], spread: readonly number[] = []): [number, number] {
+  let low = Infinity;
+  let high = -Infinity;
+  const see = (value: number): void => {
+    if (Math.abs(value) > HUGE) return;
+    low = Math.min(low, value);
+    high = Math.max(high, value);
+  };
+  values.forEach(see);
+  const sorted = spread.filter((value) => Math.abs(value) <= HUGE).sort((a, b) => a - b);
+  if (sorted.length) {
+    const p5 = sorted[Math.floor(sorted.length * 0.05)];
+    const p95 = sorted[Math.ceil(sorted.length * 0.95) - 1];
+    see(Math.max(sorted[0], p5 - (p95 - p5)));
+    see(Math.min(sorted[sorted.length - 1], p95 + (p95 - p5)));
+  }
+  return low <= high ? niceDomain(low, high) : [0, 1];
+}
+
+/** The values a layer reaches along axis `k` (0 is x), for fitting an axis to it. */
+function coordinates(layer: PlotLayer | Plot3Layer, k: number): number[] {
+  const at = (p: Point | Point3): number => p[k];
+  switch (layer.type) {
+    case 'Shape':
+    case 'Points':
+      return (layer.pts as readonly (Point | Point3)[]).map(at);
+    case 'Vector':
+    case 'Segment':
+      return [at(layer.from), at(layer.to)];
+    case 'Label':
+      return [at(layer.at)];
+    case 'Circle':
+      return k < 2 ? [at(layer.at) - layer.r, at(layer.at) + layer.r] : [at(layer.at)];
+    case 'Region':
+      return k === 0 ? [layer.from, layer.to].filter((v): v is number => v !== undefined) : [];
+    case 'Fn':
+      if ('zs' in layer) return k === 2 ? layer.zs.filter((z): z is number => z !== null) : [];
+      if (layer.pts.some((p) => p !== null && p.length === 3)) return (layer.pts as readonly (Point3 | null)[]).flatMap((p) => (p ? [p[k]] : []));
+      return [];
+  }
+}
+
+type Graph3 = { type: 'Fn'; zs: (number | null)[]; from?: number; to?: number };
+
+function readPlot3(read: Reader, children: unknown[], path: string, depth: number, scope: StepScope, why: string): Omit<Extract<FigureNode, { type: 'Plot3' }>, 'type' | 'id'> {
+  const props = read.props;
+  const { equal: equalGiven } = read.optional('equal', (v) => read.boolean(v, 'equal'));
+  const layers = drawingLayers(children, path, depth, 'Plot3', scope, why);
+  const surfaces = layers.filter((layer) => layer.type === 'Fn');
+  if (surfaces.length > LIMITS.surfaces) fail(path, over(surfaces.length, 'surfaces', LIMITS.surfaces));
+  const graph = surfaces.find((layer) => 'zs' in layer);
+  for (const key of ['x', 'y']) if (graph && own(props, key) === undefined) fail(path, `${key} is required: ${layerName('Fn', graph.id)} takes x and y as input`);
+  const given = (key: 'x' | 'y' | 'z', k: number): Range => {
+    if (own(props, key) !== undefined) return read.range(key);
+    return fit(layers.filter((layer) => layer.type !== 'Fn').flatMap((layer) => coordinates(layer, k)), surfaces.flatMap((layer) => coordinates(layer, k)));
+  };
+  const [x, y, z] = [given('x', 0), given('y', 1), given('z', 2)];
+  const children3 = layers.map((layer): Plot3Layer => {
+    if (layer.type !== 'Fn' || !('zs' in layer)) return layer;
+    const { from, to, ...rest } = layer as unknown as Graph3 & Plot3Layer;
+    return { ...rest, x: [from ?? x[0], to ?? x[1]], y };
+  });
+  const span = (range: Range): number => range[1] - range[0];
+  const same = [y, z].every((range) => Math.abs(span(range) - span(x)) <= 1e-9 * span(x));
+  const spans = [x, y, z].map(span);
+  // A Plot that gives no axis draws a solid in its own units, so a torus is not stretched to a cube. Spans more than 10×
+  // apart are data in different units, which one scale would squash to a sliver.
+  const solid = ['x', 'y', 'z'].every((key) => own(props, key) === undefined) && Math.max(...spans) <= 10 * Math.min(...spans);
+  const equal = equalGiven ?? (same || solid);
+  return {
+    x, y, z, equal, view: readView(own(props, 'view'), path),
+    ...read.optional('xLabel', (v) => read.string(v, 'xLabel')), ...read.optional('yLabel', (v) => read.string(v, 'yLabel')), ...read.optional('zLabel', (v) => read.string(v, 'zLabel')),
+    children: children3,
+  };
+}
+
+function readView(raw: unknown, path: string): View {
+  if (raw === undefined || raw === null) return DEFAULT_VIEW;
+  if (!isObject(raw)) fail(path, 'view must be { azimuth, elevation } in degrees');
+  onlyKeys(raw, ['azimuth', 'elevation'], path, 'view');
+  const azimuth = own(raw, 'azimuth') ?? DEFAULT_VIEW.azimuth;
+  const elevation = own(raw, 'elevation') ?? DEFAULT_VIEW.elevation;
+  if (typeof azimuth !== 'number' || typeof elevation !== 'number') fail(path, 'view must be { azimuth, elevation } in degrees');
+  return { azimuth, elevation: clampElevation(elevation) };
+}
+
+/** An Fn in a 3D Plot: a graph sent as `zs`, or a parametric surface sent as `pts` of points. */
+function readSurface(read: Reader, props: Plain, path: string, id: { id?: string }, why: string): Plot3Layer {
+  const uv = own(props, 'u') !== undefined || own(props, 'v') !== undefined;
+  const samples = (key: string, check: (value: unknown) => boolean, what: string): unknown[] => {
+    const value = own(props, key);
+    if (!Array.isArray(value) || value.length !== SURFACE_SAMPLES || !value.every((sample) => sample === null || check(sample))) fail(path, `Fn samples must be ${SURFACE_SAMPLES} ${what}`);
+    return value;
+  };
+  if (own(props, 'zs') !== undefined) {
+    if (uv) fail(path, ONLY_PARAMETRIC);
+    const zs = samples('zs', (z) => typeof z === 'number', 'heights') as (number | null)[];
+    return { type: 'Fn', ...id, zs, ...read.optional('from', (v) => number(v, path, 'from')), ...read.optional('to', (v) => number(v, path, 'to')), ...read.marks() } as unknown as Plot3Layer;
+  }
+  const pts = own(props, 'pts');
+  if (Array.isArray(pts) && !pts.some((p) => Array.isArray(p) && p.length === 3)) fail(path, `this Fn is a curve, f={x => ...}; this Plot is 3D because ${why}, and an Fn in a 3D Plot is a surface, f={(x, y) => z} or f={(u, v) => [x, y, z]}`);
+  if (own(props, 'u') === undefined || own(props, 'v') === undefined) fail(path, 'a parametric surface, f={(u, v) => [x, y, z]}, needs u={[lo, hi]} and v={[lo, hi]}');
+  read.range('u');
+  read.range('v');
+  if (own(props, 'from') !== undefined || own(props, 'to') !== undefined) fail(path, 'from and to narrow x, which a parametric surface does not take; return NaN outside its domain instead');
+  const points = samples('pts', (p) => Array.isArray(p) && p.length === 3 && p.every((c) => typeof c === 'number'), 'points [x, y, z]') as Point3[];
+  return { type: 'Fn', ...id, pts: points, ...read.marks() };
 }
 
 /** Typed reads of one element's props, all by `Object.hasOwn`. */
 class Reader {
-  constructor(private readonly props: Plain, private readonly path: string, private readonly scope: StepScope) {}
+  /** `three`, set in a 3D Plot, is why it is 3D, and makes every point [x, y, z]. */
+  constructor(readonly props: Plain, private readonly path: string, private readonly scope: StepScope, private readonly three?: string) {}
 
   optional<K extends string, V>(key: K, read: (value: unknown) => V): { [P in K]?: V } {
     const value = own(this.props, key);
@@ -436,7 +589,13 @@ class Reader {
     return value;
   }
 
+  /** A point [x, y], or [x, y, z] in a 3D Plot (still typed `Point`; `readPlot3` reads its layers as `Plot3Layer`). */
   point(key: string, value: unknown = own(this.props, key)): Point {
+    if (this.three !== undefined) {
+      if (Array.isArray(value) && value.length !== 3) fail(this.path, `${key} holds a point with ${value.length} coordinates; this Plot is 3D because ${this.three}, so every point is [x, y, z]`);
+      if (!Array.isArray(value) || !value.every((c) => typeof c === 'number')) fail(this.path, `${key} must be a point [x, y, z]`);
+      return [value[0], value[1], value[2]] as unknown as Point;
+    }
     if (!Array.isArray(value) || value.length !== 2 || typeof value[0] !== 'number' || typeof value[1] !== 'number') fail(this.path, `${key} must be a point [x, y]`);
     return [value[0], value[1]];
   }
@@ -446,9 +605,9 @@ class Reader {
   }
 
   range(key: string): Point {
-    const range = this.point(key);
-    if (!(range[0] < range[1])) fail(this.path, `${key} must be [low, high] with low below high`);
-    return range;
+    const range = own(this.props, key);
+    if (!Array.isArray(range) || range.length !== 2 || typeof range[0] !== 'number' || typeof range[1] !== 'number' || !(range[0] < range[1]) || !Number.isFinite(range[1] - range[0])) fail(this.path, `${key} must be [low, high] with low below high`);
+    return [range[0], range[1]];
   }
 
   list<T>(key: string, min: number, limit: number, what: string, read: (value: unknown, index: number) => T): T[] {

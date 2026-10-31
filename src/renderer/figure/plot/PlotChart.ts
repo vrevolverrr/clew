@@ -1,7 +1,7 @@
 import { div, reducedMotion, svg, tagInk } from '@/renderer/figure/dom';
 import { isPlain } from '@/renderer/figure/figureText';
 import { categoriesOf, mixModel, modelDistance, type ResolvedModel, sameShape } from '@/renderer/figure/plot/mixModel';
-import { barSteps, niceDomain, niceTicks, wrapLabel } from '@/renderer/figure/plot/plotMath';
+import { barSteps, minus, niceDomain, niceTicks, tickText, wrapLabel } from '@/renderer/figure/plot/plotMath';
 import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
 
 export type Point = [number, number | null];
@@ -56,8 +56,6 @@ function key(label: HTMLElement, color: string, kind: string): HTMLElement {
   return item;
 }
 
-const minus = (text: string) => text.replace('-', '−');
-const tickText = (v: number) => (Math.abs(v) >= 10000 ? `${minus(String(+(v / 1000).toFixed(1)))}K` : minus(String(+v.toFixed(4))));
 const readout = (v: number) => minus(String(+v.toPrecision(4)));
 const seriesColor = (n: number) => `var(--clew-series-${((n - 1) % SERIES) + 1})`;
 

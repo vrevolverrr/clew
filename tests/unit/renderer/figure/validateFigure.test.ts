@@ -1,4 +1,4 @@
-import { LIMITS } from '@/renderer/figure/FigureData';
+import { type FigureNode, LIMITS } from '@/renderer/figure/FigureData';
 import { validateFigure } from '@/renderer/figure/validateFigure';
 
 type El = { type: string; props: Record<string, unknown>; children: unknown[] };
@@ -165,5 +165,126 @@ describe('validateFigure output', () => {
     if (!result.ok) throw new Error(result.error);
     expect(result.figure.steps.map((step) => step.heading)).toEqual(['First', undefined]);
     expect(errorOf({ params: {}, frames: [{ caption: 'one', heading: ['x'], root: node() }] })).toBe('Step 1: the heading must be text');
+  });
+});
+
+describe('validateFigure on a 3D Plot', () => {
+  const side = 49;
+  const zs = (f: (x: number, y: number) => number | null = () => 0): (number | null)[] => Array.from({ length: side * side }, (_, k) => f(k % side, Math.floor(k / side)));
+  const sphere = (): ([number, number, number] | null)[] => Array.from({ length: side * side }, (_, k) => {
+    const u = ((k % side) / 48) * 2 * Math.PI;
+    const v = (Math.floor(k / side) / 48) * Math.PI;
+    return [Math.cos(u) * Math.sin(v), Math.sin(u) * Math.sin(v), Math.cos(v)];
+  });
+  const plot3 = (props: Record<string, unknown>, ...layers: El[]): El => el('Plot', { id: 'p', ...props }, ...layers);
+  const graph = (more: Record<string, unknown> = {}): El => el('Fn', { id: 'bowl', zs: zs((i, j) => i + j), ...more });
+  const parametric = (more: Record<string, unknown> = {}): El => el('Fn', { id: 's', pts: sphere(), u: [0, 6.3], v: [0, 3.15], ...more });
+  const read = (root: El): Extract<FigureNode, { type: 'Plot3' }> => {
+    const result = validateFigure(figure(root));
+    if (!result.ok) throw new Error(result.error);
+    return result.figure.steps[0].root as Extract<FigureNode, { type: 'Plot3' }>;
+  };
+
+  it('turns 3D for a two-variable Fn or a point with three coordinates, and stays 2D otherwise', () => {
+    expect(read(plot3({ x: [0, 1], y: [0, 2] }, graph())).type).toBe('Plot3');
+    expect(read(plot3({}, el('Points', { pts: [[0, 0, 1]] }))).type).toBe('Plot3');
+    expect(read(plot3({ x: [0, 1] }, el('Fn', { pts: [[0, 1]] }), el('Points', { pts: [[0, 0]] }))).type).toBe('Plot');
+  });
+
+  it('names the layer with the wrong number of coordinates and why the Plot is 3D', () => {
+    expect(errorOf(figure(plot3({ x: [0, 1], y: [0, 2] }, graph(), el('Shape', { id: 'gd', pts: [[0, 0, 0], [1, 1]] })))))
+      .toBe('Step 1 > Plot#p > Shape#gd: pts holds a point with 2 coordinates; this Plot is 3D because `Fn` `bowl` takes two variables, so every point is [x, y, z]');
+    expect(errorOf(figure(plot3({ x: [0, 1] }, el('Vector', { from: [0, 0, 0], to: [1, 1, 1] }), el('Label', { at: [0, 0], text: 'a' })))))
+      .toContain('Label: at holds a point with 2 coordinates; this Plot is 3D because a `Vector` has a point with three coordinates');
+    expect(errorOf(figure(plot3({ x: [0, 1], y: [0, 1] }, graph(), el('Fn', { id: 'c', pts: [[0, 1], [1, 2]] }))))).toContain('Fn#c: this Fn is a curve');
+  });
+
+  it('refuses Region in 3D and z, zLabel and view in 2D', () => {
+    expect(errorOf(figure(plot3({ x: [0, 1], y: [0, 1] }, graph(), el('Region', { top: 1 }))))).toContain('Region is 2D only; this Plot is 3D because `Fn` `bowl` takes two variables');
+    expect(errorOf(figure(plot3({ x: [0, 1], view: { azimuth: 0, elevation: 0 } }, el('Points', { pts: [[0, 0]] }))))).toContain('view is for a 3D Plot');
+    expect(errorOf(figure(plot3({ x: [0, 1], z: [0, 1] })))).toContain('z is for a 3D Plot');
+  });
+
+  it('requires u and v on a parametric Fn and refuses them on any other', () => {
+    expect(errorOf(figure(plot3({}, el('Fn', { id: 's', pts: sphere() }))))).toContain('needs u={[lo, hi]} and v={[lo, hi]}');
+    expect(errorOf(figure(plot3({ x: [0, 1], y: [0, 1] }, graph({ u: [0, 1] }))))).toContain('u and v are only for a parametric surface');
+    expect(errorOf(figure(plot3({ x: [0, 1] }, el('Fn', { pts: [[0, 1]], v: [0, 1] }))))).toContain('u and v are only for a parametric surface');
+    expect(errorOf(figure(plot3({}, parametric({ from: 0 }))))).toContain('from and to narrow x');
+  });
+
+  it('requires the axes a graph takes as input', () => {
+    expect(errorOf(figure(plot3({ x: [0, 1] }, graph())))).toBe('Step 1 > Plot#p: y is required: `Fn` `bowl` takes x and y as input');
+    expect(errorOf(figure(plot3({}, el('Fn', { id: 'f', pts: [[0, 1]] }))))).toBe('Step 1 > Plot#p: x is required: `Fn` `f` takes x as input');
+  });
+
+  it('fits every axis of a parametric-only Plot, at equal scale', () => {
+    const shown = read(plot3({}, parametric(), el('Points', { pts: [[0, 0, 1.6]] })));
+    expect([shown.x, shown.y, shown.z]).toEqual([[-1, 1], [-1, 1], [-1, 2]]);
+    expect(shown.equal).toBe(true);
+    expect(shown.view).toEqual({ azimuth: 30, elevation: 25 });
+  });
+
+  it('keeps a 3D Plot that gives no axis at equal scale only while its spans are within 10× of each other', () => {
+    expect(read(plot3({}, el('Points', { pts: [[0, 0, 0], [6, 6, 2]] }))).equal).toBe(true);
+    expect(read(plot3({}, el('Points', { pts: [[0, 0, 0], [2, 100, 100000]] }))).equal).toBe(false);
+    expect(read(plot3({ equal: true }, el('Points', { pts: [[0, 0, 0], [2, 100, 100000]] }))).equal).toBe(true);
+  });
+
+  it('fits z of a graph to its heights and its holes do not count, and narrows the graph to from and to', () => {
+    const shown = read(plot3({ x: [-3, 3], y: [-3, 3], view: { azimuth: 120, elevation: 95 } }, graph({ zs: zs((i) => (i === 0 ? null : i * 0.7)), from: -1 })));
+    expect(shown.z).toEqual([0, 35]);
+    expect(shown.equal).toBe(false);
+    expect(shown.view).toEqual({ azimuth: 120, elevation: 89 });
+    expect(shown.children[0]).toMatchObject({ type: 'Fn', id: 'bowl', x: [-1, 3], y: [-3, 3] });
+  });
+
+  it('fits x of a 2D Plot without an Fn to its layers', () => {
+    const result = validateFigure(figure(plot3({}, el('Points', { pts: [[2, 0], [9.5, 1]] }))));
+    expect(result.ok && result.figure.steps[0].root).toMatchObject({ type: 'Plot', x: [2, 10] });
+  });
+
+  it('accepts four surfaces and names the limit at five', () => {
+    const surfaces = (n: number) => Array.from({ length: n }, (_, i) => el('Fn', { id: `f${i}`, zs: zs() }));
+    expectOk(figure(plot3({ x: [0, 1], y: [0, 1] }, ...surfaces(4))));
+    expect(errorOf(figure(plot3({ x: [0, 1], y: [0, 1] }, ...surfaces(5))))).toBe('Step 1 > Plot#p: 5 surfaces; the limit is 4');
+  });
+
+  it('checks the sample count of a surface', () => {
+    expect(errorOf(figure(plot3({ x: [0, 1], y: [0, 1] }, el('Fn', { zs: [1, 2] }))))).toContain('Fn samples must be 2401 heights');
+  });
+});
+
+describe('validateFigure on extreme numbers in a 3D Plot', () => {
+  const zs = (z: number): number[] => Array.from({ length: 49 * 49 }, (_, k) => (k % 2 ? z : -z));
+
+  it('fits z without the heights past ±1e9, so the range stays finite', () => {
+    const result = validateFigure({ params: {}, frames: [{ caption: '', root: el('Plot', { x: [0, 1], y: [0, 1] }, el('Fn', { zs: [...zs(1.7e308).slice(1), 2] })) }] });
+    expect(result.ok && (result.figure.steps[0].root as Extract<FigureNode, { type: 'Plot3' }>).z).toEqual([1.8, 2.2]);
+  });
+
+  it('refuses a range whose span is not finite', () => {
+    expect(errorOf({ params: {}, frames: [{ caption: '', root: el('Plot', { x: [0, 1], y: [0, 1], z: [-1.7e308, 1.7e308] }, el('Fn', { zs: zs(1) })) }] })).toContain('z must be [low, high] with low below high');
+  });
+});
+
+describe('validateFigure fitting z to a surface', () => {
+  const sampled = (f: (x: number, y: number) => number): (number | null)[] => Array.from({ length: 49 * 49 }, (_, k) => {
+    const z = f(-2 + (4 * (k % 49)) / 48, -2 + (4 * Math.floor(k / 49)) / 48);
+    return Number.isFinite(z) ? z : null;
+  });
+  const zOf = (f: (x: number, y: number) => number): readonly [number, number] => {
+    const result = validateFigure({ params: {}, frames: [{ caption: '', root: el('Plot', { x: [-2, 2], y: [-2, 2] }, el('Fn', { zs: sampled(f) }), el('Points', { pts: [[0, 0, -3]] })) }] });
+    if (!result.ok) throw new Error(result.error);
+    return (result.figure.steps[0].root as Extract<FigureNode, { type: 'Plot3' }>).z;
+  };
+
+  it('keeps the whole of a smooth surface and every other layer', () => {
+    expect(zOf((x, y) => x * x + 3 * y * y)).toEqual([-5, 20]);
+  });
+
+  it('cuts a spike at the box instead of flattening the rest of the surface', () => {
+    const [, top] = zOf((x, y) => 1 / (x * x + y * y));
+    expect(top).toBeLessThan(10);
+    expect(top).toBeGreaterThan(1);
   });
 });

@@ -1,11 +1,11 @@
-import { div } from '@/renderer/figure/dom';
+import { computedColour, div, parseColour } from '@/renderer/figure/dom';
 import { diagramExtent, drawDiagram, type Extent, type Room, widen } from '@/renderer/figure/drawDiagram';
 import { drawGraph, layoutGraph } from '@/renderer/figure/drawGraph';
 import { drawLinks, type Link, POINTER_STEP, pointerLabel } from '@/renderer/figure/drawLinks';
 import { drawParams } from '@/renderer/figure/drawParams';
 import { plotModel } from '@/renderer/figure/drawPlot';
 import { drawQuiz } from '@/renderer/figure/drawQuiz';
-import { type FigureData, type FigureNode, type Param, TAGS, type Tag } from '@/renderer/figure/FigureData';
+import { type FigureData, type FigureNode, type Param, TAGS, type Tag, type View } from '@/renderer/figure/FigureData';
 import { figureSandbox, type FigureSandbox } from '@/renderer/figure/FigureSandbox';
 import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texAnchors, texTags, TYPESET_MATH } from '@/renderer/figure/figureTex';
 import { figureText, isPlain } from '@/renderer/figure/figureText';
@@ -14,6 +14,7 @@ import { status } from '@/renderer/figure/geometry';
 import type { NetworkLayout } from '@/renderer/figure/network/layoutNetwork';
 import { Playback } from '@/renderer/figure/Playback';
 import { PlotChart } from '@/renderer/figure/plot/PlotChart';
+import { Plot3Chart } from '@/renderer/figure/plot3/Plot3Chart';
 import { StepList } from '@/renderer/figure/StepList';
 import { validateFigure } from '@/renderer/figure/validateFigure';
 
@@ -78,7 +79,7 @@ const GRAPH_FONT = 13;
 interface StepView {
   el: HTMLElement;
   links: Link[];
-  plots: PlotChart[];
+  plots: (PlotChart | Plot3Chart)[];
   diagrams: (() => void)[];
   dirty: boolean;
 }
@@ -112,14 +113,6 @@ function watchTheme(view: FigureView): void {
     for (const figure of live) figure.retheme();
   });
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-}
-
-/** `rgb(…)`, `rgba(…)` or `color(srgb …)` as 0–255 integers; grey when the colour cannot be read. */
-function parseColour(text: string): Rgb {
-  const srgb = /color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/.exec(text);
-  if (srgb) return [1, 2, 3].map((i) => Math.round(Number(srgb[i]) * 255)) as unknown as Rgb;
-  const rgb = /rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(text);
-  return rgb ? ([1, 2, 3].map((i) => Math.round(Number(rgb[i]))) as unknown as Rgb) : [128, 128, 128];
 }
 
 /** A Graph's or Diagram's key across steps: its id, else its place among the step's elements of its type. */
@@ -159,6 +152,8 @@ export class FigureView {
   private readonly extents = new Map<string, Extent>();
   /** Per Diagram, the most room past its border any step needs, and every step's paint with its step, so all steps keep one frame. */
   private readonly rooms = new Map<string, { room: Room; paints: Map<() => void, StepView> }>();
+  /** Each 3D Plot's angle as the student turned it, kept across steps and param reruns (by id, else by its place in the step). */
+  private readonly views = new Map<string, View>();
   /** Each sent Quiz answer, so a redraw keeps the Quiz answered. */
   private readonly answers = new Map<string, number>();
   /** The shown drawing's Markdown, for links redrawn after a resize. */
@@ -498,7 +493,10 @@ export class FigureView {
 
   private show(index: number): void {
     this.current = index;
-    this.steps.forEach((step, k) => step.el.classList.toggle('is-current', k === index));
+    this.steps.forEach((step, k) => {
+      step.el.classList.toggle('is-current', k === index);
+      for (const plot of step.plots) if (plot instanceof Plot3Chart) plot.setActive(k === index);
+    });
     const step = this.steps[index];
     if (step?.dirty) this.repaint(step);
     this.narrate?.(index);
@@ -515,10 +513,14 @@ export class FigureView {
       if (k === this.current) this.repaint(step);
       else step.dirty = true;
     });
+    // A reserved width was measured at the old width, and a box that fills the figure would hold the figure at it.
+    this.releaseWidths();
     // Hidden steps share the grid cell, so their old widths would keep the figure as wide as before; they repaint once the resize settles.
     window.clearTimeout(this.settle);
     this.settle = window.setTimeout(() => {
-      if (!this.controller.signal.aborted) for (const step of this.steps) if (step.dirty) this.repaint(step);
+      if (this.controller.signal.aborted) return;
+      for (const step of this.steps) if (step.dirty) this.repaint(step);
+      this.reserveWidths();
     }, SETTLE_MS);
   }
 
@@ -553,10 +555,7 @@ export class FigureView {
     const name = `--clew-figure-${fill ? 'fill' : 'tag'}-${tag}`;
     let rgb = this.colours.get(name);
     if (!rgb) {
-      const probe = this.el.appendChild(div('clew-figure-probe'));
-      probe.style.color = `var(${name})`;
-      rgb = parseColour(getComputedStyle(probe).color);
-      probe.remove();
+      rgb = parseColour(computedColour(this.el, `var(${name})`));
       this.colours.set(name, rgb);
     }
     return rgb;
@@ -618,8 +617,9 @@ export class FigureView {
     return lanes;
   }
 
-  /** After the first draw, each id keeps its widest box over the steps, so nothing jitters while stepping. */
+  /** After the first draw and after each resize, each id keeps its widest box over the steps, so nothing jitters while stepping. */
   private reserveWidths(): void {
+    this.releaseWidths();
     const widest = new Map<string, number>();
     const boxes: [string, HTMLElement][] = [];
     for (const step of this.steps) {
@@ -633,6 +633,10 @@ export class FigureView {
       }
     }
     for (const [id, el] of boxes) el.style.minWidth = `${widest.get(id)}px`;
+  }
+
+  private releaseWidths(): void {
+    for (const step of this.steps) for (const el of step.el.querySelectorAll<HTMLElement>('[data-figure-id]')) el.style.removeProperty('min-width');
   }
 
   /** `counts` numbers the step's Graphs, Seqs, Tables and Texs in drawing order, which keys those without an id. */
@@ -738,6 +742,19 @@ export class FigureView {
         chart.height = (width) => Math.min(360, (width * 2) / 3);
         chart.writeLabel = drawing.markdown;
         chart.render(plotModel(node));
+        view.plots.push(chart);
+        return;
+      }
+      case 'Plot3': {
+        for (const layer of node.children) if (layer.tag) drawing.used.add(layer.tag);
+        const el = mark(child('clew-figure-plot', child('clew-figure-canvas')), node.id);
+        el.style.width = `${this.width}px`;
+        const key = nodeKey(node, ordinal());
+        const chart = new Plot3Chart(el, { get: () => this.views.get(key), set: (view) => this.views.set(key, view) });
+        // Taller than a 2D Plot: the box must fit every angle it turns to.
+        chart.height = (width) => Math.min(420, width * 0.75);
+        chart.writeLabel = drawing.markdown;
+        chart.render(node);
         view.plots.push(chart);
         return;
       }

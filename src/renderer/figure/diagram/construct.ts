@@ -1,5 +1,3 @@
-import { LIMITS } from '@/renderer/figure/FigureData';
-
 // The construction functions a figure program finds in scope, so it computes points instead of guessing them.
 export type P = readonly [number, number];
 export type Line = readonly [P, P];
@@ -47,41 +45,4 @@ export function circleThrough(a: P, b: P, c: P): { at: [number, number]; r: numb
     (A * (c[0] - b[0]) + B * (a[0] - c[0]) + C * (b[0] - a[0])) / d,
   ];
   return { at, r: dist(a, at) };
-}
-
-export type View = { azimuth?: number; elevation?: number; zScale?: number };
-
-/** The 3D point `[x, y, z]` seen from `azimuth` degrees round the z axis and `elevation` degrees above the xy plane, z drawn upwards and multiplied by `zScale`. */
-export function project([x, y, z]: readonly [number, number, number], { azimuth = 30, elevation = 25, zScale = 1 }: View = {}): [number, number] {
-  const a = (azimuth * Math.PI) / 180;
-  const e = (elevation * Math.PI) / 180;
-  return [x * Math.cos(a) - y * Math.sin(a), z * zScale * Math.cos(e) + (x * Math.sin(a) + y * Math.cos(a)) * Math.sin(e)];
-}
-
-/**
- * The wireframe of z = f(x, y) over `x` × `y`, projected: `n + 1` lines each way, as point lists for one `Shape` each.
- * A line breaks where f is not finite, so a hemisphere or 1/(x² + y²) still draws.
- */
-export function surface(f: (x: number, y: number) => number, [x0, x1]: P, [y0, y1]: P, { n = 12, ...view }: View & { n?: number } = {}): [number, number][][] {
-  const most = LIMITS.layers / 2 - 1;
-  if (!Number.isInteger(n) || n < 1 || n > most) throw new RangeError(`surface: n must be a whole number from 1 to ${most}`);
-  const samples = Math.min(64, LIMITS.shapePoints - 1);
-  const lines: [number, number][][] = [];
-  const trace = (at: (t: number) => [number, number]) => {
-    let run: [number, number][] = [];
-    for (let k = 0; k <= samples; k += 1) {
-      const [x, y] = at(k / samples);
-      const z = f(x, y);
-      if (Number.isFinite(z)) run.push(project([x, y, z], view));
-      else { if (run.length > 1) lines.push(run); run = []; }
-    }
-    if (run.length > 1) lines.push(run);
-  };
-  for (let i = 0; i <= n; i += 1) {
-    const x = x0 + ((x1 - x0) * i) / n;
-    const y = y0 + ((y1 - y0) * i) / n;
-    trace((t) => [x, y0 + (y1 - y0) * t]);
-    trace((t) => [x0 + (x1 - x0) * t, y]);
-  }
-  return lines;
 }

@@ -6,13 +6,13 @@ type El = { type: string; props: Record<string, unknown>; children: unknown[] };
 const el = (type: string, props: Record<string, unknown> = {}, ...children: unknown[]): El => ({ type, props, children });
 const payload = (frames: { caption: string; heading?: string; root: El }[], params: Record<string, unknown> = {}): unknown => ({ params, frames });
 
-let observers: { disconnected: boolean }[] = [];
+let observers: { disconnected: boolean; resized: () => void }[] = [];
 
 beforeEach(() => {
   observers = [];
   (window as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
     disconnected = false;
-    constructor() {
+    constructor(readonly resized: () => void) {
       observers.push(this);
     }
     observe(): void {}
@@ -334,6 +334,24 @@ describe('FigureView', () => {
     expect(frame()).toBe(before);
   });
 
+  it('measures the boxes each step keeps again after a resize, so a box that filled the old width does not hold it', async () => {
+    let width = 900;
+    const view = new FigureView(document.body, host(), sandbox(() => payload([{ caption: 'a', root: el('Tex', { id: 't', tex: 'x' }) }, { caption: 'b', root: el('Tex', { id: 't', tex: 'y' }) }])));
+    Object.defineProperty(view.el, 'clientWidth', { get: () => width });
+    const box = HTMLElement.prototype.getBoundingClientRect;
+    const laidOut = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('clew-figure-tex') ? ({ width: Math.max(width, parseFloat(this.style.minWidth) || 0), height: 40 } as DOMRect) : box.call(this);
+    });
+    await expect(view.run('src')).resolves.toEqual({ drawn: true });
+    const reserved = (): string[] => [...view.el.querySelectorAll<HTMLElement>('.clew-figure-tex')].map((tex) => tex.style.minWidth);
+    expect(reserved()).toEqual(['900px', '900px']);
+    width = 260;
+    observers[0].resized();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    laidOut.mockRestore();
+    expect(reserved()).toEqual(['260px', '260px']);
+  });
+
   it('sizes a Tex\'s pointer column by every step\'s names and draws each step\'s pointer in it', async () => {
     const step = (name: string): { caption: string; root: El } => ({ caption: name, root: el('Column', {}, el('Tex', { id: 't', tex: 'x = 1' }), el('Pointer', { to: 't', name })) });
     const view = new FigureView(document.body, host(), sandbox(() => payload([step('i'), step('long name')])));
@@ -380,5 +398,104 @@ describe('FigureView', () => {
     view.showError('Step 2: TypeError: x (line 7)', 'src');
     expect(view.el.querySelector('.clew-figure-error-message')!.textContent).toBe('Step 2: TypeError: x (line 7)');
     expect(view.el.querySelector('details code')!.textContent).toBe('src');
+  });
+});
+
+describe('a 3D Plot in a figure', () => {
+  type FakeObserver = { callback: (entries: { isIntersecting: boolean }[]) => void; targets: Element[] };
+  let intersections: FakeObserver[] = [];
+
+  beforeEach(() => {
+    intersections = [];
+    (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver = class {
+      targets: Element[] = [];
+      constructor(readonly callback: FakeObserver['callback']) {
+        intersections.push(this);
+      }
+      observe(target: Element): void {
+        this.targets.push(target);
+      }
+      disconnect(): void {}
+    };
+    HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;
+    window.requestAnimationFrame = (callback) => window.setTimeout(() => callback(0), 0);
+  });
+
+  const SLIDER = { k: { label: 'k', min: 1, max: 3, step: 1, value: 1 } };
+  const plot3 = (z: number): El => el('Plot', { id: 'p', zLabel: 'z' }, el('Points', { id: 'dot', pts: [[0, 0, z], [1, 1, 1]] }));
+  const twoSteps = sandbox((params) => payload([
+    { caption: 'one', root: plot3(Number(params.k ?? 1) * 0.1) },
+    { caption: 'two', root: plot3(0.5) },
+  ], SLIDER));
+
+  async function drawn(runs = twoSteps): Promise<FigureView> {
+    const markdown = host();
+    const view = new FigureView(document.body, markdown, runs);
+    const outcome = view.run('src');
+    await flush();
+    markdown.finish();
+    await outcome;
+    return view;
+  }
+  const frame = (view: FigureView): HTMLElement => view.el.querySelector<HTMLElement>('.clew-figure-step.is-current .clew-plot3-frame')!;
+  const angle = (view: FigureView): string => /azimuth (-?\d+)°, elevation (-?\d+)°/.exec(frame(view).getAttribute('aria-label') ?? '')!.slice(1).join('/');
+  const pointer = (target: HTMLElement, type: string, x: number, y: number): void => {
+    target.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true }));
+  };
+
+  it('turns by half a degree per pixel dragged, and keeps the angle across a step change and a param rerun', async () => {
+    const view = await drawn();
+    expect(angle(view)).toBe('30/25');
+    pointer(frame(view), 'pointerdown', 100, 100);
+    pointer(frame(view), 'pointermove', 140, 80);
+    pointer(frame(view), 'pointerup', 140, 80);
+    await flush();
+    expect(angle(view)).toBe('50/15');
+    view.el.querySelector<HTMLButtonElement>('button[aria-label="Next"]')!.click();
+    expect(angle(view)).toBe('50/15');
+    const slider = view.el.querySelector<HTMLInputElement>('input[type="range"]')!;
+    slider.value = '2';
+    slider.dispatchEvent(new Event('input'));
+    await flush();
+    await flush();
+    expect(twoSteps.calls.at(-1)).toEqual({ k: 2 });
+    expect(angle(view)).toBe('50/15');
+  });
+
+  it('typesets a hidden step\'s 3D labels while the figure draws, so showing that step measures them whole', async () => {
+    const markdown = host();
+    const step = (label: string): { caption: string; root: El } => ({ caption: 'step', root: el('Plot', { id: 'p' }, el('Points', { pts: [[0, 0, 0]], label })) });
+    const view = new FigureView(document.body, markdown, sandbox(() => payload([step('plain'), step('**bold**')])));
+    const ran = view.run('src');
+    await flush();
+    expect(markdown.rendered).toContain('**bold**');
+    markdown.finish();
+    await expect(ran).resolves.toEqual({ drawn: true });
+  });
+
+  it('is focusable, turns 5 degrees per arrow key the way a drag turns it, and resets on double-click', async () => {
+    const view = await drawn(sandbox(() => payload([{ caption: '', root: plot3(0.2) }])));
+    expect(frame(view).tabIndex).toBe(0);
+    frame(view).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    frame(view).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    await flush();
+    expect(angle(view)).toBe('35/20');
+    frame(view).dispatchEvent(new MouseEvent('dblclick'));
+    await flush();
+    expect(angle(view)).toBe('30/25');
+  });
+
+  it('keeps a canvas bitmap only for the shown step near the view, and redraws at its kept angle when it comes back', async () => {
+    const view = await drawn(sandbox(() => payload([{ caption: 'one', root: plot3(0.1) }, { caption: 'two', root: plot3(0.2) }])));
+    const canvases = [...view.el.querySelectorAll<HTMLCanvasElement>('.clew-plot3-canvas')];
+    expect(canvases.map((canvas) => canvas.width > 0)).toEqual([true, false]);
+    frame(view).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    await flush();
+    const watcher = intersections.find((observer) => observer.targets.includes(canvases[0].closest('.clew-plot3')!))!;
+    watcher.callback([{ isIntersecting: false }]);
+    expect(canvases[0].width).toBe(0);
+    watcher.callback([{ isIntersecting: true }]);
+    expect(canvases[0].width).toBeGreaterThan(0);
+    expect(angle(view)).toBe('25/25');
   });
 });

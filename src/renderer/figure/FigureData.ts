@@ -7,6 +7,7 @@ export const LIMITS = {
   layers: 256, layerPoints: 2000, shapePoints: 256, params: 8, options: 12, quizOptions: 8,
   depth: 32, cloneDepth: 80, source: 64 * 1024, runMs: 2000, replyWaitMs: 2500, workers: 4,
   figuresPerReply: 4, repairError: 500, fnSamples: 161, cloneVisits: 2_000_000, startMs: 5000,
+  surfaceCells: 48, surfaces: 4,
 } as const;
 
 /** Every element a figure program can write, with the props it takes; `Figure` itself is unwrapped by the worker. */
@@ -23,7 +24,7 @@ export const ELEMENT_PROPS: Readonly<Record<string, readonly string[]>> = {
   Quiz: ['id', 'question', 'options', 'correct', 'explanation'],
   Arrow: ['from', 'to', 'label', 'tag'],
   Pointer: ['to', 'name', 'tag'],
-  Plot: ['id', 'x', 'y', 'xLabel', 'yLabel', 'equal'],
+  Plot: ['id', 'x', 'y', 'z', 'xLabel', 'yLabel', 'zLabel', 'equal', 'view'],
   Diagram: ['id', 'width', 'height'],
   Shape: ['id', 'pts', 'closed', 'label', 'tag'],
   Circle: ['id', 'at', 'r', 'label', 'tag'],
@@ -31,7 +32,7 @@ export const ELEMENT_PROPS: Readonly<Record<string, readonly string[]>> = {
   Segment: ['id', 'from', 'to', 'label', 'tag'],
   Points: ['id', 'pts', 'label', 'tag'],
   Label: ['id', 'at', 'text', 'tag'],
-  Fn: ['id', 'pts', 'from', 'to', 'label', 'tag'],
+  Fn: ['id', 'pts', 'zs', 'u', 'v', 'from', 'to', 'label', 'tag'],
   Region: ['id', 'top', 'base', 'from', 'to', 'label', 'tag'],
   Angle: ['id', 'at', 'from', 'to', 'label', 'tag'],
   RightAngle: ['id', 'at', 'from', 'to', 'tag'],
@@ -40,6 +41,8 @@ export const ELEMENT_PROPS: Readonly<Record<string, readonly string[]>> = {
 };
 
 export type Point = readonly [number, number];
+export type Point3 = readonly [number, number, number];
+export type Range = readonly [number, number];
 export type Tags = ReadonlyMap<string, Tag>;
 /** A table cell, a Seq label or any other shown value: Markdown, or a number the host formats. */
 export type Text = string | number;
@@ -80,6 +83,8 @@ export type FigureNode =
   | { type: 'Arrow'; from: string; to: string; label?: Text; tag?: Tag }
   | { type: 'Pointer'; to: string; name: Text; tag?: Tag }
   | { type: 'Plot'; id?: string; x: Point; y?: Point; xLabel?: string; yLabel?: string; equal?: boolean; children: readonly PlotLayer[] }
+  /** A Plot the validator found 3D. The model writes `Plot`; this type never comes from a program. */
+  | ({ type: 'Plot3'; id?: string } & Plot3Model)
   | { type: 'Diagram'; id?: string; width: number; height: number; children: readonly DiagramLayer[] };
 
 export interface GraphNode { id: string; label: Text; sub?: Text }
@@ -87,18 +92,45 @@ export interface GraphEdge { id?: string; from: string; to: string; label?: Text
 
 interface Marked { id?: string; label?: Text; tag?: Tag }
 
-export type SharedLayer =
-  | ({ type: 'Shape'; pts: readonly Point[]; closed?: boolean } & Marked)
-  | ({ type: 'Circle'; at: Point; r: number } & Marked)
-  | ({ type: 'Vector' | 'Segment'; from: Point; to: Point } & Marked)
-  | ({ type: 'Points'; pts: readonly Point[] } & Marked)
-  | { type: 'Label'; id?: string; at: Point; text: Text; tag?: Tag };
+export type SharedLayer<P = Point> =
+  | ({ type: 'Shape'; pts: readonly P[]; closed?: boolean } & Marked)
+  | ({ type: 'Circle'; at: P; r: number } & Marked)
+  | ({ type: 'Vector' | 'Segment'; from: P; to: P } & Marked)
+  | ({ type: 'Points'; pts: readonly P[] } & Marked)
+  | { type: 'Label'; id?: string; at: P; text: Text; tag?: Tag };
 
 export type PlotLayer =
   | SharedLayer
   /** `pts` are the worker's samples of `f`; `y` is null where `f` was not finite. */
   | ({ type: 'Fn'; pts: readonly (readonly [number, number | null])[]; from?: number; to?: number } & Marked)
   | ({ type: 'Region'; top: string | number; base?: string | number; from?: number; to?: number } & Marked);
+
+export interface View { azimuth: number; elevation: number }
+export const DEFAULT_VIEW: View = { azimuth: 30, elevation: 25 };
+/** Short of straight up or down, where the azimuth would stop turning the box. */
+export const clampElevation = (elevation: number): number => Math.max(-89, Math.min(89, elevation));
+
+/** A 3D Plot as the validator hands it to the renderer: the box with every axis resolved, the starting view, and the layers in data coordinates. */
+export interface Plot3Model {
+  x: Range;
+  y: Range;
+  z: Range;
+  xLabel?: string;
+  yLabel?: string;
+  zLabel?: string;
+  /** One unit is as long on every axis; otherwise each axis fills its side of the box. */
+  equal: boolean;
+  view: View;
+  children: readonly Plot3Layer[];
+}
+
+/** Surfaces are sampled on a grid of `surfaceCells + 1` samples a side, row-major (the second variable is the row), null where `f` was not finite. */
+export type Plot3Layer =
+  | SharedLayer<Point3>
+  /** A graph z = f(x, y) over `x` × `y`. */
+  | ({ type: 'Fn'; x: Range; y: Range; zs: readonly (number | null)[] } & Marked)
+  /** A parametric surface (u, v) => [x, y, z]. */
+  | ({ type: 'Fn'; pts: readonly (Point3 | null)[] } & Marked);
 
 export type DiagramLayer =
   | SharedLayer

@@ -2,7 +2,7 @@
 // Nothing here is trusted by the host, which validates what this posts; this only samples functions and makes the tree plain.
 import { transform } from 'sucrase';
 
-import { along, circleThrough, dist, foot, intersect, project, rotate, surface } from '@/renderer/figure/diagram/construct';
+import { along, circleThrough, dist, foot, intersect, rotate } from '@/renderer/figure/diagram/construct';
 import { ELEMENT_PROPS, LIMITS } from '@/renderer/figure/FigureData';
 
 declare const self: { onmessage: ((event: { data: unknown }) => void) | null; postMessage(message: unknown): void; __run?: (module: unknown, exports: unknown) => void; __probe?: number };
@@ -130,7 +130,7 @@ function defineGlobals(): void {
   const scope = self as unknown as Record<string, unknown>;
   for (const name of [...NAMES, 'Fragment']) scope[name === 'Fragment' ? '__F' : name] = Object.freeze({ [ELEMENT]: name });
   scope.__h = h;
-  Object.assign(scope, { intersect, foot, rotate, along, circleThrough, dist, project, surface });
+  Object.assign(scope, { intersect, foot, rotate, along, circleThrough, dist });
   // Seeded and fixed, so a saved figure draws the same on every open.
   let seed = 0x9e3779b9;
   Math.random = () => {
@@ -168,24 +168,63 @@ function plain(value: unknown, plot: Wire | undefined, prop = ''): unknown {
   const here = value.type === 'Plot' ? value : plot;
   const props: Record<string, unknown> = {};
   for (const key of Object.keys(value.props)) {
-    if (value.type === 'Fn' && key === 'f') continue;
+    // pts and zs are what the worker samples, never what the program wrote.
+    if (value.type === 'Fn' && (key === 'f' || key === 'pts' || key === 'zs')) continue;
     props[key] = plain(value.props[key], here, key);
   }
-  if (value.type === 'Fn') props.pts = sample(value.props, here);
+  if (value.type === 'Fn') Object.assign(props, sample(value.props, here));
   return { type: value.type, props, children: children.map((child) => plain(child, here, prop)) };
 }
 
-function sample(props: Record<string, unknown>, plot: Wire | undefined): [number, number | null][] {
+function sample(props: Record<string, unknown>, plot: Wire | undefined): { pts: unknown[] } | { zs: unknown[] } {
   const f = props.f;
   if (typeof f !== 'function') throw new FigureError('Fn needs f, a function of x');
   const x = plot?.props.x;
   const from = Number(props.from ?? (Array.isArray(x) ? x[0] : 0));
   const to = Number(props.to ?? (Array.isArray(x) ? x[1] : 1));
-  return Array.from({ length: LIMITS.fnSamples }, (_, i) => {
-    const at = from + ((to - from) * i) / (LIMITS.fnSamples - 1);
-    const y = Number((f as (x: number) => unknown)(at));
-    return [at, Number.isFinite(y) ? y : null];
-  });
+  if (f.length >= 2) return sampleSurface(f as (a: number, b: number) => unknown, props, Array.isArray(props.u) ? props.u : [from, to], Array.isArray(props.v) ? props.v : plot?.props.y);
+  return {
+    pts: Array.from({ length: LIMITS.fnSamples }, (_, i) => {
+      const at = from + ((to - from) * i) / (LIMITS.fnSamples - 1);
+      const y = Number((f as (x: number) => unknown)(at));
+      return [at, Number.isFinite(y) ? y : null];
+    }),
+  };
+}
+
+/**
+ * Samples a function of two variables on the surface grid. The first finite sample decides what it is: a number makes a
+ * graph z = f(x, y), sent as `zs`; a point makes a parametric surface, sent as `pts`. A non-finite value is a hole in either.
+ */
+function sampleSurface(f: (a: number, b: number) => unknown, props: Record<string, unknown>, u: unknown[], v: unknown): { pts: unknown[] } | { zs: unknown[] } {
+  const name = typeof props.id === 'string' ? `Fn \`${props.id}\`` : 'Fn';
+  const [u0, u1] = [Number(u[0]), Number(u[1])];
+  const [v0, v1] = Array.isArray(v) ? [Number(v[0]), Number(v[1])] : [0, 1];
+  const n = LIMITS.surfaceCells;
+  let kind: 'graph' | 'parametric' | undefined;
+  const out: unknown[] = [];
+  for (let j = 0; j <= n; j += 1) {
+    for (let i = 0; i <= n; i += 1) {
+      const a = u0 + ((u1 - u0) * i) / n;
+      const b = v0 + ((v1 - v0) * j) / n;
+      const value = f(a, b);
+      if (Array.isArray(value)) {
+        if (value.length !== 3) throw new FigureError(`${name} returned a point with ${value.length} coordinates at (${a}, ${b}); a parametric surface returns [x, y, z]`);
+        if (kind === 'graph') throw new FigureError(`${name} returned a point at (${a}, ${b}) after returning numbers; f returns numbers everywhere for a graph z = f(x, y), or [x, y, z] everywhere for a parametric surface`);
+        const point = value.map(Number);
+        const finite = point.every(Number.isFinite);
+        if (finite) kind = 'parametric';
+        out.push(finite ? point : null);
+      } else {
+        const z = Number(value);
+        const finite = Number.isFinite(z);
+        if (finite && kind === 'parametric') throw new FigureError(`${name} returned a number at (${a}, ${b}) after returning points; f returns [x, y, z] everywhere for a parametric surface, or numbers everywhere for a graph z = f(x, y)`);
+        if (finite) kind = 'graph';
+        out.push(finite ? z : null);
+      }
+    }
+  }
+  return kind === 'parametric' ? { pts: out } : { zs: out };
 }
 
 /** The error as the host shows it, with the program line its stack names. */
