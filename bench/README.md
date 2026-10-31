@@ -27,10 +27,13 @@ It needs Obsidian running with its command line interface on (Settings → Gener
 | `golden/<source>/*.json` | Text geometry of every state that passed, rounded to 2 px; a later run reports what moved. `--update` rewrites them |
 | `cases.ts` | Bench B cases |
 | `checks.ts`, `scene3Checks.ts` | Layout checks in the window, and 3D geometry checks without one |
+| `runProgram.ts` | Runs a figure program outside the window, for Bench B and the 3D geometry checks |
 | `page.ts` | Runs inside the bench window: plays a fixture, measures it, turns its 3D plots |
 | `benchVault.ts`, `obsidianCli.ts` | The throwaway vault and the Obsidian CLI calls |
 
 The demo fixtures are the figures of Clew's scripted demos (`src/chat/obsidian/playVisualsDemo.ts`, `playLayoutDemo.ts`).
+
+Figure programs are code a model wrote, so outside the window each runs in its own Node process with no environment variables and Node's permission model on (`--permission`): it cannot read or write files or start processes. Node 22 does not restrict the network. Inside the window, programs run in Clew's own sandboxed worker, as in the plugin. Review changes to `fixtures/` as you would review code.
 
 ## Latency bench (`latency/`)
 
