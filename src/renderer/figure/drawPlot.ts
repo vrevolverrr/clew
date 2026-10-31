@@ -41,7 +41,10 @@ export function plotModel(plot: Plot): PlotModel {
     }
     return [];
   });
-  return { x: [plot.x[0], plot.x[1]], ...(plot.y ? { y: [plot.y[0], plot.y[1]] } : {}), xLabel: plot.xLabel, yLabel: plot.yLabel, layers };
+  // Two given ranges of the same length are read as one unit on both axes, as a unit circle or a complex plane has.
+  const span = (range: readonly [number, number]): number => range[1] - range[0];
+  const equal = plot.equal ?? (plot.y !== undefined && Math.abs(span(plot.x) - span(plot.y)) <= 1e-9 * Math.abs(span(plot.x)));
+  return { x: [plot.x[0], plot.x[1]], ...(plot.y ? { y: [plot.y[0], plot.y[1]] } : {}), xLabel: plot.xLabel, yLabel: plot.yLabel, ...(equal ? { equal } : {}), layers };
 }
 
 function circle(at: readonly [number, number], r: number): Point[] {

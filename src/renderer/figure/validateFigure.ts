@@ -344,7 +344,7 @@ function readNode(raw: unknown, parent: string, depth: number, host: Host, scope
           if (typeof value === 'string' && !fns.has(value)) fail(path, `Region "${key}" names no Fn of this Plot: "${value}"`);
         }
       }
-      return { type, ...id, x: read.range('x'), ...read.optional('y', () => read.range('y')), ...read.optional('xLabel', (v) => read.string(v, 'xLabel')), ...read.optional('yLabel', (v) => read.string(v, 'yLabel')), children: layers };
+      return { type, ...id, x: read.range('x'), ...read.optional('y', () => read.range('y')), ...read.optional('xLabel', (v) => read.string(v, 'xLabel')), ...read.optional('yLabel', (v) => read.string(v, 'yLabel')), ...read.optional('equal', (v) => read.boolean(v, 'equal')), children: layers };
     }
     case 'Diagram':
       return { type, ...id, width: read.positive('width'), height: read.positive('height'), children: drawingLayers(children, path, depth, 'Diagram', scope) };

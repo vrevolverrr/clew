@@ -45,7 +45,7 @@ Links, placed anywhere in the tree and attached by id:
 
 Two drawings, each holding layers in its own coordinates:
 
-- \`<Plot id x={[lo, hi]} y={[lo, hi]} xLabel yLabel>\`: axes in data coordinates, \`x\` required, \`y\` fitted when absent.
+- \`<Plot id x={[lo, hi]} y={[lo, hi]} xLabel yLabel equal>\`: axes in data coordinates, \`x\` required, \`y\` fitted when absent. \`equal\` draws one unit as long on both axes, so a circle stays round; it is on when \`x\` and \`y\` span the same length, and \`equal={false}\` turns it off.
 - \`<Diagram id width height>\`: a free drawing in the model's own units (metres, grid cells), y upwards, scaled by the host to fit the pane; \`width\` and \`height\` are the extent of the drawing in its units.
 
 Layers of both: \`<Shape pts={[[x, y], ...]} closed label tag id />\` (a polyline or polygon: a contour, a parametric curve, a path of iterates, a unit square under a map; one point draws nothing, so a growing path can start empty), \`<Circle at={[x, y]} r label tag id />\`, \`<Vector from to label tag />\` (an arrowhead at \`to\`, no dots), \`<Segment from to label tag />\`, \`<Points pts={[[x, y]]} label tag />\` and \`<Label at text />\`.

@@ -787,9 +787,16 @@
   }
 }
 
+/* Pele fits the drawing to the pane's width. Past three quarters of its own size the text drops under 10 px, so a wider
+   diagram scrolls instead. The modal sets no width and zooms. */
 .clew-mermaid > svg {
   display: block;
+  min-width: calc(var(--clew-diagram-width, 0px) * 0.75);
   margin-inline: auto;
+}
+
+.clew-mermaid:not(.clew-diagram-modal .clew-mermaid) {
+  overflow-x: auto;
 }
 
 .clew-mermaid-header {
@@ -797,7 +804,7 @@
   align-items: center;
   gap: var(--size-2-1);
   margin: calc(-1 * var(--size-2-3)) calc(-1 * var(--size-2-3)) var(--size-4-2) 0;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-ui-smaller);
   font-weight: var(--font-medium);
   line-height: var(--line-height-tight);
@@ -1267,6 +1274,8 @@
   box-shadow: none;
   color: var(--text-normal);
   font-size: var(--font-ui-small);
+  line-height: var(--line-height-normal);
+  white-space: normal;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
@@ -1274,6 +1283,7 @@
 
 .clew-quiz .clew-quiz-option > span {
   flex: 1;
+  min-width: 0;
 }
 
 /* A round mark in front of each option. Picked, it fills with a dot; marked, it becomes a tick or a cross. */
@@ -1513,6 +1523,34 @@
 
 .clew-plot-label.is-strong {
   font-weight: var(--font-semibold);
+}
+
+/* A label with Markdown or maths, which SVG text cannot typeset, drawn like `.clew-plot-label` over the plot. */
+.clew-plot-rich-label {
+  position: absolute;
+  padding: 0 2px;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--background-primary) 85%, transparent);
+  color: var(--text-normal);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.clew-plot-rich-label.is-strong {
+  font-weight: var(--font-semibold);
+}
+
+.clew-plot-rich-label.is-title {
+  padding: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  transform: translate(-50%, -50%);
+}
+
+.clew-plot-rich-label.is-vertical {
+  transform: translate(-50%, -50%) rotate(-90deg);
 }
 
 .clew-plot-grid,
@@ -3260,7 +3298,7 @@
 
 .clew-figure-seq-index {
   height: 16px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   text-align: center;
 }
@@ -3413,7 +3451,8 @@
   background: none;
 }
 
-.clew-figure-links {
+.clew-figure-links,
+.clew-plot-rich {
   position: absolute;
   inset: 0;
   pointer-events: none;

@@ -9,6 +9,10 @@ interface EdgeGeometry {
 }
 /** Room around the drawing for a thick active border. */
 const MARGIN = 4;
+/** Where along its edge a label may sit, as Bezier parameters, in the order tried. */
+const LABEL_SPOTS = [0.5, 0.35, 0.65, 0.2, 0.8];
+/** The padding `fittedSize` adds around a label's text on each side, less the 4 px the text's own background keeps. */
+const LABEL_AIR = { x: 8, y: 6 };
 
 export interface NetworkLayout extends Size {
   readonly kind: 'tree' | 'graph';
@@ -61,26 +65,25 @@ export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkI
     points = nodes.map(n => positions.get(n.id)!);
   } else points = force(nodes.length, edges.map(e => [nodeIndex.get(e.from)!, nodeIndex.get(e.to)!]));
 
-  // Room between neighbours for one edge label and a little air, so a small graph fits beside its table.
-  const spacingX = nodeSize.width + edgeSize.width + 12;
-  const spacingY = nodeSize.height + edgeSize.height + 12;
+  // Room between neighbours for each lane's edge label and a little air, so a small graph fits beside its table.
+  const lanes = Math.max(1, ...[...pairs.values()].map(group => (group[0].from === group[0].to ? 1 : group.length)));
+  const spacingX = nodeSize.width + edgeSize.width * lanes + 12;
+  const spacingY = nodeSize.height + edgeSize.height * lanes + 12;
   // A graph scales uniformly until every pair is a full gap apart on at least one axis.
   let scale = 0;
   if (!tree) for (let a = 0; a < points.length; a++) for (let b = a + 1; b < points.length; b++) scale = Math.max(scale, Math.min(spacingX / Math.max(0.001, Math.abs(points[a].x - points[b].x)), spacingY / Math.max(0.001, Math.abs(points[a].y - points[b].y))));
   const geometry = new Map(nodes.map((n, i) => [n.id, { x: points[i].x * (tree ? spacingX : scale), y: points[i].y * (tree ? spacingY : scale), ...nodeSize }]));
   // Keep Bezier control points and label boxes inside the reserved surface as well.
   const bounds: Point[] = [...geometry.values()].flatMap(p => [{ x: p.x - p.width / 2, y: p.y - p.height / 2 }, { x: p.x + p.width / 2, y: p.y + p.height / 2 }]);
-  const routes: { id: string; points: Point[]; loop: boolean; label: Point & Size }[] = [];
+  const routes: { id: string; points: Point[]; loop: boolean }[] = [];
   for (const group of pairs.values()) group.forEach((edge, index) => {
     const a = geometry.get(edge.from)!;
     const b = geometry.get(edge.to)!;
     const loop = edge.from === edge.to;
     let path: Point[];
-    let center: Point;
     if (loop) {
-      const height = a.height / 2 + 64 + index * (edgeSize.height + 32);
-      path = [{ x: a.x - a.width / 3, y: a.y - a.height / 2 }, { x: a.x - a.width, y: a.y - height * 1.6 }, { x: a.x + a.width, y: a.y - height * 1.6 }, { x: a.x + a.width / 3, y: a.y - a.height / 2 }];
-      center = { x: a.x, y: (path[0].y + 6 * path[1].y + path[3].y) / 8 };
+      const neighbours = edges.flatMap(e => (e.from === e.to ? [] : e.from === edge.from ? [geometry.get(e.to)!] : e.to === edge.from ? [geometry.get(e.from)!] : []));
+      path = selfLoop(a, loopSide(a, neighbours), 64 + index * (edgeSize.height + 32));
     } else {
       // One canonical normal for both directions keeps opposite lanes distinct.
       const sign = nodeIndex.get(edge.from)! < nodeIndex.get(edge.to)! ? 1 : -1;
@@ -89,14 +92,24 @@ export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkI
       const distance = Math.hypot(dx, dy) || 1;
       const offset = (index - (group.length - 1) / 2) * (edgeSize.height + 36);
       const control = { x: (a.x + b.x) / 2 - dy / distance * offset * 2, y: (a.y + b.y) / 2 + dx / distance * offset * 2 };
-      const start = boundary(a, control);
-      const end = boundary(b, control);
-      path = [start, control, end];
-      center = { x: (start.x + 2 * control.x + end.x) / 4, y: (start.y + 2 * control.y + end.y) / 4 };
+      path = [boundary(a, control), control, boundary(b, control)];
     }
-    const label = { x: center.x - edgeSize.width / 2, y: center.y - edgeSize.height / 2, ...edgeSize };
-    bounds.push(...path, { x: label.x, y: label.y }, { x: label.x + label.width, y: label.y + label.height });
-    routes.push({ id: edge.id, points: path, loop, label });
+    bounds.push(...path);
+    routes.push({ id: edge.id, points: path, loop });
+  });
+  // Each label takes the first spot along its own edge clear of the nodes and the labels placed before it, so edges that
+  // cross or share a node do not stack their labels.
+  const taken: (Point & Size)[] = [...geometry.values()].map(n => ({ x: n.x - n.width / 2, y: n.y - n.height / 2, width: n.width, height: n.height }));
+  const labels = routes.map(route => {
+    const spots = LABEL_SPOTS.map(t => {
+      const c = pointAt(route.points, t);
+      return { x: c.x - edgeSize.width / 2, y: c.y - edgeSize.height / 2, ...edgeSize };
+    });
+    const index = spots.map(ink).findIndex(spot => !taken.some(other => overlaps(spot, other)));
+    const label = spots[Math.max(0, index)];
+    taken.push(ink(label));
+    bounds.push({ x: label.x, y: label.y }, { x: label.x + label.width, y: label.y + label.height });
+    return label;
   });
   const minX = Math.min(0, ...bounds.map(p => p.x)) - MARGIN;
   const minY = Math.min(0, ...bounds.map(p => p.y)) - MARGIN;
@@ -106,11 +119,39 @@ export function layoutNetwork({ nodes, edges, nodeLabels, edgeLabels }: NetworkI
   return {
     kind: tree ? 'tree' : 'graph', width: maxX - minX, height: maxY - minY,
     nodes: new Map([...geometry].map(([id, p]) => [id, { ...p, x: p.x - minX - p.width / 2, y: p.y - minY - p.height / 2 }])),
-    edges: routes.map(route => {
+    edges: routes.map((route, i) => {
       const p = route.points.map(shifted);
-      return { id: route.id, path: `M${p[0].x},${p[0].y} ${route.loop ? 'C' : 'Q'}${p.slice(1).map(v => `${v.x},${v.y}`).join(' ')}`, label: { ...route.label, ...shifted(route.label) } };
+      return { id: route.id, path: `M${p[0].x},${p[0].y} ${route.loop ? 'C' : 'Q'}${p.slice(1).map(v => `${v.x},${v.y}`).join(' ')}`, label: { ...labels[i], ...shifted(labels[i]) } };
     }),
   };
+}
+
+/** The point at `t` on the Bezier curve with control points `p`, by de Casteljau's construction. */
+function pointAt(p: readonly Point[], t: number): Point {
+  let q = p;
+  while (q.length > 1) q = q.slice(1).map((v, i) => ({ x: q[i].x + (v.x - q[i].x) * t, y: q[i].y + (v.y - q[i].y) * t }));
+  return q[0];
+}
+
+/** A label's box without the air around its text (`fittedSize`), which a neighbour may cover. */
+const ink = (box: Point & Size): Point & Size => ({ x: box.x + LABEL_AIR.x, y: box.y + LABEL_AIR.y, width: box.width - 2 * LABEL_AIR.x, height: box.height - 2 * LABEL_AIR.y });
+
+const overlaps = (a: Point & Size, b: Point & Size): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+/**
+ * -1 (up), or 1 (down) when a node's neighbours lie above it on balance: a self-loop leaves on the side facing away from
+ * its edges, and never sideways, since a node is wider than it is tall.
+ */
+function loopSide(box: NodeGeometry, neighbours: readonly Point[]): 1 | -1 {
+  const pull = neighbours.reduce((sum, n) => sum + (n.y - box.y) / (Math.hypot(n.x - box.x, n.y - box.y) || 1), 0);
+  return pull < 0 ? 1 : -1;
+}
+
+/** A self-loop as a cubic Bezier leaving `box` above it (`side` -1) or below it (1) and reaching `reach` past it. */
+function selfLoop(box: NodeGeometry, side: 1 | -1, reach: number): Point[] {
+  const top = box.y + side * box.height / 2;
+  const far = box.y + side * (box.height / 2 + reach) * 1.6;
+  return [{ x: box.x - box.width / 3, y: top }, { x: box.x - box.width, y: far }, { x: box.x + box.width, y: far }, { x: box.x + box.width / 3, y: top }];
 }
 
 function boundary(box: NodeGeometry, toward: Point): Point {

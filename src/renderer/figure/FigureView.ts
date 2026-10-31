@@ -8,7 +8,7 @@ import { drawQuiz } from '@/renderer/figure/drawQuiz';
 import { type FigureData, type FigureNode, type Param, TAGS, type Tag } from '@/renderer/figure/FigureData';
 import { figureSandbox, type FigureSandbox } from '@/renderer/figure/FigureSandbox';
 import { drawTex, drawTexIn, mapMath, type Rgb, type TagColour, texAnchors, texTags, TYPESET_MATH } from '@/renderer/figure/figureTex';
-import { figureText } from '@/renderer/figure/figureText';
+import { figureText, isPlain } from '@/renderer/figure/figureText';
 import { formatFigure } from '@/renderer/figure/formatFigure';
 import { status } from '@/renderer/figure/geometry';
 import type { NetworkLayout } from '@/renderer/figure/network/layoutNetwork';
@@ -46,8 +46,6 @@ const MEANING: Partial<Record<Tag, string>> = {
 };
 const FALLBACK_WIDTH = 480;
 const RENDERED_LIMIT = 500;
-/** No character Markdown or TeX would read, and no list or quote marker: shown as text, with no render. */
-const isPlain = (text: string): boolean => !/[*_`$\\[\]<>#|~!&]/.test(text) && !/^\s*([-+>]|\d+[.)])\s/.test(text);
 /** Plain text and `$…$` maths only, which MathJax draws at once with no Markdown render to wait for; else undefined. */
 function mathParts(markdown: string): (string | { tex: string; display: boolean })[] | undefined {
   const parts: (string | { tex: string; display: boolean })[] = [];
@@ -486,7 +484,11 @@ export class FigureView {
   private remeasure(markdown: Drawing['markdown'], diagrams: boolean): void {
     if (diagrams) {
       // Hidden steps are laid out too, so every label is measured now and no step grows the room when it is first shown.
-      for (const step of this.steps) step.diagrams.forEach((paint) => paint());
+      // A Plot's typeset labels were placed from an estimate too.
+      for (const step of this.steps) {
+        step.diagrams.forEach((paint) => paint());
+        step.plots.forEach((plot) => plot.repaint());
+      }
       for (const step of this.steps) if (step.dirty) this.repaint(step);
     }
     this.reserveWidths();

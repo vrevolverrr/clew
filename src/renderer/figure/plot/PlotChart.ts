@@ -1,4 +1,5 @@
 import { div, reducedMotion, svg, tagInk } from '@/renderer/figure/dom';
+import { isPlain } from '@/renderer/figure/figureText';
 import { categoriesOf, mixModel, modelDistance, type ResolvedModel, sameShape } from '@/renderer/figure/plot/mixModel';
 import { barSteps, niceDomain, niceTicks, wrapLabel } from '@/renderer/figure/plot/plotMath';
 import { type LabelBox, placeLabels } from '@/renderer/figure/placeLabels';
@@ -24,6 +25,8 @@ export interface PlotModel {
   y?: [number, number];
   xLabel?: string;
   yLabel?: string;
+  /** One unit is as long on both axes, so a circle stays round. */
+  equal?: boolean;
   layers: Layer[];
 }
 
@@ -79,6 +82,8 @@ export class PlotChart {
   private readonly legend = div('clew-plot-legend');
   private readonly frame = div('clew-plot-frame');
   private readonly canvas = svg('svg', { role: 'img', class: 'clew-plot-svg' });
+  /** Labels with Markdown or maths, which SVG text cannot typeset, as HTML over the drawing. */
+  private readonly rich = div('clew-plot-rich');
   private readonly tip = div('clew-plot-tip');
   /** What is on screen, and the plot it is moving toward. */
   private shown: ResolvedModel | null = null;
@@ -93,13 +98,15 @@ export class PlotChart {
   };
   /** Each label as drawn, written once: the legend shows it and the tooltip copies it, whether or not the legend lists it. */
   private readonly labels = new Map<string, HTMLElement>();
+  /** Plot labels and axis titles typeset over the drawing, by modifier and text, so a repaint only moves them. */
+  private readonly typesetLabels = new Map<string, HTMLElement>();
   private legendKey = '';
 
   /** The owner calls `repaint` when the width changes. */
   constructor(readonly el: HTMLElement) {
     el.classList.add('clew-plot');
     this.tip.hidden = true;
-    this.frame.append(this.canvas, this.tip);
+    this.frame.append(this.canvas, this.rich, this.tip);
     el.append(this.legend, this.frame);
   }
 
@@ -162,27 +169,43 @@ export class PlotChart {
   /** Draws `model` as it is. Hover is added only for a plot at rest, since it is rebuilt with every frame. */
   private paint(model: ResolvedModel, interactive: boolean): void {
     const width = this.measure();
-    const height = Math.round(this.height(width));
+    let height = Math.round(this.height(width));
     const narrow = width < 480;
     const cats = categoriesOf(model.x);
     const range = cats ? ([0, cats.length] as [number, number]) : (model.x as [number, number]);
     const [x0, x1] = range;
     const [y0, y1] = model.y;
+    const xTicks = cats ? [] : niceTicks(x0, x1, narrow ? 4 : 7);
     const margin = { top: 14, right: narrow ? 12 : 20, bottom: model.xLabel ? 46 : 32, left: 0 };
     // Only visible tick labels need room; interpolated range endpoints can have extra decimal places.
     const yTicks = (ph: number) => niceTicks(y0, y1, Math.max(3, Math.round(ph / 50)));
     const widest = Math.max(...yTicks(height - margin.top - margin.bottom).map((v) => tickText(v).length));
     margin.left = Math.max(MIN_LEFT_MARGIN, Math.ceil(widest * TICK_CHAR_WIDTH) + TICK_GAP + 4) + (model.yLabel ? Y_TITLE_WIDTH : 0);
-    const pw = width - margin.left - margin.right;
+    let pw = width - margin.left - margin.right;
+    // A tick label is centred on its tick, so the last one needs room past the plot's right edge.
+    const last = xTicks[xTicks.length - 1];
+    if (last !== undefined && last > x0) pw = Math.min(pw, (width - margin.left - (tickText(last).length * TICK_CHAR_WIDTH) / 2) / ((last - x0) / (x1 - x0)));
     // Category names wrap to their slot, or tilt when a word will not fit, so neighbours never run together.
     const labels = cats ? this.categoryLabels(cats, pw / cats.length) : null;
     if (labels) margin.bottom = labels.tilted ? 62 : 20 + 13 * Math.max(...labels.lines.map((l) => l.length));
-    const ph = height - margin.top - margin.bottom;
+    let ph = height - margin.top - margin.bottom;
+    // At equal scale the plot keeps the larger scale that fits both ranges: it is centred across the spare width, or
+    // drawn shorter than asked.
+    let shift = 0;
+    if (model.equal && !cats) {
+      const scale = Math.min(pw / (x1 - x0), ph / (y1 - y0));
+      shift = (pw - (x1 - x0) * scale) / 2;
+      margin.left += shift;
+      pw -= 2 * shift;
+      height -= Math.round(ph - (y1 - y0) * scale);
+      ph = height - margin.top - margin.bottom;
+    }
     const sx = (x: number) => margin.left + ((x - x0) / (x1 - x0)) * pw;
     const sy = (y: number) => margin.top + (1 - (y - y0) / (y1 - y0)) * ph;
 
     const root = this.canvas;
     root.replaceChildren();
+    this.rich.replaceChildren();
     this.tip.hidden = true;
     // A label, not an SVG <title>, which the browser would also show as a tooltip over the whole plot.
     root.setAttribute('aria-label', model.yLabel ? `Plot of ${model.yLabel}` : 'Plot');
@@ -196,19 +219,24 @@ export class PlotChart {
       svg('text', { x: margin.left - TICK_GAP, y: sy(v) + 4, 'text-anchor': 'end', class: 'clew-plot-tick' }, root, tickText(v));
     }
     svg('line', { x1: margin.left, x2: margin.left + pw, y1: margin.top + ph, y2: margin.top + ph, class: 'clew-plot-axis' }, root);
-    if (!cats) {
-      for (const v of niceTicks(x0, x1, narrow ? 4 : 7)) svg('text', { x: sx(v), y: margin.top + ph + 17, 'text-anchor': 'middle', class: 'clew-plot-tick' }, root, tickText(v));
+    for (const v of xTicks) svg('text', { x: sx(v), y: margin.top + ph + 17, 'text-anchor': 'middle', class: 'clew-plot-tick' }, root, tickText(v));
+    if (model.yLabel) {
+      if (isPlain(model.yLabel)) svg('text', { x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(${12 + shift} ${margin.top + ph / 2}) rotate(-90)`, class: 'clew-plot-tick clew-plot-title' }, root, model.yLabel);
+      else this.place(this.typeset(model.yLabel, 'is-title is-vertical'), 7 + shift, margin.top + ph / 2);
     }
-    if (model.yLabel) svg('text', { x: 0, y: 0, 'text-anchor': 'middle', transform: `translate(12 ${margin.top + ph / 2}) rotate(-90)`, class: 'clew-plot-tick clew-plot-title' }, root, model.yLabel);
-    if (model.xLabel) svg('text', { x: margin.left + pw / 2, y: height - 6, 'text-anchor': 'middle', class: 'clew-plot-tick clew-plot-title' }, root, model.xLabel);
+    if (model.xLabel) {
+      if (isPlain(model.xLabel)) svg('text', { x: margin.left + pw / 2, y: height - 6, 'text-anchor': 'middle', class: 'clew-plot-tick clew-plot-title' }, root, model.xLabel);
+      else this.place(this.typeset(model.xLabel, 'is-title'), margin.left + pw / 2, height - 11);
+    }
 
     const clipId = `clew-plot-clip-${++sequence}`;
     // The clip leaves room for half a stroke, so a line running along an edge is not cut in half.
     svg('rect', { x: margin.left - 2, y: margin.top - 2, width: pw + 4, height: ph + 4 }, svg('clipPath', { id: clipId }, svg('defs', {}, root)));
     const data = svg('g', { 'clip-path': `url(#${clipId})` }, root);
     const path = (points: readonly [number, number][]) => 'M' + points.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join('L');
-    const pending: (LabelBox & { text: string; strong: boolean })[] = [];
-    const label = (x: number, y: number, text: string, strong: boolean, center = false) => pending.push({ x, y, width: text.length * TICK_CHAR_WIDTH, height: 14, text, strong, center });
+    const pending: (LabelBox & { text: string; strong: boolean; el?: HTMLElement })[] = [];
+    const label = (x: number, y: number, text: string, strong: boolean, center = false) =>
+      pending.push({ x, y, width: text.length * TICK_CHAR_WIDTH, height: 14, text, strong, center, el: isPlain(text) ? undefined : this.typeset(text, strong ? 'is-strong' : '') });
 
     model.layers.forEach((layer, index) => {
       const color = colors[index];
@@ -262,9 +290,16 @@ export class PlotChart {
     });
 
     const avoid = model.layers.flatMap((l) => (l.kind === 'line' || l.kind === 'area' ? runs(l.points).map((run) => run.map(([x, y]) => [sx(x), sy(y)] as const)) : []));
+    // Typeset labels are measured in one pass, since each read forces a layout. One not laid out yet (its render still
+    // running, or no layout) keeps its estimate until the owner repaints.
+    for (const item of pending) {
+      const box = item.el?.getBoundingClientRect();
+      if (box?.width) Object.assign(item, { width: box.width, height: box.height });
+    }
     placeLabels(pending, { x0: margin.left, y0: margin.top, x1: margin.left + pw, y1: margin.top + ph }, avoid).forEach((at, i) => {
-      const { text, strong, height } = pending[i];
-      this.text(root, at.x, at.y + height - 3, text, 'start', strong);
+      const { text, strong, height, el } = pending[i];
+      if (el) this.place(el, at.x, at.y);
+      else this.text(root, at.x, at.y + height - 3, text, 'start', strong);
     });
 
     if (!cats && interactive) this.addHover(model, colors, { x0, x1, y0, y1, margin, pw, ph, sx, sy });
@@ -313,6 +348,23 @@ export class PlotChart {
       this.labels.set(text, label);
     }
     return label;
+  }
+
+  /** A label written by the owner in an HTML box over the drawing, once per text, for `place` or the label placement to position. */
+  private typeset(text: string, modifier: string): HTMLElement {
+    const key = `${modifier}\n${text}`;
+    let el = this.typesetLabels.get(key);
+    if (el) return this.rich.appendChild(el);
+    el = this.rich.appendChild(div(`clew-plot-rich-label ${modifier}`.trim()));
+    this.writeLabel(el, text);
+    this.typesetLabels.set(key, el);
+    return el;
+  }
+
+  /** Puts a typeset label at a point of the drawing: its top left, or an axis title's centre (`styles.css`). */
+  private place(el: HTMLElement, x: number, y: number): void {
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
   }
 
   private text(parent: Element, x: number, y: number, text: string, anchor: 'start' | 'middle' | 'end', strong: boolean): void {

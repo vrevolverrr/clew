@@ -23,7 +23,7 @@ export const ELEMENT_PROPS: Readonly<Record<string, readonly string[]>> = {
   Quiz: ['id', 'question', 'options', 'correct', 'explanation'],
   Arrow: ['from', 'to', 'label', 'tag'],
   Pointer: ['to', 'name', 'tag'],
-  Plot: ['id', 'x', 'y', 'xLabel', 'yLabel'],
+  Plot: ['id', 'x', 'y', 'xLabel', 'yLabel', 'equal'],
   Diagram: ['id', 'width', 'height'],
   Shape: ['id', 'pts', 'closed', 'label', 'tag'],
   Circle: ['id', 'at', 'r', 'label', 'tag'],
@@ -79,7 +79,7 @@ export type FigureNode =
   | { type: 'Quiz'; id?: string; question: string; options: readonly Text[]; correct: Text; explanation?: string }
   | { type: 'Arrow'; from: string; to: string; label?: Text; tag?: Tag }
   | { type: 'Pointer'; to: string; name: Text; tag?: Tag }
-  | { type: 'Plot'; id?: string; x: Point; y?: Point; xLabel?: string; yLabel?: string; children: readonly PlotLayer[] }
+  | { type: 'Plot'; id?: string; x: Point; y?: Point; xLabel?: string; yLabel?: string; equal?: boolean; children: readonly PlotLayer[] }
   | { type: 'Diagram'; id?: string; width: number; height: number; children: readonly DiagramLayer[] };
 
 export interface GraphNode { id: string; label: Text; sub?: Text }

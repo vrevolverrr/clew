@@ -29,3 +29,16 @@ describe('the Fn jump rule', () => {
     expect(points.some(([, y]) => y === null)).toBe(false);
   });
 });
+
+describe('equal scale', () => {
+  const plot = (x: [number, number], y?: [number, number], equal?: boolean): Extract<FigureNode, { type: 'Plot' }> => ({ type: 'Plot', x, ...(y ? { y } : {}), ...(equal === undefined ? {} : { equal }), children: [] });
+
+  it('is on when the two given ranges have the same length, and off otherwise unless asked for', () => {
+    expect(plotModel(plot([-1.4, 1.4], [-1.4, 1.4])).equal).toBe(true);
+    expect(plotModel(plot([-40, 100], [-70, 70])).equal).toBe(true);
+    expect(plotModel(plot([0, 10], [-2, 4])).equal).toBeUndefined();
+    expect(plotModel(plot([0, 10])).equal).toBeUndefined();
+    expect(plotModel(plot([0, 10], [-2, 4], true)).equal).toBe(true);
+    expect(plotModel(plot([0, 1], [0, 1], false)).equal).toBeUndefined();
+  });
+});
