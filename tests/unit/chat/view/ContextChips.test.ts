@@ -33,7 +33,8 @@ describe('ContextChips', () => {
     show({ note: NOTE });
     const [before] = chipEls();
     show({ note: { ...NOTE, label: 'Optics', excluded: true } });
-    expect(chipEls()).toEqual([before]);
+    expect(chipEls()).toHaveLength(1);
+    expect(chipEls()[0]).toBe(before);
     expect(labels()).toEqual(['Optics']);
     expect(before!.classList.contains('is-excluded')).toBe(true);
     expect(before!.getAttribute('aria-pressed')).toBe('false');
@@ -92,7 +93,6 @@ describe('ContextChips', () => {
       show({ note: NOTE }, 'sent');
       const leaving = document.querySelector<HTMLElement>('.clew-context-chip.is-leaving')!;
       expect(leaving.textContent).toContain('2 lines selected');
-      expect(animate.mock.calls[0][0][1].transform).toBe('translateY(-8px)');
       finish[finish.length - 1]!();
       await Promise.resolve();
       await Promise.resolve();

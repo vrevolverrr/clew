@@ -5,7 +5,6 @@ import type { ChatSummary } from '@/chat/ChatRecord';
 import type { HistoryMenuHost } from '@/chat/view/HistoryMenu';
 import { HistoryMenu } from '@/chat/view/HistoryMenu';
 
-jest.mock('@/chat/view/agentIcons', () => ({ appendAgentIcon: jest.fn() }));
 jest.mock('obsidian', () => ({ setIcon: jest.fn() }), { virtual: true });
 
 function chat(id: string, title: string): ChatSummary {
@@ -102,7 +101,7 @@ describe('HistoryMenu', () => {
     anchor.dispatchEvent(new Event('pointerenter'));
     await settle();
     document.querySelector<HTMLElement>('.clew-history-all')!.click();
-    expect(host.showAll).toHaveBeenCalled();
+    expect(host.showAll).toHaveBeenCalledTimes(1);
   });
 
   it('says so when there are no saved chats', async () => {

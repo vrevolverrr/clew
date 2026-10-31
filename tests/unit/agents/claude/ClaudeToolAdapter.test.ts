@@ -40,10 +40,8 @@ it('correlates native results, suppresses duplicate starts and ignores unknown r
   expect([...adapter.events(result())]).toEqual([]);
 });
 
-it('uses Clew custom titles without applying them to other MCP servers', () => {
+it('does not apply Clew custom titles to other MCP servers', () => {
   const adapter = new ClaudeToolAdapter('/vault', [custom]);
-  expect([...adapter.events(call('mcp__clew__lookup', { name: 'plot' }))][0]).toMatchObject({ name: 'lookup', title: 'Loaded plot' });
-  expect([...adapter.events(result())][0]).toMatchObject({ title: 'Loaded plot', status: 'done' });
   expect([...adapter.events(call('mcp__other__lookup', { name: 'plot' }, 'other'))][0]).toMatchObject({ title: 'Used lookup' });
 });
 

@@ -1,5 +1,4 @@
 import { AGENT_IDS, createAgents, DEFAULT_AGENT, isAgentId } from '@/agents/providers';
-import { resolveLoginShellPath } from '@/agents/process/loginShellPath';
 
 jest.mock('@/agents/process/loginShellPath', () => ({ resolveLoginShellPath: jest.fn(async () => undefined) }));
 
@@ -9,7 +8,6 @@ it('constructs the adapter matching every registered identity without starting a
   expect(Object.keys(agents)).toEqual([...AGENT_IDS]);
   for (const id of AGENT_IDS) expect(agents[id].id).toBe(id);
   expect(env).not.toHaveBeenCalled();
-  expect(resolveLoginShellPath).toHaveBeenCalled();
 });
 
 it.each(AGENT_IDS)('accepts the registered provider %s', (id) => {

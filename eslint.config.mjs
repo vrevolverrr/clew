@@ -40,6 +40,7 @@ export default defineConfig([
       'import/no-unresolved': 'off',
       'obsidianmd/validate-manifest': 'off',
       'obsidianmd/validate-license': 'off',
+      'obsidianmd/ui/sentence-case': ['warn', { enforceCamelCaseLower: true, ignoreWords: ['Clew'] }],
     },
   },
   globalIgnores([

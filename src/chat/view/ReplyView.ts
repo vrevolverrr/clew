@@ -1,4 +1,5 @@
-import { type MarkdownTarget, TextBlock } from '@/chat/view/TextBlock';
+import { countFigures } from '@/chat/splitReply';
+import { type MarkdownTarget, ReplyFigures, TextBlock } from '@/chat/view/TextBlock';
 import { ToolGroup } from '@/chat/view/ToolGroup';
 import { formatWhen } from '@/chat/view/chatList';
 import type { Rating, ToolPart, TourStep } from '@/chat/ChatRecord';
@@ -22,14 +23,20 @@ export class ReplyView {
   /** Every stop of the reply, across its runs. */
   private readonly steps: TourStep[] = [];
   private copyable = false;
+  private readonly figures: ReplyFigures;
 
+  /**
+   * `ask` sends a message a figure wrote for the student, such as a quiz answer, and is false when the chat cannot take
+   * one now. `live` is true for a reply being written, false for a saved one drawn again.
+   */
   constructor(
     private readonly el: HTMLElement,
     private readonly markdown: MarkdownTarget,
     private readonly walkthrough: WalkthroughHost,
-    /** Sends a message a visual wrote for the student, such as a quiz answer. False when the chat cannot take one now. */
-    private readonly ask?: (message: string) => boolean,
+    ask?: (message: string) => boolean,
+    live = false,
   ) {
+    this.figures = new ReplyFigures(live, ask);
     this.follow();
   }
 
@@ -44,7 +51,8 @@ export class ReplyView {
         if (block.seconds() >= 1 && !(previous instanceof ToolGroup)) block.finish();
         else this.discard(block);
       }
-      block = new TextBlock(this.el.createDiv({ cls: 'clew-reply-text' }), this.markdown, this.ask);
+      const first = this.blocks.reduce((count, previous) => count + (previous instanceof TextBlock ? countFigures(previous.text) : 0), 0);
+      block = new TextBlock(this.el.createDiv({ cls: 'clew-reply-text' }), this.markdown, this.figures, first);
       this.blocks.push(block);
     }
     block.append(delta);
@@ -85,6 +93,10 @@ export class ReplyView {
     const last = this.blocks.at(-1);
     if (last instanceof ToolGroup && last.isEmpty()) this.discard(last);
     for (const block of this.blocks) if (!(block instanceof Walkthrough)) block.finish();
+    // Until the repair turn exists, a held failure shows its error card when the reply ends.
+    this.figures.settled = true;
+    for (const failure of this.figures.held.values()) failure.showError();
+    this.figures.held.clear();
     if (this.copyable || !this.text()) return;
     this.copyable = true;
     const footer = this.el.createDiv({ cls: 'clew-reply-footer' });

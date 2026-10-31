@@ -20,6 +20,9 @@ coverage/
 .context/
 .DS_Store
 
-# Private: benchmark, eval and working docs
+# Private: working docs
 /docs/
-/bench/
+
+# Bench output
+/bench/latency/results/
+/bench/figure/out/

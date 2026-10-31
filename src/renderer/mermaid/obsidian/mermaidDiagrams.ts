@@ -18,7 +18,7 @@ function loadPele(): Promise<typeof Pele | undefined> {
   pele ??= new Promise((resolve) => {
     const existing = (window as PeleWindow).pele;
     if (existing) return resolve(existing);
-    const script = document.createElement('script');
+    const script = createEl('script');
     script.src = '/lib/pele.min.js';
     script.onload = () => resolve((window as PeleWindow).pele);
     script.onerror = () => {
@@ -58,7 +58,9 @@ export async function renderMermaidDiagrams(
     const figure = createDiv();
     pre.before(figure);
     const header = figure.createDiv({ cls: 'clew-mermaid-header' });
-    const diagram = loaded.mount(figure.createDiv({ cls: 'clew-mermaid' }), source, { ...SAFE, zoom: false });
+    const box = figure.createDiv({ cls: 'clew-mermaid' });
+    // Pele scales the drawing down to the pane; `styles.css` stops it where text would be too small to read.
+    const diagram = loaded.mount(box, source, { ...SAFE, zoom: false, onRender: ({ width }) => box.style.setProperty('--clew-diagram-width', `${width}px`) });
     if (!diagram.result) {
       diagram.destroy();
       figure.remove();

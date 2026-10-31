@@ -1,7 +1,7 @@
-import { Component, finishRenderMath, MarkdownRenderer } from 'obsidian';
+import { Component, MarkdownRenderer } from 'obsidian';
 import type { App } from 'obsidian';
 
-import { escapeRawHTMLTags } from '@/renderer/markdown/markdownHTML';
+import { escapeModelMarkdown } from '@/renderer/markdown/markdownHTML';
 import { normalizeLatexMathDelimiters } from '@/renderer/markdown/markdownMath';
 import { prepareDisplayOnlyCodeFences, restoreDisplayOnlyCodeFences } from '@/renderer/markdown/obsidian/DisplayOnlyCodeFences';
 import { prepareDisplayOnlyInlineCode, restoreDisplayOnlyInlineCode } from '@/renderer/markdown/obsidian/DisplayOnlyInlineCode';
@@ -74,18 +74,13 @@ export class MarkdownContentRenderer {
 
     try {
       const normalizedMarkdown = normalizeLatexMathDelimiters(markdown);
-      // Escape user-authored HTML first so placeholders like <meta-name> render
-      // as plain text. Trusted plugin markup (image embeds) is injected only
-      // after this step, otherwise it would be escaped too.
-      const safeMarkdown = escapeRawHTMLTags(normalizedMarkdown);
+      const safeMarkdown = escapeModelMarkdown(normalizedMarkdown);
       // Model output must never reach a code processor such as dataviewjs or inline `$=`.
       const displayOnlyCodeFences = prepareDisplayOnlyCodeFences(safeMarkdown);
       const displayOnlyInlineCode = prepareDisplayOnlyInlineCode(displayOnlyCodeFences.markdown);
       const sourcePath = this.getSourcePath();
       const processedMarkdown = replaceImageEmbedsWithHTML(displayOnlyInlineCode.markdown, this.app, sourcePath);
       await MarkdownRenderer.render(this.app, processedMarkdown, el, sourcePath, scope);
-      // MathJax styles each glyph the first time it is used, and those styles apply only once flushed.
-      if (el.querySelector('mjx-container')) await finishRenderMath();
       if (!isCurrent()) return;
       restoreDisplayOnlyInlineCode(el, displayOnlyInlineCode.spans);
       await restoreDisplayOnlyCodeFences(el, displayOnlyCodeFences.fences);
@@ -93,7 +88,7 @@ export class MarkdownContentRenderer {
       if (!isCurrent()) return;
       for (const table of el.querySelectorAll('table')) {
         if (table.parentElement?.classList.contains('table-wrapper')) continue;
-        const scroll = document.createElement('div');
+        const scroll = createDiv();
         scroll.className = 'table-wrapper';
         table.before(scroll);
         scroll.appendChild(table);

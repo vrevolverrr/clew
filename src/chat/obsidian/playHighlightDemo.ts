@@ -55,7 +55,7 @@ ${filler('speed', 8)}
 `,
 };
 
-const SLOPE_LINE = NOTES[FIRST]!.split('\n').findIndex((line) => line.startsWith('The slope here')) + 1;
+const SLOPE_LINE = NOTES[FIRST].split('\n').findIndex((line) => line.startsWith('The slope here')) + 1;
 
 // The reply an agent would write: prose with stops between it, a quote with marks it does not show, a line number for
 // a repeated phrase, a second note, a quote that is not there, and text far below the first screen.
@@ -115,7 +115,7 @@ export async function playHighlightDemo(app: App, openChat: () => Promise<DemoCh
   for (const [path, content] of Object.entries(NOTES)) {
     files.push(app.vault.getFileByPath(path) ?? (await create(app, path, content)));
   }
-  await app.workspace.getLeaf('tab').openFile(files[0]!, { active: true });
+  await app.workspace.getLeaf('tab').openFile(files[0], { active: true });
   const chat = await openChat();
   if (!chat) return;
   new Notice('Highlight demo: Optics.md and Waves.md. Hover a card to hold it; Esc, or scrolling or typing in the note, stops it.');

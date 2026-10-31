@@ -18,6 +18,9 @@ it('exposes the same file-change contract for equivalent native edits', () => {
   const codex = codexToolApproval('these file changes', { item: { changes: [{
     path: 'note.md', kind: { type: 'update' }, diff: '-old text\n+new text\n',
   }] } });
-  expect(claude.changes).toEqual(codex.changes);
+  expect(claude.changes).toEqual([
+    { path: 'note.md', kind: 'update', blocks: [{ before: 'old text\n', after: 'new text\n' }] },
+  ]);
+  expect(codex.changes).toEqual(claude.changes);
   expect(claude.fields).toEqual(codex.fields);
 });

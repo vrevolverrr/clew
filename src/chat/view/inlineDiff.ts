@@ -25,14 +25,14 @@ export function inlineDiff(before: string, after: string): readonly ApprovalDiff
     const lengths = new Uint32Array(rows * columns);
     for (let i = rows - 2; i >= 0; i--) for (let j = columns - 2; j >= 0; j--) {
       lengths[i * columns + j] = old[start + i] === next[start + j]
-        ? 1 + lengths[(i + 1) * columns + j + 1]!
-        : Math.max(lengths[(i + 1) * columns + j]!, lengths[i * columns + j + 1]!);
+        ? 1 + lengths[(i + 1) * columns + j + 1]
+        : Math.max(lengths[(i + 1) * columns + j], lengths[i * columns + j + 1]);
     }
     let i = start, j = start;
     while (i < oldEnd && j < nextEnd) {
-      if (old[i] === next[j]) { append('same', old[i++]!); j++; }
-      else if (lengths[(i - start + 1) * columns + j - start]! >= lengths[(i - start) * columns + j - start + 1]!) append('removed', old[i++]!);
-      else append('added', next[j++]!);
+      if (old[i] === next[j]) { append('same', old[i++]); j++; }
+      else if (lengths[(i - start + 1) * columns + j - start] >= lengths[(i - start) * columns + j - start + 1]) append('removed', old[i++]);
+      else append('added', next[j++]);
     }
     append('removed', old.slice(i, oldEnd).join(''));
     append('added', next.slice(j, nextEnd).join(''));
@@ -41,11 +41,11 @@ export function inlineDiff(before: string, after: string): readonly ApprovalDiff
   // Shared spaces should not split one phrase replacement into alternating word highlights.
   const grouped: ApprovalDiffPart[] = [];
   for (let at = 0; at < parts.length;) {
-    const current = parts[at]!;
+    const current = parts[at];
     if (current.kind === 'same') { grouped.push(current); at++; continue; }
     let end = at + 1;
-    while (end < parts.length && (parts[end]!.kind !== 'same'
-      || (/^\s+$/u.test(parts[end]!.text) && parts[end + 1] !== undefined && parts[end + 1]!.kind !== 'same'))) end++;
+    while (end < parts.length && (parts[end].kind !== 'same'
+      || (/^\s+$/u.test(parts[end].text) && parts[end + 1] !== undefined && parts[end + 1].kind !== 'same'))) end++;
     const changed = parts.slice(at, end);
     const removed = changed.filter((part) => part.kind !== 'added').map((part) => part.text).join('');
     const added = changed.filter((part) => part.kind !== 'removed').map((part) => part.text).join('');

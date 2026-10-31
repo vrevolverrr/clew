@@ -73,6 +73,7 @@ describe('AttachmentChips', () => {
       expect(animate).toHaveBeenCalledTimes(1);
       chips.set([IMAGE, FILE]);
       expect(animate).toHaveBeenCalledTimes(2);
+      expect(animate.mock.contexts[1]).toBe(chipEls()[1]);
     });
 
     it('keeps a leaving chip, inert, until its animation ends, and lifts it away when sent', async () => {

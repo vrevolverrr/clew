@@ -44,7 +44,7 @@ export function spawnClaudeCode(options: SpawnOptions, onStderr: (text: string) 
     throw new Error('Failed to create process streams');
   }
 
-  return child as unknown as SpawnedProcess;
+  return child;
 }
 
 function installTreeAwareKill(child: ChildProcess, spawnSpec: WindowsCmdShimSpawnSpec): void {

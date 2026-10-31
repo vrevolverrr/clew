@@ -121,7 +121,7 @@ export function recordHighlight(turn: ChatTurn, step: TourStep): ChatTurn {
 }
 
 export function chatTitle(message: string): string {
-  const line = message.trim().split('\n')[0]!.trim();
+  const line = message.trim().split('\n')[0].trim();
   return line.length > TITLE_LENGTH ? `${line.slice(0, TITLE_LENGTH - 1).trimEnd()}…` : line;
 }
 

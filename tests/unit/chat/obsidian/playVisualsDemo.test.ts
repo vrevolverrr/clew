@@ -1,55 +1,25 @@
-/**
- * @jest-environment jsdom
- */
-import { VISUALS_DEMO_REPLY } from '@/chat/obsidian/playVisualsDemo';
-import { splitReply } from '@/chat/splitReply';
-import { library } from '@/renderer/openui/library';
-import { OpenUIRenderer } from '@/renderer/openui/OpenUIRenderer';
+import { VISUALS_DEMO_TURNS } from '@/chat/obsidian/playVisualsDemo';
+import { countFigures, splitReply } from '@/chat/splitReply';
+import { LIMITS } from '@/renderer/figure/FigureData';
+import { WORKER_SOURCE } from '@/renderer/figure/sandboxSource';
+import { validateFigure } from '@/renderer/figure/validateFigure';
+
+import { runFigureWorker } from '../../../runFigureWorker';
 
 jest.mock('obsidian', () => ({ Notice: jest.fn() }), { virtual: true });
 
-const fences = splitReply(VISUALS_DEMO_REPLY, true).filter((segment) => segment.kind === 'openui');
+const figures = VISUALS_DEMO_TURNS.flatMap((turn) => splitReply(turn.reply, true).filter((segment) => segment.kind === 'figure').map((segment) => segment.text));
 
-function draw(program: string) {
-  const host = document.body.appendChild(document.createElement('div'));
-  const renderer = new OpenUIRenderer(host, library, () => undefined);
-  renderer.set(program, true);
-  return { host, errors: renderer.errors };
-}
-
-afterEach(() => {
-  document.body.replaceChildren();
-});
-
-describe('the visuals demo reply', () => {
-  it('has a fence for every kind of visual, and two that fail on purpose', () => {
-    expect(fences).toHaveLength(17);
-    expect(splitReply(VISUALS_DEMO_REPLY, true).filter((segment) => segment.kind === 'mermaid')).toHaveLength(1);
-    const used = new Set(fences.flatMap((fence) => [...fence.text.matchAll(/\b([A-Z]\w*)\(/g)].map((match) => match[1])));
-    expect(Object.keys(library.components).filter((name) => !used.has(name))).toEqual([]);
+describe('the visuals demo', () => {
+  it('keeps each reply within the figures a reply draws, with one Mermaid fence', () => {
+    for (const turn of VISUALS_DEMO_TURNS) expect(countFigures(turn.reply)).toBeLessThanOrEqual(LIMITS.figuresPerReply);
+    expect(figures).toHaveLength(7);
+    expect(VISUALS_DEMO_TURNS.flatMap((turn) => splitReply(turn.reply, true)).filter((segment) => segment.kind === 'mermaid')).toHaveLength(1);
   });
 
-  it('draws every fence without an error except the two that fail on purpose', () => {
-    const outcomes = fences.map((fence) => draw(fence.text).errors);
-
-    expect(outcomes.slice(0, -2)).toEqual(Array(outcomes.length - 2).fill([]));
-    expect(outcomes.at(-2)).toEqual(['Board: Step 2: full region desk']);
-    expect(outcomes.at(-1)).toEqual([expect.stringContaining('Chart')]);
-  });
-
-  it('plots a curve, a shaded tail, a waterfall and a marked point', () => {
-    const [taylor, risk, bridge, npv] = fences.slice(0, 4).map((fence) => draw(fence.text).host);
-
-    expect(taylor!.querySelectorAll('.clew-plot-line')).toHaveLength(2);
-    expect(risk!.querySelector('.clew-plot-area')).not.toBeNull();
-    expect(bridge!.querySelectorAll('.clew-plot-bar')).toHaveLength(8);
-    expect(npv!.querySelector('.clew-plot-dot')).not.toBeNull();
-  });
-
-  it('reads the values the model would expect from the waterfall and the NPV', () => {
-    const [, , bridge, npv] = fences.slice(0, 4).map((fence) => draw(fence.text).host);
-
-    expect(bridge!.querySelector('.clew-stat-value')!.textContent).toBe('135');
-    expect(npv!.querySelector('.clew-stat-value')!.textContent).toBe('✓109');
+  it.each(figures.map((source, i) => [i + 1, source]))('runs figure %i, and what it returns validates', async (_, source) => {
+    const reply = await runFigureWorker(WORKER_SOURCE, { kind: 'run', source, params: {} });
+    const result = validateFigure(reply);
+    expect(result.ok ? 'ok' : result.error).toBe('ok');
   });
 });

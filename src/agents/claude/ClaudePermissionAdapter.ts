@@ -35,7 +35,7 @@ export class ClaudePermissionAdapter implements AgentPermissionAdapter<ClaudePer
         const answers = await askQuestions(turn.push, questions, signal);
         if (!answers) return { behavior: 'deny', message: signal.aborted ? 'Question cancelled.' : 'The student chose not to answer.', interrupt: signal.aborted };
         // Claude Code reads answers keyed by question text, several choices joined by commas.
-        return { behavior: 'allow', updatedInput: { ...input, answers: Object.fromEntries(questions.map((question, index) => [question.question, answers[index]!.join(', ')])) } };
+        return { behavior: 'allow', updatedInput: { ...input, answers: Object.fromEntries(questions.map((question, index) => [question.question, answers[index].join(', ')])) } };
       }
       const approved = await this.request({ tool: toolName, input, reason: options.decisionReason }, { ...turn, signal });
       return approved

@@ -4,9 +4,11 @@ import { builtinModules } from 'node:module';
 import path from 'path';
 import process from 'process';
 
+import figureWorkerHelpers from './scripts/buildFigureWorker.js';
 import rendererSafeUnrefHelpers from './scripts/rendererSafeUnref.js';
 
 const { findUnsafeTimerUnrefSites, patchRendererUnsafeUnrefSites } = rendererSafeUnrefHelpers;
+const { buildFigureWorker } = figureWorkerHelpers;
 
 // OBSIDIAN_VAULT=/path/to/vault in .env.local copies each build into that vault's plugin folder.
 if (existsSync('.env.local')) {
@@ -109,6 +111,19 @@ const patchRendererUnsafeUnref = {
   },
 };
 
+// The figure worker is its own bundle, embedded as a string: sucrase never enters the plugin's module graph.
+const figureWorker = {
+  name: 'figure-worker',
+  setup(build) {
+    build.onResolve({ filter: /^figure-worker$/ }, () => ({ path: 'figure-worker', namespace: 'figure-worker' }));
+    build.onLoad({ filter: /.*/, namespace: 'figure-worker' }, async () => ({
+      contents: `export default ${JSON.stringify(buildFigureWorker())}`,
+      loader: 'js',
+      watchFiles: (await fsPromises.readdir('src/renderer/figure', { recursive: true })).map((file) => path.resolve('src/renderer/figure', file)),
+    }));
+  },
+};
+
 const vault = process.env.OBSIDIAN_VAULT;
 const pluginDir = vault && existsSync(vault) ? path.join(vault, '.obsidian', 'plugins', 'clew') : null;
 
@@ -131,7 +146,7 @@ const copyToObsidian = {
 const context = await esbuild.context({
   entryPoints: ['src/main.ts'],
   bundle: true,
-  plugins: [patchSdkImportMeta, omitUnusedClaudeSdkPeers, englishOnlyZodLocales, patchRendererUnsafeUnref, copyToObsidian],
+  plugins: [figureWorker, patchSdkImportMeta, omitUnusedClaudeSdkPeers, englishOnlyZodLocales, patchRendererUnsafeUnref, copyToObsidian],
   // Obsidian provides CodeMirror and the lezer core at runtime, as its sample plugin's build config assumes. A second
   // copy of CodeMirror in the bundle would not recognise the editor's own extensions and state.
   external: ['obsidian', 'electron', '@codemirror/state', '@codemirror/view', '@lezer/common', '@lezer/highlight', ...builtinModules, 'node:*'],
