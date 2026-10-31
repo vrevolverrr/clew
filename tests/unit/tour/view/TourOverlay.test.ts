@@ -56,7 +56,7 @@ describe('TourOverlay', () => {
     overlay.hide();
 
     expect(layer.classList.contains('is-active')).toBe(false);
-    expect(window.cancelAnimationFrame).toHaveBeenCalled();
+    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(1);
   });
 
   it('holds the step while the pointer or focus is on the card', () => {

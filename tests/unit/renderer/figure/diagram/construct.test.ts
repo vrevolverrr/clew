@@ -43,7 +43,7 @@ describe('construction functions', () => {
 
   it('breaks a line where the surface is not defined, leaving only finite points', () => {
     const lines = surface((x, y) => Math.sqrt(1 - x * x - y * y), [-1, 1], [-1, 1], { n: 4 });
-    expect(lines.length).toBeGreaterThan(0);
+    expect(lines).toHaveLength(6);
     expect(lines.flat(2).every(Number.isFinite)).toBe(true);
   });
 });

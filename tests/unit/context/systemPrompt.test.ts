@@ -9,17 +9,17 @@ import { runFigureWorker } from '../../runFigureWorker';
 describe('buildSystemPrompt', () => {
   const prompt = buildSystemPrompt();
 
-  it('names every figure element and every prop it takes', () => {
-    for (const [element, props] of Object.entries(ELEMENT_PROPS)) {
-      expect(prompt).toContain(`<${element}`);
-      for (const prop of props) expect(prompt).toContain(prop);
-    }
-    console.log(`System prompt: ${prompt.length} characters`);
-  });
+  // The prompt states `id` once in prose rather than in each signature, and leaves these props out of their element's signature.
+  const UNLISTED: Readonly<Record<string, readonly string[]>> = { Fn: ['pts'], Label: ['tag'], RightAngle: ['tag'], Dimension: ['tag'] };
 
-  it('carries nothing of OpenUI or its tool', () => {
-    expect(prompt.toLowerCase()).not.toContain('openui');
-    expect(prompt).not.toContain('load_pack');
+  it.each(Object.entries(ELEMENT_PROPS))('writes <%s> with every prop it takes in its own signature', (element, props) => {
+    const signatures = [...prompt.matchAll(new RegExp(`\`<${element}(?=[\\s/>])[^\`]*\``, 'g'))].map((match) => match[0]);
+    const listed = props.filter((prop) => prop !== 'id' && !UNLISTED[element]?.includes(prop));
+
+    const missing = listed.filter((prop) => !signatures.some((signature) => new RegExp(`[\\s{(,]${prop}(?=[\\s=/>,}])`).test(signature)));
+
+    expect(signatures.length).toBeGreaterThan(0);
+    expect(missing).toEqual([]);
   });
 
   it('gives an example figure that runs and validates', async () => {

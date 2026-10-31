@@ -88,7 +88,7 @@ function permissionContract<Native>(name: string, create: () => { adapter: Agent
       const controller = new AbortController();
       let event: Approval | undefined;
       const pending = adapter.request(native, { signal: controller.signal, push: (next) => { event = next as Approval; } });
-      expect(event).toBeDefined();
+      expect(event?.signal.aborted).toBe(false);
       controller.abort();
       event!.answer(true);
       expect(await pending).toBe(false);

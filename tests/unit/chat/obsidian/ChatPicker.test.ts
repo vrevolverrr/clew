@@ -25,7 +25,6 @@ jest.mock(
   }),
   { virtual: true },
 );
-jest.mock('@/chat/view/agentIcons', () => ({ appendAgentIcon: jest.fn() }));
 
 const HOUR = 3_600_000;
 
@@ -113,12 +112,15 @@ describe('ChatPicker', () => {
   });
 
   it('puts a day heading above each group once, even when a group spans pages', () => {
-    const view = open(chats(120));
-    view.listEl.dispatchEvent(new Event('scroll'));
+    jest.useFakeTimers({ now: new Date(2026, 9, 31, 12).getTime() });
+    try {
+      const view = open(chats(120));
+      view.listEl.dispatchEvent(new Event('scroll'));
 
-    const headings = view.headings();
-    expect(headings.length).toBeGreaterThan(1);
-    expect(new Set(headings).size).toBe(headings.length);
+      expect(view.headings()).toEqual(['Today', 'Yesterday', 'Previous 7 days', 'Older']);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('lists search matches as one run without headings, and restarts at the first page', () => {

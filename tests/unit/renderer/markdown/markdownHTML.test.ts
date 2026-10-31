@@ -173,41 +173,18 @@ describe('markdownHtml', () => {
       ].join('\n'));
     });
 
-    it('preserves angle comparisons inside inline and display math', () => {
-      const markdown = '$x<y$ and $a>b$.\n$$c<d \\land d>e$$';
-      expect(escapeModelMarkdown(markdown)).toBe(markdown);
-    });
-
-    it('escapes HTML inside invalid inline math delimiters', () => {
-      expect(
-        escapeModelMarkdown('Prices are $5 <meta-name> and $10.')
-      ).toBe(
-        'Prices are $5 &lt;meta-name&gt; and $10.'
-      );
-      expect(escapeModelMarkdown('$ x<meta-name>$')).toBe('$ x&lt;meta-name&gt;$');
-      expect(escapeModelMarkdown('$x<meta-name> $')).toBe('$x&lt;meta-name&gt; $');
-      expect(escapeModelMarkdown('$x<meta-name>$10')).toBe('$x&lt;meta-name&gt;$10');
-    });
-
-    it('preserves backslash-escaped HTML-like text', () => {
-      expect(escapeModelMarkdown(String.raw`\<meta-name\> and <name>`)).toBe(
-        String.raw`\<meta-name\> and &lt;name&gt;`
-      );
-      expect(escapeModelMarkdown("\\`<name>\\`")).toBe("\\`&lt;name&gt;\\`");
-    });
-
-    it('preserves URI and email autolinks', () => {
-      expect(
-        escapeModelMarkdown('<https://example.com/a> <user@example.com> <placeholder>')
-      ).toBe(
-        '<https://example.com/a> <user@example.com> &lt;placeholder&gt;'
-      );
-    });
-
-    it('preserves image wikilinks for later embed processing', () => {
-      expect(escapeModelMarkdown('![[<image-name>.png|<alt>]]')).toBe(
-        '![[<image-name>.png|<alt>]]'
-      );
+    it.each([
+      ['preserves angle comparisons inside inline and display math', '$x<y$ and $a>b$.\n$$c<d \\land d>e$$', '$x<y$ and $a>b$.\n$$c<d \\land d>e$$'],
+      ['escapes HTML between dollar amounts', 'Prices are $5 <meta-name> and $10.', 'Prices are $5 &lt;meta-name&gt; and $10.'],
+      ['escapes HTML in math opened by a space', '$ x<meta-name>$', '$ x&lt;meta-name&gt;$'],
+      ['escapes HTML in math closed after a space', '$x<meta-name> $', '$x&lt;meta-name&gt; $'],
+      ['escapes HTML in math closed before a digit', '$x<meta-name>$10', '$x&lt;meta-name&gt;$10'],
+      ['preserves backslash-escaped HTML-like text', String.raw`\<meta-name\> and <name>`, String.raw`\<meta-name\> and &lt;name&gt;`],
+      ['preserves backslash-escaped backticks around HTML-like text', '\\`<name>\\`', '\\`&lt;name&gt;\\`'],
+      ['preserves URI and email autolinks', '<https://example.com/a> <user@example.com> <placeholder>', '<https://example.com/a> <user@example.com> &lt;placeholder&gt;'],
+      ['preserves image wikilinks for later embed processing', '![[<image-name>.png|<alt>]]', '![[<image-name>.png|<alt>]]'],
+    ])('%s', (_name, markdown, expected) => {
+      expect(escapeModelMarkdown(markdown)).toBe(expected);
     });
 
     it('escapes multiline HTML constructs and declarations', () => {

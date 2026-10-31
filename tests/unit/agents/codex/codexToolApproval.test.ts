@@ -22,7 +22,7 @@ it('suppresses only paths and change data already represented by normalized prev
     item: { file_path: 'note.md', changes: [{ path: 'note.md', kind: 'add', diff: 'new contents' }] },
   });
   expect(request.fields).toEqual([{ kind: 'path', value: 'other.md' }]);
-  expect(request.changes).toHaveLength(1);
+  expect(request.changes).toEqual([{ path: 'note.md', kind: 'add', blocks: [{ before: '', after: 'new contents' }] }]);
 });
 
 const codexChanges = (input: Readonly<Record<string, unknown>>) => codexToolApproval('these file changes', input).changes;

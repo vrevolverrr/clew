@@ -48,10 +48,10 @@ describe('mixModel', () => {
 
     const layers = mixModel(a, b, 0.5)!.layers;
 
-    expect(layers[0]).toMatchObject({ values: [5, 5, null] });
-    expect(layers[1]).toMatchObject({ at: 3 });
-    expect(layers[2]).toMatchObject({ points: [[0, 4]], base: 1 });
-    expect(layers[3]).toMatchObject({ x: 2, y: 2, text: 'b' });
+    expect(layers[0]).toEqual({ kind: 'bars', values: [5, 5, null], mode: 'waterfall' });
+    expect(layers[1]).toEqual({ kind: 'rule', at: 3, axis: 'x' });
+    expect(layers[2]).toEqual({ kind: 'area', points: [[0, 4]], base: 1 });
+    expect(layers[3]).toEqual({ kind: 'note', x: 2, y: 2, text: 'b' });
   });
 
   it.each([
@@ -81,7 +81,7 @@ describe('modelDistance', () => {
 
     const layer = mixModel(a, b, 0.5)!.layers[0] as Extract<Layer, { kind: 'area' }>;
 
-    expect(layer).toMatchObject({ points: [[0, 6]], lower: [[0, 1]], from: 1, to: 3 });
+    expect(layer).toEqual({ kind: 'area', points: [[0, 6]], base: 0, lower: [[0, 1]], from: 1, to: 3 });
   });
 
   it('does not mix an area shaded against a curve with one shaded against a baseline', () => {

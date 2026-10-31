@@ -17,7 +17,7 @@ describe('maths spans', () => {
 
   it('checks every span another renderer might typeset, so a check never misses one', () => {
     expect(texIn('a $ \\style{x}{y} $ b')).toEqual(['$ \\style{x}{y} $']);
-    expect(texProblems('$ \\style{x}{y} $')).toBeDefined();
+    expect(texProblems('$ \\style{x}{y} $')).toBe('TeX \\style is not allowed; colour with a tag');
   });
 });
 

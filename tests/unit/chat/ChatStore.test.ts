@@ -182,9 +182,9 @@ describe('decodeChat', () => {
     expect(decodeChat(JSON.parse(JSON.stringify({ ...chat, permissionPolicy })))?.permissionPolicy).toBe(permissionPolicy);
   });
 
-  it('inherits for older chats and refuses malformed permission policies', () => {
+  it('accepts older chats without a permission policy or a model choice', () => {
     expect(decodeChat(chat)?.permissionPolicy).toBeUndefined();
-    for (const permissionPolicy of ['always', null, 1, {}, []]) expect(decodeChat({ ...chat, permissionPolicy })).toBeNull();
+    expect(decodeChat(chat)?.choice).toBeUndefined();
   });
 
   it('keeps the stops a reply pointed at, in place among its text', () => {
@@ -196,46 +196,34 @@ describe('decodeChat', () => {
     expect(decodeChat(JSON.parse(JSON.stringify(stored)))).toEqual(stored);
   });
 
-  it('keeps a thumb and the prompt a turn ran under, and refuses a thumb that is neither', () => {
+  it('keeps a thumb and the prompt a turn ran under', () => {
     const rated = { ...chat, turns: [{ ...chat.turns[0]!, rating: 'down' as const, prompt: '1a2b3c4d' }] };
     const stored = JSON.parse(JSON.stringify(rated));
 
     expect(decodeChat(stored)?.turns[0]).toMatchObject({ rating: 'down', prompt: '1a2b3c4d' });
-    expect(decodeChat({ ...stored, turns: [{ ...stored.turns[0], rating: 'sideways' }] })).toBeNull();
-    expect(decodeChat({ ...stored, turns: [{ ...stored.turns[0], prompt: 7 }] })).toBeNull();
-  });
-
-  it('keeps the quote a turn was sent with', () => {
-    const quoted = { ...chat, turns: [startTurn('Explain this', { text: 'Rayleigh scattering', path: 'optics.md', startLine: 12 })] };
-    expect(decodeChat(JSON.parse(JSON.stringify(quoted)))?.turns[0]?.quote).toEqual({ text: 'Rayleigh scattering', path: 'optics.md', startLine: 12 });
-  });
-
-  it('keeps chat quote provenance and rejects an unknown source', () => {
-    const quoted = { ...chat, turns: [startTurn('Explain this', { text: 'Earlier reply', path: ID, source: 'chat' })] };
-    expect(decodeChat(JSON.parse(JSON.stringify(quoted)))?.turns[0]?.quote).toEqual({ text: 'Earlier reply', path: ID, source: 'chat' });
-    expect(decodeChat({ ...quoted, turns: [{ ...quoted.turns[0], quote: { text: 'x', path: ID, source: 'unknown' } }] })).toBeNull();
-  });
-
-  it('keeps the chat model choice and accepts older chats without one', () => {
-    const chosen = { ...chat, choice: { model: 'model-a', effort: 'medium' } };
-    expect(decodeChat(JSON.parse(JSON.stringify(chosen)))?.choice).toEqual(chosen.choice);
-    expect(decodeChat(chat)?.choice).toBeUndefined();
-    expect(decodeChat({ ...chat, choice: 'model-a' })).toBeNull();
-  });
-
-  it('keeps the images, files, pastes and picked-file tokens a turn was sent with, in order', () => {
-    const attachments = [
-      { kind: 'file' as const, path: '/Users/me/week1.pdf', name: 'week1.pdf' },
-      { kind: 'image' as const, path: 'attachments/chat/a1.png', mediaType: 'image/png' as const, name: 'image.png' },
-      { kind: 'paste' as const, path: 'p/attachments/chat/ab.txt', name: 'Pasted text · 900 lines' },
-      { kind: 'file' as const, path: '/v/week1.md', name: 'week1.md', token: 'week1.md' },
-    ];
-    const withAttachments = { ...chat, turns: [startTurn('compare @week1.md', undefined, attachments)] };
-    expect(decodeChat(JSON.parse(JSON.stringify(withAttachments)))?.turns[0]?.attachments).toEqual(attachments);
   });
 
   it.each([
+    ['the quote a turn was sent with', { ...chat, turns: [startTurn('Explain this', { text: 'Rayleigh scattering', path: 'optics.md', startLine: 12 })] }],
+    ['the chat a quote came from', { ...chat, turns: [startTurn('Explain this', { text: 'Earlier reply', path: ID, source: 'chat' })] }],
+    ['the chat model choice', { ...chat, choice: { model: 'model-a', effort: 'medium' } }],
+    ['the images, files, pastes and picked-file tokens a turn was sent with, in order', { ...chat, turns: [startTurn('compare @week1.md', undefined, [
+      { kind: 'file', path: '/Users/me/week1.pdf', name: 'week1.pdf' },
+      { kind: 'image', path: 'attachments/chat/a1.png', mediaType: 'image/png', name: 'image.png' },
+      { kind: 'paste', path: 'p/attachments/chat/ab.txt', name: 'Pasted text · 900 lines' },
+      { kind: 'file', path: '/v/week1.md', name: 'week1.md', token: 'week1.md' },
+    ])] }],
+  ] as [string, ChatRecord][])('keeps %s', (_name, stored) => {
+    expect(decodeChat(JSON.parse(JSON.stringify(stored)))).toEqual(stored);
+  });
+
+  it.each<[string, unknown]>([
     ['a non-object', 'chat'],
+    ...['always', null, 1, {}, []].map((permissionPolicy): [string, unknown] => [`the permission policy ${JSON.stringify(permissionPolicy)}`, { ...chat, permissionPolicy }]),
+    ['a thumb that is neither up nor down', { ...chat, turns: [{ ...chat.turns[0], rating: 'sideways' }] }],
+    ['a prompt id that is not text', { ...chat, turns: [{ ...chat.turns[0], prompt: 7 }] }],
+    ['a quote from an unknown source', { ...chat, turns: [{ message: 'q', quote: { text: 'x', path: ID, source: 'unknown' }, parts: [], status: 'completed' }] }],
+    ['a model choice that is not an object', { ...chat, choice: 'model-a' }],
     ['an id that is not a uuid', { ...chat, id: '../../data' }],
     ['an unknown agent', { ...chat, agent: 'gemini' }],
     ['a session id that is not text', { ...chat, sessionId: 4 }],
@@ -272,11 +260,16 @@ describe('decodeSummaries', () => {
     }],
   };
 
-  it('reads back what it wrote and refuses anything else', () => {
+  it('reads back what it wrote', () => {
     expect(decodeSummaries([summarize(chat)])).toEqual([summarize(chat)]);
-    expect(decodeSummaries({})).toBeNull();
-    expect(decodeSummaries([{ ...summarize(chat), id: '../x' }])).toBeNull();
-    expect(decodeSummaries([{ ...summarize(chat), agent: 'gemini' }])).toBeNull();
-    expect(decodeSummaries([{ ...summarize(chat), text: 3 }])).toBeNull();
+  });
+
+  it.each([
+    ['a non-list', {}],
+    ['an id that is not a uuid', [{ ...summarize(chat), id: '../x' }]],
+    ['an unknown agent', [{ ...summarize(chat), agent: 'gemini' }]],
+    ['text that is not text', [{ ...summarize(chat), text: 3 }]],
+  ])('refuses %s', (_name, value) => {
+    expect(decodeSummaries(value)).toBeNull();
   });
 });

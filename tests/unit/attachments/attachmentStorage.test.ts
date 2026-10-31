@@ -12,7 +12,7 @@ describe('storagePlan', () => {
   });
 
   it('stores a JPEG as a JPEG', () => {
-    expect(storagePlan(6000, 4000, 1_000_000, 'image/jpeg')).toMatchObject({ mediaType: 'image/jpeg' });
+    expect(storagePlan(6000, 4000, 1_000_000, 'image/jpeg')).toEqual({ width: MAX_IMAGE_EDGE, height: 1717, mediaType: 'image/jpeg' });
   });
 
   it('keeps the size of an image that is too big only in bytes, and makes it a JPEG', () => {
@@ -20,7 +20,7 @@ describe('storagePlan', () => {
   });
 
   it('never makes a side smaller than one pixel', () => {
-    expect(storagePlan(100_000, 10, 1000, 'image/png')).toMatchObject({ width: MAX_IMAGE_EDGE, height: 1 });
+    expect(storagePlan(100_000, 10, 1000, 'image/png')).toEqual({ width: MAX_IMAGE_EDGE, height: 1, mediaType: 'image/png' });
   });
 });
 

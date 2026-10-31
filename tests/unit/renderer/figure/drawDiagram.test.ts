@@ -31,10 +31,10 @@ describe('drawDiagram', () => {
     drawDiagram(el, node, diagramExtent(node), 480, (box, text) => void (box.textContent = String(text)));
     const [vx, vy, vw, vh] = el.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
     const ys = [...el.querySelectorAll('path.is-dimension')].flatMap((path) => [...path.getAttribute('d')!.matchAll(/[ML][\d.-]+,([\d.-]+)/g)].map((m) => Number(m[1])));
-    expect(ys.length).toBeGreaterThan(0);
+    expect(ys).toHaveLength(6);
     for (const y of ys) expect(y >= vy && y <= vy + vh).toBe(true);
     expect(vx).toBe(0);
-    expect(vw).toBeGreaterThan(0);
+    expect(vw).toBe(480);
   });
 
   it('colours a Vector\'s arrowhead like its line', () => {

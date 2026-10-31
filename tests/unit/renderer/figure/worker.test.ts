@@ -54,6 +54,7 @@ describe('the figure worker', () => {
   it('gives programs project and surface, and still lets a program declare its own project', async () => {
     const own = await run('const project = (p) => [p[0], p[1]];\nexport default () => <Diagram width={1} height={1}><Points pts={[project([1, 2, 3])]} /></Diagram>;');
     expect(own.error).toBeUndefined();
+    expect((own.frames![0].root.children[0] as { props: { pts: unknown } }).props.pts).toEqual([[1, 2]]);
     const reply = await run('export default () => <Diagram width={1} height={1}>{surface((x, y) => x * y, [0, 1], [0, 1], { n: 2 }).map((pts, i) => <Shape id={"w" + i} pts={pts} />)}</Diagram>;');
     expect(reply.frames![0].root.children).toHaveLength(6);
     expect(validateFigure(reply).ok).toBe(true);

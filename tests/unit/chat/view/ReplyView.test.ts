@@ -207,7 +207,9 @@ describe('ReplyView', () => {
     reply.appendText('Let me check.');
     reply.thinking();
     reply.thinking();
-    expect([...el.children].map((child) => child.className)).toEqual(['clew-reply-text', 'clew-tools is-running is-empty']);
+    expect([...el.children].map((child) => child.classList[0])).toEqual(['clew-reply-text', 'clew-tools']);
+    expect(el.children[1]!.classList.contains('is-running')).toBe(true);
+    expect(el.children[1]!.classList.contains('is-empty')).toBe(true);
 
     reply.finish();
     expect(blocks(el)).toEqual(['clew-reply-text: Let me check.']);
@@ -305,7 +307,7 @@ describe('ReplyView', () => {
     await settle();
     expect(run).toHaveBeenCalledTimes(1);
     expect(frame().classList.contains('is-drawing')).toBe(false);
-    expect(frame().querySelector('.clew-figure-node')).not.toBeNull();
+    expect(frame().querySelector('.clew-figure-node')?.textContent).toBe('Total');
   });
 
   it('shows a figure past the fourth in a reply as code, with a note', async () => {
@@ -400,7 +402,7 @@ describe('ReplyView', () => {
 
     const footer = el.querySelector('.clew-reply-footer')!;
     expect([...footer.children].map((child) => child.className.split(' ')[0])).toEqual(['clew-reply-time', 'clew-icon-action']);
-    expect(footer.querySelector('.clew-reply-time')!.textContent).toMatch(/\d/);
+    expect(footer.querySelector('.clew-reply-time')!.textContent).toMatch(/^(Jan\s+5|5\s+Jan)$/);
   });
 
   it('shows no time for a turn saved without one', () => {
@@ -602,6 +604,7 @@ describe('ReplyView', () => {
 
       expect(sent).toEqual(['My answer: 4 (correct). Question: Pick the even number']);
       expect(quizEl.querySelectorAll('.clew-quiz-option')[1]!.classList.contains('is-correct')).toBe(true);
+      expect(quizEl.querySelector('.clew-quiz-submit')).toBeNull();
     });
 
     it('stays open while the chat is busy', async () => {

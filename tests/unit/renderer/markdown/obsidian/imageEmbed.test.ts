@@ -107,41 +107,29 @@ describe('replaceImageEmbedsWithHTML', () => {
   });
 
   describe('alt text and dimensions', () => {
-    it('uses alt text from wikilink', () => {
-      const app = createMockApp(new Map([['image.png', 'app://local/image.png']]));
-      const result = replaceImageEmbedsWithHTML('![[image.png|My Alt Text]]', app);
+    it.each([
+      ['uses alt text from wikilink', 'image.png', '![[image.png|My Alt Text]]', 'alt="My Alt Text"'],
+      ['applies width dimension from alt text', 'image.png', '![[image.png|300]]', 'style="width: 300px;"'],
+      ['applies width and height dimensions', 'image.png', '![[image.png|200x150]]', 'style="width: 200px; height: 150px;"'],
+      ['uses basename as alt when no alt text provided', 'folder/my-image.png', '![[folder/my-image.png]]', 'alt="my-image"'],
+    ])('%s', (_name, path, markdown, expected) => {
+      const app = createMockApp(new Map([[path, `app://local/${path}`]]));
+      const result = replaceImageEmbedsWithHTML(markdown, app);
 
-      expect(result).toContain('alt="My Alt Text"');
-    });
-
-    it('applies width dimension from alt text', () => {
-      const app = createMockApp(new Map([['image.png', 'app://local/image.png']]));
-      const result = replaceImageEmbedsWithHTML('![[image.png|300]]', app);
-
-      expect(result).toContain('style="width: 300px;"');
-    });
-
-    it('applies width and height dimensions', () => {
-      const app = createMockApp(new Map([['image.png', 'app://local/image.png']]));
-      const result = replaceImageEmbedsWithHTML('![[image.png|200x150]]', app);
-
-      expect(result).toContain('style="width: 200px; height: 150px;"');
-    });
-
-    it('uses basename as alt when no alt text provided', () => {
-      const app = createMockApp(new Map([['folder/my-image.png', 'app://local/folder/my-image.png']]));
-      const result = replaceImageEmbedsWithHTML('![[folder/my-image.png]]', app);
-
-      expect(result).toContain('alt="my-image"');
+      expect(result).toContain(expected);
     });
   });
 
-  describe('supported image extensions', () => {
-    it('handles uppercase extensions (case-insensitive)', () => {
-      const app = createMockApp(new Map([['photo.PNG', 'app://local/photo.PNG']]));
-      const result = replaceImageEmbedsWithHTML('![[photo.PNG]]', app);
+  describe('file names', () => {
+    it.each([
+      ['an uppercase extension (case-insensitive)', 'photo.PNG', '<span class="clew-embedded-image"><img src="app://local/photo.PNG" alt="photo" loading="lazy"></span>'],
+      ['special characters', 'photo (2024-01-01).png', '<span class="clew-embedded-image"><img src="app://local/photo (2024-01-01).png" alt="photo (2024-01-01)" loading="lazy"></span>'],
+      ['spaces', 'my long image name.png', '<span class="clew-embedded-image"><img src="app://local/my long image name.png" alt="my long image name" loading="lazy"></span>'],
+    ])('embeds an image whose name has %s', (_name, filename, expected) => {
+      const app = createMockApp(new Map([[filename, `app://local/${filename}`]]));
+      const result = replaceImageEmbedsWithHTML(`![[${filename}]]`, app);
 
-      expect(result).toContain('<img');
+      expect(result).toBe(expected);
     });
   });
 
@@ -157,8 +145,7 @@ describe('replaceImageEmbedsWithHTML', () => {
       const app = createMockApp(new Map([['image.png', 'app://local/image.png']]));
       const result = replaceImageEmbedsWithHTML('![[note.md]] and ![[image.png]]', app);
 
-      expect(result).toContain('![[note.md]]');
-      expect(result).toContain('<img');
+      expect(result).toBe('![[note.md]] and <span class="clew-embedded-image"><img src="app://local/image.png" alt="image" loading="lazy"></span>');
     });
   });
 
@@ -283,22 +270,6 @@ describe('replaceImageEmbedsWithHTML', () => {
 
       expect(result).toBe('![[incomplete');
     });
-
-    it('handles special characters in filename', () => {
-      const filename = 'photo (2024-01-01).png';
-      const app = createMockApp(new Map([[filename, `app://local/${filename}`]]));
-      const result = replaceImageEmbedsWithHTML(`![[${filename}]]`, app);
-
-      expect(result).toContain('<img');
-    });
-
-    it('handles spaces in filename', () => {
-      const filename = 'my long image name.png';
-      const app = createMockApp(new Map([[filename, `app://local/${filename}`]]));
-      const result = replaceImageEmbedsWithHTML(`![[${filename}]]`, app);
-
-      expect(result).toContain('<img');
-    });
   });
 
   describe('error handling', () => {
@@ -342,7 +313,6 @@ describe('replaceImageEmbedsWithHTML', () => {
       const result = replaceImageEmbedsWithHTML('[[note.md]]', app);
 
       expect(result).toBe('[[note.md]]');
-      expect(result).not.toContain('<img');
     });
   });
 });

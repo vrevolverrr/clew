@@ -42,6 +42,6 @@ describe('geometry marks', () => {
     expect(rightAngleMark([0, 0], [2, 0], [0, 3], 0.5)).toEqual([[0.5, 0], [0.5, 0.5], [0, 0.5]]);
     const dim = dimensionMark([0, 0], [4, 0], 1);
     expect(dim.line).toEqual([[0, 1], [4, 1]]);
-    expect(dim.label[1]).toBeGreaterThan(1);
+    expect(dim.label).toEqual([2, 1.9]);
   });
 });

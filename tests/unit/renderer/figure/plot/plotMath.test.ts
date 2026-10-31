@@ -15,13 +15,11 @@ describe('niceTicks', () => {
 describe('niceTicks far from zero and close to it', () => {
   it('ends where adding 1 to the counter changes nothing', () => {
     const ticks = niceTicks(1e20, 1e20 + 32768, 5);
-    expect(ticks.length).toBeGreaterThan(0);
-    expect(ticks.length).toBeLessThanOrEqual(101);
+    expect(ticks).toHaveLength(9);
   });
 
   it('keeps a range of 1e-12 from rounding to nothing', () => {
-    const [low, high] = niceDomain(0, 1e-12);
-    expect(high).toBeGreaterThan(low);
+    expect(niceDomain(0, 1e-12)).toEqual([0, 1e-12]);
   });
 });
 
@@ -32,10 +30,7 @@ describe('niceDomain', () => {
   });
 
   it('gives a flat range some height', () => {
-    const [lo, hi] = niceDomain(5, 5);
-    expect(hi).toBeGreaterThan(lo);
-    expect(lo).toBeLessThanOrEqual(5);
-    expect(hi).toBeGreaterThanOrEqual(5);
+    expect(niceDomain(5, 5)).toEqual([4.4, 5.6]);
   });
 });
 

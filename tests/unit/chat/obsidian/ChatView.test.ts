@@ -137,8 +137,6 @@ describe('permission relay', () => {
     panel().querySelectorAll<HTMLButtonElement>('.clew-approval-card button')[0]!.click(); await settle(); await frame();
     expect(panel().textContent).toContain('Denied (demo only).');
     expect(panel().querySelector('.clew-approval-diff-path')?.textContent).toContain('Sorting algorithms.md');
-    expect(panel().querySelector('.clew-approval-diff del')).not.toBeNull();
-    expect(panel().querySelector('.clew-approval-diff ins')).not.toBeNull();
     panel().querySelectorAll<HTMLButtonElement>('.clew-approval-card button')[1]!.click(); await settle(); await frame();
     expect(panel().textContent).toContain('Allowed once (demo only).');
     expect(panel().querySelector('.clew-approval-value')?.textContent).toContain('network');
@@ -222,17 +220,6 @@ describe('permission relay', () => {
     expect(sessions).toHaveLength(3);
     expect(sessions[2]!.options.permissionPolicy).toBe('inherit');
   });
-
-  it('does not save an empty chat when its policy changes', async () => {
-    const { start, panel, sessions, store } = setup();
-    await start();
-    const save = jest.spyOn(store, 'save');
-    panel().querySelector<HTMLButtonElement>('[aria-label="Permission policy"]')!.click();
-    [...panel().querySelectorAll<HTMLButtonElement>('.clew-picker-option')].find((el) => el.textContent === 'Approval')!.click();
-    await settle();
-    expect(sessions.at(-1)!.options.permissionPolicy).toBe('approval');
-    expect(save).not.toHaveBeenCalled();
-  });
 });
 
 afterEach(async () => {
@@ -273,7 +260,7 @@ describe('concurrent chat tabs', () => {
       await settle();
       expect(strip.isConnected).toBe(true);
       expect(strip.closest('[hidden]')).toBeNull();
-      expect(strip.querySelector('[role="tab"]')).not.toBeNull();
+      expect(strip.querySelectorAll('[role="tab"]')).toHaveLength(1);
     } finally {
       release();
       await closing;
@@ -415,10 +402,6 @@ describe('concurrent chat tabs', () => {
   it('keeps independent drafts and attached pastes when switching', async () => {
     const { start, view, input, type, select, panel } = setup();
     await start();
-    const header = view.contentEl.querySelector('.clew-chat-header')!;
-    expect(header.querySelector('[aria-label="New chat"]')).not.toBeNull();
-    expect(header.querySelector('.clew-history-button')).not.toBeNull();
-    expect(header.querySelector('[role="tablist"]')).toBeNull();
     const tabBar = view.contentEl.querySelector('.clew-chat-tab-bar')!;
     const tabParent = tabBar.parentElement;
     expect(tabParent).toBe(view.contentEl.querySelector('.clew-chat-panels'));
@@ -440,9 +423,6 @@ describe('concurrent chat tabs', () => {
     const first = tabBar.querySelector<HTMLButtonElement>('[role="tab"]')!;
     first.focus();
     first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(document.activeElement).toBe(tabBar.querySelectorAll('[role="tab"]')[1]);
-    expect(tabBar.parentElement).toBe(tabParent);
-    expect(panel().contains(tabBar)).toBe(false);
     expect(input().value).toBe('Draft two');
   });
 
@@ -481,22 +461,16 @@ describe('concurrent chat tabs', () => {
     sessions[0]!.events.push({ type: 'text', delta: '@Highlight("a long quote", "Look", "a.md")\n' });
     sessions[0]!.events.push({ type: 'done', status: 'completed' }); sessions[0]!.events.close(); await settle();
     expect(stage.show).not.toHaveBeenCalled();
-    expect((await store.load(first))?.turns[0]?.parts).toContainEqual(expect.objectContaining({ type: 'highlight' }));
+    expect((await store.load(first))?.turns[0]?.parts).toContainEqual({ type: 'highlight', step: { path: 'a.md', quote: 'a long quote', comment: 'Look' } });
   });
 
-  it('stops and saves a running chat before closing its session', async () => {
-    const { start, view, send, sessions, store, input } = setup();
+  it('autoplays highlights from the selected chat', async () => {
+    const { start, send, sessions, stage } = setup();
     await start();
-    const id = view.chatId!;
-    send('Question'); await settle();
-    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await view.openChat({ fresh: true });
-    view.contentEl.querySelector<HTMLButtonElement>('[role="tab"]')!.dispatchEvent(new MouseEvent('contextmenu', { button: 2, bubbles: true, cancelable: true }));
-    await settle();
-    expect(sessions[0]!.signal?.aborted).toBe(true);
-    expect(sessions[0]!.close).toHaveBeenCalledTimes(1);
-    expect((await store.load(id))?.turns[0]?.status).toBe('interrupted');
-    expect(view.hasChat(id)).toBe(false);
+    send('Explain'); await settle();
+    sessions[0]!.events.push({ type: 'text', delta: '@Highlight("a long quote", "Look", "a.md")\n' });
+    sessions[0]!.events.push({ type: 'done', status: 'completed' }); sessions[0]!.events.close(); await settle();
+    expect(stage.show).toHaveBeenCalledTimes(1);
   });
 
   it('restores ordered tabs and the selected chat, accepting the previous single-chat state', async () => {

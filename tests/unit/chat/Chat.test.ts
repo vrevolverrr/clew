@@ -65,6 +65,7 @@ describe('Chat', () => {
     const saved = await store.load(ID);
     expect(saved?.turns).toHaveLength(1);
     expect(turn).toEqual(saved?.turns[0]);
+    expect(turn?.prompt).toMatch(/^[0-9a-f]{8}$/);
     expect(saved?.title).toBe('Why is the sky blue?');
     expect(saved?.sessionId).toBe('claude-0');
   });
@@ -113,7 +114,7 @@ describe('Chat', () => {
     await sending; await settle();
     expect(sessions).toHaveLength(2);
     expect(sessions[1]!.options).toMatchObject({ resume: 'claude-0' });
-    expect(sessions[0]!.close).toHaveBeenCalled();
+    expect(sessions[0]!.close).toHaveBeenCalledTimes(1);
   });
 
   it('does not save an empty chat when its policy changes', async () => {
@@ -133,7 +134,7 @@ describe('Chat', () => {
     expect(chat.record).toMatchObject({ agent: 'codex', sessionId: undefined });
     expect(events.switched).toHaveBeenCalledTimes(1);
     expect(sessions.at(-1)!.options.resume).toBeUndefined();
-    expect(sessions[0]!.close).toHaveBeenCalled();
+    expect(sessions[0]!.close).toHaveBeenCalledTimes(1);
   });
 
   it('saves an agent switch of a chat with turns, and not of an empty one', async () => {

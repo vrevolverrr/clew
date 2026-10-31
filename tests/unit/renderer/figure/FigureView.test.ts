@@ -273,7 +273,7 @@ describe('FigureView', () => {
     await flush();
     expect(view.el.querySelectorAll('.clew-quiz')).toHaveLength(1);
     expect(view.el.querySelector('.clew-quiz-bar')).toBeNull();
-    expect(view.el.querySelector('.clew-quiz-option.is-wrong')).not.toBeNull();
+    expect([...view.el.querySelectorAll('.clew-quiz-option')].map((option) => option.classList.contains('is-wrong'))).toEqual([true, false]);
     expect(markdown.sent).toHaveLength(1);
   });
 

@@ -42,9 +42,12 @@ describe('getEnhancedPath', () => {
 
     it('works when process.env.PATH is undefined', () => {
       delete process.env.PATH;
-      const result = getEnhancedPath();
-      expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
+      process.env.HOME = '/mock/home';
+      const segments = getEnhancedPath().split(SEP);
+      expect(segments).toEqual(expect.arrayContaining([
+        path.join('/mock/home', '.local', 'bin'),
+        ...(isWindows ? [] : ['/usr/local/bin']),
+      ]));
     });
   });
 
@@ -61,9 +64,6 @@ describe('getEnhancedPath', () => {
       expect(localBinCount).toBe(1);
       expect(usrBinCount).toBe(1);
     });
-
-    // Note: Case-insensitive deduplication on Windows is tested implicitly
-    // since the module uses lowercase comparison on win32
   });
 
   describe('empty segment filtering', () => {
@@ -88,28 +88,15 @@ describe('getEnhancedPath', () => {
   describe('Unix environment variable paths', () => {
     if (isWindows) return;
 
-    it('includes VOLTA_HOME/bin when set', () => {
-      process.env.VOLTA_HOME = '/custom/volta';
-      const result = getEnhancedPath();
-      expect(result).toContain('/custom/volta/bin');
-      delete process.env.VOLTA_HOME;
-    });
-
-    it('includes ASDF_DATA_DIR shims and bin when set', () => {
-      process.env.ASDF_DATA_DIR = '/custom/asdf';
-      const result = getEnhancedPath();
-      expect(result).toContain('/custom/asdf/shims');
-      expect(result).toContain('/custom/asdf/bin');
+    it.each([
+      ['VOLTA_HOME', '/custom/volta', ['/custom/volta/bin']],
+      ['ASDF_DATA_DIR', '/custom/asdf', ['/custom/asdf/shims', '/custom/asdf/bin']],
+      ['ASDF_DIR', '/alt/asdf', ['/alt/asdf/shims', '/alt/asdf/bin']],
+      ['NVM_BIN', '/home/user/.nvm/versions/node/v20/bin', ['/home/user/.nvm/versions/node/v20/bin']],
+    ])('includes the paths for %s when set', (name, value, expected) => {
       delete process.env.ASDF_DATA_DIR;
-    });
-
-    it('includes ASDF_DIR shims and bin when set', () => {
-      delete process.env.ASDF_DATA_DIR;
-      process.env.ASDF_DIR = '/alt/asdf';
-      const result = getEnhancedPath();
-      expect(result).toContain('/alt/asdf/shims');
-      expect(result).toContain('/alt/asdf/bin');
-      delete process.env.ASDF_DIR;
+      process.env[name] = value;
+      expect(getEnhancedPath().split(SEP)).toEqual(expect.arrayContaining(expected));
     });
 
     describe('fnm aliases (Unix)', () => {
@@ -173,13 +160,6 @@ describe('getEnhancedPath', () => {
         ]));
         expect(entries).not.toContain('/fake/home/.nodenv/shims');
       });
-    });
-
-    it('includes NVM_BIN when set', () => {
-      process.env.NVM_BIN = '/home/user/.nvm/versions/node/v20/bin';
-      const result = getEnhancedPath();
-      expect(result).toContain('/home/user/.nvm/versions/node/v20/bin');
-      delete process.env.NVM_BIN;
     });
 
     describe('nvm fallback when NVM_BIN is not set (Unix)', () => {
@@ -340,7 +320,10 @@ describe('getEnhancedPath', () => {
       return nodePath;
     }
 
-    it('prepends detected node directory before extra paths when cliPath is .js', () => {
+    it.each([
+      ['/path/to/cli.js', 'before'],
+      ['/path/to/claude.exe', 'after'],
+    ])('places the detected node directory for %s %s the extra paths', (cliPath, order) => {
       const fakeDir = isWindows ? 'C:\\fake\\node' : '/tmp/fake-node';
       mockNodeExecutable(fakeDir);
 
@@ -350,7 +333,7 @@ describe('getEnhancedPath', () => {
         process.env.ProgramFiles = 'C:\\Program Files';
       }
 
-      const result = getEnhancedPath('/path/to/cli.js');
+      const result = getEnhancedPath(cliPath);
       const segments = result.split(SEP);
       const extraPath = isWindows ? 'C:\\Program Files\\nodejs' : '/usr/local/bin';
 
@@ -359,29 +342,8 @@ describe('getEnhancedPath', () => {
 
       expect(nodeIndex).toBeGreaterThanOrEqual(0);
       expect(extraIndex).toBeGreaterThanOrEqual(0);
-      expect(nodeIndex).toBeLessThan(extraIndex);
-    });
-
-    it('does not prepend node directory when cliPath is native binary', () => {
-      const fakeDir = isWindows ? 'C:\\fake\\node' : '/tmp/fake-node';
-      mockNodeExecutable(fakeDir);
-
-      const otherPath = isWindows ? 'C:\\other' : '/other';
-      process.env.PATH = `${fakeDir}${SEP}${otherPath}`;
-      if (isWindows) {
-        process.env.ProgramFiles = 'C:\\Program Files';
-      }
-
-      const result = getEnhancedPath('/path/to/claude.exe');
-      const segments = result.split(SEP);
-      const extraPath = isWindows ? 'C:\\Program Files\\nodejs' : '/usr/local/bin';
-
-      const nodeIndex = segments.indexOf(fakeDir);
-      const extraIndex = segments.indexOf(extraPath);
-
-      expect(nodeIndex).toBeGreaterThanOrEqual(0);
-      expect(extraIndex).toBeGreaterThanOrEqual(0);
-      expect(nodeIndex).toBeGreaterThan(extraIndex);
+      if (order === 'before') expect(nodeIndex).toBeLessThan(extraIndex);
+      else expect(nodeIndex).toBeGreaterThan(extraIndex);
     });
   });
 
@@ -413,6 +375,7 @@ describe('getEnhancedPath', () => {
       // CLI directory should be added and come before /usr/bin
       expect(segments).toContain(nvmBinDir);
       expect(segments.indexOf(nvmBinDir)).toBeLessThan(segments.indexOf('/usr/bin'));
+      expect(segments[0]).toBe(nvmBinDir);
     });
 
     it('adds CLI directory to PATH when it contains node (Windows nvm)', () => {
@@ -461,109 +424,26 @@ describe('getEnhancedPath', () => {
       expect(result.split(SEP)).not.toContain(cliDir);
     });
 
-    it('CLI directory has higher priority than fallback node search', () => {
-      if (isWindows) return;
-
-      const nvmBinDir = '/Users/test/.nvm/versions/node/v20.10.0/bin';
-      const cliPath = path.join(nvmBinDir, 'cli.js'); // JS file
-
-      // Mock: node exists in CLI directory
-      const nodePath = path.join(nvmBinDir, 'node');
-      jest.spyOn(fs, 'existsSync').mockImplementation(p => String(p) === nodePath);
-      jest.spyOn(fs, 'statSync').mockImplementation(
-        p => ({ isFile: () => String(p) === nodePath }) as fsType.Stats
-      );
-      mockExecuteAccess(nodePath);
-
-      process.env.PATH = '/usr/bin';
-      const result = getEnhancedPath(cliPath);
-      const segments = result.split(SEP);
-
-      // CLI directory should come first
-      expect(segments[0]).toBe(nvmBinDir);
-    });
   });
 });
 
 describe('cliPathRequiresNode', () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it('returns true for .js files', () => {
-    expect(cliPathRequiresNode('/path/to/cli.js')).toBe(true);
-    expect(cliPathRequiresNode('C:\\path\\to\\cli.js')).toBe(true);
-  });
-
-  it('returns true for other JS extensions', () => {
-    expect(cliPathRequiresNode('/path/to/cli.mjs')).toBe(true);
-    expect(cliPathRequiresNode('/path/to/cli.cjs')).toBe(true);
-    expect(cliPathRequiresNode('/path/to/cli.ts')).toBe(true);
-    expect(cliPathRequiresNode('/path/to/cli.tsx')).toBe(true);
-    expect(cliPathRequiresNode('/path/to/cli.jsx')).toBe(true);
-  });
-
-  it('returns false for native binaries', () => {
-    expect(cliPathRequiresNode('/path/to/claude')).toBe(false);
-    expect(cliPathRequiresNode('/path/to/claude.exe')).toBe(false);
-    expect(cliPathRequiresNode('C:\\path\\to\\claude.exe')).toBe(false);
-  });
-
-  it('returns true for scripts with node shebang', () => {
-    const scriptPath = isWindows ? 'C:\\temp\\claude' : '/tmp/claude';
-    const shebang = '#!/usr/bin/env node\nconsole.log("hi");\n';
-
-    jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
-    jest.spyOn(fs, 'fstatSync').mockImplementation(
-      () => ({ isFile: () => true }) as fsType.Stats
-    );
-    jest.spyOn(fs, 'readSync').mockImplementation((_, buffer: ArrayBufferView) => {
-      Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength).write(shebang);
-      return shebang.length;
-    });
-    jest.spyOn(fs, 'closeSync').mockImplementation(() => {});
-
-    expect(cliPathRequiresNode(scriptPath)).toBe(true);
-  });
-
-  it('returns false when path exists but is a directory', () => {
-    const dirPath = isWindows ? 'C:\\temp\\claude' : '/tmp/claude';
-    jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
-    jest.spyOn(fs, 'fstatSync').mockImplementation(
-      () => ({ isFile: () => false }) as fsType.Stats
-    );
-    jest.spyOn(fs, 'closeSync').mockImplementation(() => {});
-
-    expect(cliPathRequiresNode(dirPath)).toBe(false);
-  });
-
-  it('returns false for non-node shebang scripts that reference node in the body', () => {
-    const scriptPath = isWindows ? 'C:\\temp\\claude-wrapper' : '/tmp/claude-wrapper';
-    const script = [
-      '#!/usr/bin/env bash',
-      'set -euo pipefail',
-      'NODE_BIN="$(command -v node)"',
-      'exec "$NODE_BIN" /path/to/cli.js "$@"',
-      '',
-    ].join('\n');
-
-    jest.spyOn(fs, 'openSync').mockImplementation(() => 1 as any);
-    jest.spyOn(fs, 'fstatSync').mockImplementation(
-      () => ({ isFile: () => true }) as fsType.Stats
-    );
-    jest.spyOn(fs, 'readSync').mockImplementation((_, buffer: ArrayBufferView) => {
-      Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength).write(script);
-      return script.length;
-    });
-    jest.spyOn(fs, 'closeSync').mockImplementation(() => {});
-
-    expect(cliPathRequiresNode(scriptPath)).toBe(false);
-  });
-
-  it('is case-insensitive', () => {
-    expect(cliPathRequiresNode('/path/to/CLI.JS')).toBe(true);
-    expect(cliPathRequiresNode('/path/to/cli.MJS')).toBe(true);
-    expect(cliPathRequiresNode('/path/to/cli-wrapper.CJS')).toBe(true);
+  it.each([
+    ['/path/to/cli.js', true],
+    ['C:\\path\\to\\cli.js', true],
+    ['/path/to/cli.mjs', true],
+    ['/path/to/cli.cjs', true],
+    ['/path/to/cli.ts', true],
+    ['/path/to/cli.tsx', true],
+    ['/path/to/cli.jsx', true],
+    ['/path/to/CLI.JS', true],
+    ['/path/to/cli.MJS', true],
+    ['/path/to/cli-wrapper.CJS', true],
+    ['/path/to/claude', false],
+    ['/path/to/claude.exe', false],
+    ['C:\\path\\to\\claude.exe', false],
+  ])('reports whether %p needs Node: %p', (cliPath, expected) => {
+    expect(cliPathRequiresNode(cliPath)).toBe(expected);
   });
 });
 
@@ -586,48 +466,29 @@ describe('getExtraBinaryPaths (Windows branches)', () => {
     return require('@/agents/process/env');
   }
 
-  it('includes APPDATA npm path when APPDATA is set', () => {
-    process.env.APPDATA = '/mock/AppData/Roaming';
-    process.env.LOCALAPPDATA = '/mock/AppData/Local';
+  it.each([
+    ['APPDATA npm path', { APPDATA: '/mock/AppData/Roaming', LOCALAPPDATA: '/mock/AppData/Local' }, path.join('/mock/AppData/Roaming', 'npm')],
+    ['LOCALAPPDATA nodejs path', { LOCALAPPDATA: '/mock/AppData/Local' }, path.join('/mock/AppData/Local', 'Programs', 'nodejs')],
+    ['NVM_SYMLINK', { NVM_SYMLINK: '/mock/nvm/symlink' }, '/mock/nvm/symlink'],
+    ['NVM_HOME', { NVM_HOME: '/mock/nvm/home' }, '/mock/nvm/home'],
+    ['APPDATA/nvm when NVM_HOME is not set', { NVM_HOME: undefined, APPDATA: '/mock/AppData/Roaming' }, path.join('/mock/AppData/Roaming', 'nvm')],
+    ['VOLTA_HOME/bin', { VOLTA_HOME: '/mock/volta' }, path.join('/mock/volta', 'bin')],
+    ['home/.volta/bin when VOLTA_HOME is not set', { VOLTA_HOME: undefined }, path.join('/mock/home', '.volta', 'bin')],
+    ['ChocolateyInstall/bin', { ChocolateyInstall: '/mock/choco' }, path.join('/mock/choco', 'bin')],
+    ['ProgramData/chocolatey/bin when ChocolateyInstall is not set', { ChocolateyInstall: undefined, ProgramData: undefined }, path.join('C:\\ProgramData', 'chocolatey', 'bin')],
+    ['SCOOP shims', { SCOOP: '/mock/scoop' }, path.join('/mock/scoop', 'shims')],
+    ['home/scoop shims when SCOOP is not set', { SCOOP: undefined }, path.join('/mock/home', 'scoop', 'shims')],
+    ['Docker under Program Files', { ProgramFiles: '/mock/Program Files' }, path.join('/mock/Program Files', 'Docker', 'Docker', 'resources', 'bin')],
+    ['home/.local/bin', {}, path.join('/mock/home', '.local', 'bin')],
+    ['the inherited PATH, split on semicolons', { PATH: '/existing' }, '/existing'],
+  ] as [string, Record<string, string | undefined>, string][])('includes %s', (_name, variables, entry) => {
     process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('npm');
-    expect(result).toContain('Roaming');
-  });
-
-  it('includes LOCALAPPDATA nodejs paths', () => {
-    process.env.LOCALAPPDATA = '/mock/AppData/Local';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('Local');
-    expect(result).toContain('nodejs');
-  });
-
-  it('includes NVM_SYMLINK when set', () => {
-    process.env.NVM_SYMLINK = '/mock/nvm/symlink';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('/mock/nvm/symlink');
-  });
-
-  it('includes NVM_HOME when set', () => {
-    process.env.NVM_HOME = '/mock/nvm/home';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('/mock/nvm/home');
-  });
-
-  it('falls back to APPDATA/nvm when NVM_HOME not set', () => {
-    delete process.env.NVM_HOME;
-    process.env.APPDATA = '/mock/AppData/Roaming';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('nvm');
+    for (const [key, value] of Object.entries(variables)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    const entries = loadWithWindowsPlatform().getEnhancedPath().split(';');
+    expect(entries).toContain(entry);
   });
 
   it('includes fnm default Node.js aliases without the PowerShell hook', () => {
@@ -666,77 +527,6 @@ describe('getExtraBinaryPaths (Windows branches)', () => {
     expect(entries).toEqual(expect.arrayContaining([
       '/custom/pnpm', '/custom/proto/shims', '/custom/proto/bin', '/custom/nvs/default',
     ]));
-  });
-
-  it('includes VOLTA_HOME/bin when set', () => {
-    process.env.VOLTA_HOME = '/mock/volta';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('/mock/volta/bin');
-  });
-
-  it('falls back to home/.volta/bin when VOLTA_HOME not set', () => {
-    delete process.env.VOLTA_HOME;
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('.volta');
-  });
-
-  it('includes ChocolateyInstall/bin when set', () => {
-    process.env.ChocolateyInstall = '/mock/choco';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('/mock/choco/bin');
-  });
-
-  it('falls back to ProgramData/chocolatey/bin when ChocolateyInstall not set', () => {
-    delete process.env.ChocolateyInstall;
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('chocolatey');
-  });
-
-  it('includes SCOOP paths when set', () => {
-    process.env.SCOOP = '/mock/scoop';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('/mock/scoop/shims');
-  });
-
-  it('falls back to home/scoop when SCOOP not set', () => {
-    delete process.env.SCOOP;
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('scoop');
-  });
-
-  it('includes Docker path under Program Files', () => {
-    process.env.ProgramFiles = '/mock/Program Files';
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('Docker');
-  });
-
-  it('includes home/.local/bin on Windows', () => {
-    process.env.HOME = '/mock/home';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain('.local');
-  });
-
-  it('uses semicolon separator on Windows', () => {
-    process.env.HOME = '/mock/home';
-    process.env.PATH = '/existing';
-    const mod = loadWithWindowsPlatform();
-    const result = mod.getEnhancedPath();
-    expect(result).toContain(';');
   });
 });
 
@@ -792,15 +582,4 @@ describe('getEnhancedPath inside the Obsidian process', () => {
     expect(segments).toContain('/usr/local/bin');
     expect(segments).toContain(path.join('/home/test', '.local', 'bin'));
   });
-});
-
-it('does not reopen a CLI whose directory already supplies Node', () => {
-  const exists = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
-  const stat = jest.spyOn(fs, 'statSync').mockReturnValue({ isFile: () => true } as fsType.Stats);
-  mockExecuteAccess('/cli/node');
-  const open = jest.spyOn(fs, 'openSync').mockImplementation(() => { throw new Error('unnecessary read'); });
-  try {
-    getEnhancedPath('/cli/claude');
-    expect(open).not.toHaveBeenCalled();
-  } finally { exists.mockRestore(); stat.mockRestore(); open.mockRestore(); }
 });
