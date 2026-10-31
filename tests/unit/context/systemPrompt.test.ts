@@ -10,7 +10,7 @@ describe('buildSystemPrompt', () => {
   const prompt = buildSystemPrompt();
 
   // The prompt states `id` once in prose rather than in each signature, and leaves these props out of their element's signature.
-  const UNLISTED: Readonly<Record<string, readonly string[]>> = { Fn: ['pts'], Label: ['tag'], RightAngle: ['tag'], Dimension: ['tag'] };
+  const UNLISTED: Readonly<Record<string, readonly string[]>> = { Fn: ['pts'] };
 
   it.each(Object.entries(ELEMENT_PROPS))('writes <%s> with every prop it takes in its own signature', (element, props) => {
     const signatures = [...prompt.matchAll(new RegExp(`\`<${element}(?=[\\s/>])[^\`]*\``, 'g'))].map((match) => match[0]);
