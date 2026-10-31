@@ -1,10 +1,10 @@
-import { escapeHTML, escapeRawHTMLTags } from '@/renderer/markdown/markdownHTML';
+import { escapeHTML, escapeModelMarkdown } from '@/renderer/markdown/markdownHTML';
 
 describe('markdownHtml', () => {
-  describe('escapeRawHTMLTags', () => {
+  describe('escapeModelMarkdown', () => {
     it('escapes placeholder-style tags and raw HTML exactly', () => {
       expect(
-        escapeRawHTMLTags('Use <meta-name> and <span title="A&B">value</span>.')
+        escapeModelMarkdown('Use <meta-name> and <span title="A&B">value</span>.')
       ).toBe(
         'Use &lt;meta-name&gt; and &lt;span title=&quot;A&amp;B&quot;&gt;value&lt;/span&gt;.'
       );
@@ -19,7 +19,7 @@ describe('markdownHtml', () => {
         '    <indented-code>',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         '`<meta-name>` and &lt;meta-name&gt;',
         '```html',
         '<my-component>',
@@ -53,7 +53,7 @@ describe('markdownHtml', () => {
         '<inline-code>` and <placeholder>',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         '> ```html',
         '> <blockquote-code>',
         '> ```',
@@ -88,7 +88,7 @@ describe('markdownHtml', () => {
         '<after-code>',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         '```markdown',
         '- ```',
         '> ```',
@@ -107,7 +107,7 @@ describe('markdownHtml', () => {
         '`later',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         'unmatched `',
         '',
         '&lt;meta-name&gt;',
@@ -121,7 +121,7 @@ describe('markdownHtml', () => {
         '<meta-name>',
         '`later',
       ].join('\n');
-      expect(escapeRawHTMLTags(headingBoundary)).toBe([
+      expect(escapeModelMarkdown(headingBoundary)).toBe([
         'unmatched `',
         '# Heading',
         '&lt;meta-name&gt;',
@@ -141,7 +141,7 @@ describe('markdownHtml', () => {
         '> <math-quote-placeholder>$',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         'unmatched `',
         '- &lt;list-placeholder&gt;`',
         'unmatched `',
@@ -163,7 +163,7 @@ describe('markdownHtml', () => {
         '  > <inside-nested>` and <after-nested>',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         '- `list code',
         '  <inside-list>` and &lt;after-list&gt;',
         '> `quote code',
@@ -175,37 +175,37 @@ describe('markdownHtml', () => {
 
     it('preserves angle comparisons inside inline and display math', () => {
       const markdown = '$x<y$ and $a>b$.\n$$c<d \\land d>e$$';
-      expect(escapeRawHTMLTags(markdown)).toBe(markdown);
+      expect(escapeModelMarkdown(markdown)).toBe(markdown);
     });
 
     it('escapes HTML inside invalid inline math delimiters', () => {
       expect(
-        escapeRawHTMLTags('Prices are $5 <meta-name> and $10.')
+        escapeModelMarkdown('Prices are $5 <meta-name> and $10.')
       ).toBe(
         'Prices are $5 &lt;meta-name&gt; and $10.'
       );
-      expect(escapeRawHTMLTags('$ x<meta-name>$')).toBe('$ x&lt;meta-name&gt;$');
-      expect(escapeRawHTMLTags('$x<meta-name> $')).toBe('$x&lt;meta-name&gt; $');
-      expect(escapeRawHTMLTags('$x<meta-name>$10')).toBe('$x&lt;meta-name&gt;$10');
+      expect(escapeModelMarkdown('$ x<meta-name>$')).toBe('$ x&lt;meta-name&gt;$');
+      expect(escapeModelMarkdown('$x<meta-name> $')).toBe('$x&lt;meta-name&gt; $');
+      expect(escapeModelMarkdown('$x<meta-name>$10')).toBe('$x&lt;meta-name&gt;$10');
     });
 
     it('preserves backslash-escaped HTML-like text', () => {
-      expect(escapeRawHTMLTags(String.raw`\<meta-name\> and <name>`)).toBe(
+      expect(escapeModelMarkdown(String.raw`\<meta-name\> and <name>`)).toBe(
         String.raw`\<meta-name\> and &lt;name&gt;`
       );
-      expect(escapeRawHTMLTags("\\`<name>\\`")).toBe("\\`&lt;name&gt;\\`");
+      expect(escapeModelMarkdown("\\`<name>\\`")).toBe("\\`&lt;name&gt;\\`");
     });
 
     it('preserves URI and email autolinks', () => {
       expect(
-        escapeRawHTMLTags('<https://example.com/a> <user@example.com> <placeholder>')
+        escapeModelMarkdown('<https://example.com/a> <user@example.com> <placeholder>')
       ).toBe(
         '<https://example.com/a> <user@example.com> &lt;placeholder&gt;'
       );
     });
 
     it('preserves image wikilinks for later embed processing', () => {
-      expect(escapeRawHTMLTags('![[<image-name>.png|<alt>]]')).toBe(
+      expect(escapeModelMarkdown('![[<image-name>.png|<alt>]]')).toBe(
         '![[<image-name>.png|<alt>]]'
       );
     });
@@ -223,7 +223,7 @@ describe('markdownHtml', () => {
         '<!doctype html>',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         '&lt;!--',
         '&lt;comment-body&gt;',
         '--&gt;',
@@ -241,7 +241,7 @@ describe('markdownHtml', () => {
       ['CDATA section', '<![CDATA[\n<meta-name>'],
       ['processing instruction', '<?target\n<meta-name>'],
     ])('escapes an unclosed HTML %s through EOF', (_kind, markdown) => {
-      expect(escapeRawHTMLTags(markdown)).toBe(escapeHTML(markdown));
+      expect(escapeModelMarkdown(markdown)).toBe(escapeHTML(markdown));
     });
 
     it('distinguishes paragraph continuation indentation from indented code', () => {
@@ -268,7 +268,7 @@ describe('markdownHtml', () => {
         '    <html-following-code>',
       ].join('\n');
 
-      expect(escapeRawHTMLTags(markdown)).toBe([
+      expect(escapeModelMarkdown(markdown)).toBe([
         'Use:',
         '    &lt;paragraph-placeholder&gt;',
         '',
@@ -298,6 +298,28 @@ describe('markdownHtml', () => {
       expect(escapeHTML('<script>alert("x&y")</script>')).toBe(
         '&lt;script&gt;alert(&quot;x&amp;y&quot;)&lt;/script&gt;'
       );
+    });
+  });
+
+  describe('images', () => {
+    it('turns inline, reference and nested images into links and keeps vault embeds and code', () => {
+      expect(escapeModelMarkdown('![a](https://x.test/a.png) ![b][r] ![[x.png]] `![c](u)`\n\n[r]: https://x.test/b.png'))
+        .toBe('[a](https://x.test/a.png) [b][r] ![[x.png]] `![c](u)`\n\n[r]: https://x.test/b.png');
+      expect(escapeModelMarkdown('![[x](y)](https://x.test/c.png)')).toBe('[[x](y)](https://x.test/c.png)');
+      expect(escapeModelMarkdown('![[x](y)](https://x.test/c.png) ![[x.png]]')).toBe('[[x](y)](https://x.test/c.png) ![[x.png]]');
+      expect(escapeModelMarkdown('![[x](y)](u) <img src=x onerror=alert(1)> ]]')).toBe('[[x](y)](u) &lt;img src=x onerror=alert(1)&gt; ]]');
+    });
+
+    it('keeps an escaped bang, and rewrites one after an escaped backslash', () => {
+      expect(escapeModelMarkdown('\\![d](u) \\\\![e](https://x.test/e.png)')).toBe('\\![d](u) \\\\[e](https://x.test/e.png)');
+    });
+
+    it('leaves maths alone', () => {
+      expect(escapeModelMarkdown('$n![x^n]F(x)$ and $$k![t^k]G$$')).toBe('$n![x^n]F(x)$ and $$k![t^k]G$$');
+    });
+
+    it('rewrites an image inside escaped raw HTML', () => {
+      expect(escapeModelMarkdown('<div>![a](https://x.test/a.png)</div>')).toBe('&lt;div&gt;[a](https://x.test/a.png)&lt;/div&gt;');
     });
   });
 });

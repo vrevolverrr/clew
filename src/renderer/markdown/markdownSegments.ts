@@ -46,6 +46,7 @@ interface MarkdownSegment {
   transformable: boolean;
   fence?: MarkdownFenceOpening;
   rawHtml?: boolean;
+  math?: boolean;
   sealed?: boolean;
   wikilink?: MarkdownWikilink;
 }
@@ -187,6 +188,7 @@ function appendSegment(
   text: string,
   transformable: boolean,
   rawHtml = false,
+  math = false,
 ): void {
   if (!text) {
     return;
@@ -196,11 +198,12 @@ function appendSegment(
   if (
     previous?.transformable === transformable
     && previous.rawHtml === rawHtml
+    && !!previous.math === math
     && !previous.sealed
   ) {
     previous.text += text;
   } else {
-    segments.push({ text, transformable, rawHtml });
+    segments.push({ text, transformable, rawHtml, math });
   }
 }
 
@@ -349,7 +352,8 @@ function findWikilinkEnd(line: string, start: number): number | null {
   }
 
   const closingStart = line.indexOf(']]', start + 2);
-  return closingStart === -1 ? null : closingStart + 1;
+  if (closingStart === -1 || /[[\]]/.test(line.slice(start + 2, closingStart))) return null;
+  return closingStart + 1;
 }
 
 function findLinkDestinationEnd(line: string, start: number): number | null {
@@ -498,7 +502,7 @@ function splitInlineMarkdown(
         const end = findMatchingDollarRun(line, index, runLength);
         if (end !== null) {
           appendSegment(segments, line.slice(segmentStart, index), true);
-          appendSegment(segments, line.slice(index, end + 1), true);
+          appendSegment(segments, line.slice(index, end + 1), true, false, true);
           segmentStart = end + 1;
           index = end;
         } else {
@@ -513,7 +517,7 @@ function splitInlineMarkdown(
           );
           if (sourceEnd !== null && sourceEnd >= lineStart + line.length) {
             appendSegment(segments, line.slice(segmentStart, index), true);
-            appendSegment(segments, line.slice(index), true);
+            appendSegment(segments, line.slice(index), true, false, true);
             return { mathRunLength: runLength };
           }
           index += runLength - 1;
@@ -635,9 +639,9 @@ function splitMarkdown(markdown: string): MarkdownSegment[] {
     if (inlineMathRunLength !== null) {
       const mathEnd = findMatchingDollarRun(line, -inlineMathRunLength, inlineMathRunLength);
       if (mathEnd === null) {
-        appendSegment(segments, line, true);
+        appendSegment(segments, line, true, false, true);
       } else {
-        appendSegment(segments, line.slice(0, mathEnd + 1), true);
+        appendSegment(segments, line.slice(0, mathEnd + 1), true, false, true);
         const remainder = line.slice(mathEnd + 1);
         const continuation = splitInlineMarkdown(
           markdown,
@@ -788,6 +792,8 @@ function splitMarkdown(markdown: string): MarkdownSegment[] {
 interface MarkdownTransforms {
   fence?: (opener: string, fence: MarkdownFenceOpening) => string;
   text?: (text: string) => string;
+  /** `$…$` and `$$…$$` maths; defaults to `text`. */
+  math?: (math: string) => string;
   rawHtml?: (text: string) => string;
   wikilink?: (wikilink: string, metadata: MarkdownWikilink) => string;
 }
@@ -807,6 +813,9 @@ export function transformMarkdownSegments(
       }
       if (segment.rawHtml) {
         return transforms.rawHtml?.(segment.text) ?? segment.text;
+      }
+      if (segment.math) {
+        return (transforms.math ?? transforms.text)?.(segment.text) ?? segment.text;
       }
       if (segment.transformable) {
         return transforms.text?.(segment.text) ?? segment.text;
